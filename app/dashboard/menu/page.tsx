@@ -67,24 +67,53 @@ export default function MenuPage() {
   }
 
   const [sections, setSections] = useState<Section[]>([
-    { id: 'appetizers', name: 'Appetizers', description: 'Start your meal right', sortOrder: 1 },
-    { id: 'mains', name: 'Main Courses', description: 'Hearty entrees', sortOrder: 2 },
-    { id: 'sides', name: 'Sides', description: 'Perfect additions', sortOrder: 3 },
-    { id: 'desserts', name: 'Desserts', description: 'Sweet endings', sortOrder: 4 },
-    { id: 'drinks', name: 'Beverages', description: 'Refreshing drinks', sortOrder: 5 },
+    { id: 'appetizers', name: '🥗 Appetizers', description: 'Start your meal right', sortOrder: 1 },
+    { id: 'mains', name: '🍝 Main Courses', description: 'Hearty entrees', sortOrder: 2 },
+    { id: 'pizza', name: '🍕 Pizza', description: 'Wood-fired & delicious', sortOrder: 3 },
+    { id: 'sides', name: '🥔 Sides', description: 'Perfect additions', sortOrder: 4 },
+    { id: 'desserts', name: '🍰 Desserts', description: 'Sweet endings', sortOrder: 5 },
+    { id: 'drinks', name: '🥤 Beverages', description: 'Refreshing drinks', sortOrder: 6 },
   ])
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([
+    // Appetizers
     { id: '1', name: 'Caesar Salad', description: 'Crisp romaine, parmesan, croutons, house-made dressing', price: 12.99, sectionId: 'appetizers', available: true },
-    { id: '2', name: 'Garlic Bread', description: 'Toasted with butter and herbs', price: 6.99, sectionId: 'appetizers', available: true },
-    { id: '3', name: 'Bruschetta', description: 'Tomatoes, basil, garlic on toasted bread', price: 9.99, sectionId: 'appetizers', available: true },
-    { id: '4', name: 'Grilled Salmon', description: 'Atlantic salmon with lemon butter sauce', price: 24.99, sectionId: 'mains', available: true },
-    { id: '5', name: 'Ribeye Steak', description: '12oz prime cut, grilled to perfection', price: 34.99, sectionId: 'mains', available: false },
-    { id: '6', name: 'Chicken Parmesan', description: 'Breaded chicken with marinara and mozzarella', price: 19.99, sectionId: 'mains', available: true },
-    { id: '7', name: 'Mashed Potatoes', description: 'Creamy with butter and chives', price: 5.99, sectionId: 'sides', available: true },
-    { id: '8', name: 'Grilled Vegetables', description: 'Seasonal vegetables with herbs', price: 6.99, sectionId: 'sides', available: true },
-    { id: '9', name: 'Chocolate Lava Cake', description: 'Warm cake with molten chocolate center', price: 9.99, sectionId: 'desserts', available: true },
-    { id: '10', name: 'Tiramisu', description: 'Classic Italian dessert', price: 8.99, sectionId: 'desserts', available: true },
+    { id: '2', name: 'Garlic Bread', description: 'Toasted with butter and herbs, served with marinara', price: 6.99, sectionId: 'appetizers', available: true },
+    { id: '3', name: 'Bruschetta', description: 'Fresh tomatoes, basil, garlic on toasted ciabatta', price: 9.99, sectionId: 'appetizers', available: true },
+    { id: '4', name: 'Mozzarella Sticks', description: 'Golden fried with marinara dipping sauce', price: 8.99, sectionId: 'appetizers', available: true },
+    { id: '5', name: 'Calamari Fritti', description: 'Crispy fried calamari with spicy aioli', price: 14.99, sectionId: 'appetizers', available: true },
+    
+    // Mains
+    { id: '6', name: 'Grilled Salmon', description: 'Atlantic salmon with lemon butter sauce, asparagus', price: 24.99, sectionId: 'mains', available: true },
+    { id: '7', name: 'Ribeye Steak', description: '12oz prime cut, grilled to perfection with herb butter', price: 34.99, sectionId: 'mains', available: true },
+    { id: '8', name: 'Chicken Parmesan', description: 'Breaded chicken with marinara and melted mozzarella', price: 19.99, sectionId: 'mains', available: true },
+    { id: '9', name: 'Fettuccine Alfredo', description: 'Creamy parmesan sauce, option to add chicken or shrimp', price: 16.99, sectionId: 'mains', available: true },
+    { id: '10', name: 'Lobster Ravioli', description: 'Handmade pasta, lobster filling, rose cream sauce', price: 28.99, sectionId: 'mains', available: true },
+    
+    // Pizza
+    { id: '11', name: 'Margherita', description: 'San Marzano tomatoes, fresh mozzarella, basil', price: 14.99, sectionId: 'pizza', available: true },
+    { id: '12', name: 'Pepperoni', description: 'Classic pepperoni with mozzarella cheese', price: 16.99, sectionId: 'pizza', available: true },
+    { id: '13', name: 'BBQ Chicken', description: 'Grilled chicken, red onion, BBQ sauce, cilantro', price: 18.99, sectionId: 'pizza', available: true },
+    { id: '14', name: 'Meat Lovers', description: 'Pepperoni, sausage, bacon, ham', price: 19.99, sectionId: 'pizza', available: true },
+    
+    // Sides
+    { id: '15', name: 'Mashed Potatoes', description: 'Creamy with butter and chives', price: 5.99, sectionId: 'sides', available: true },
+    { id: '16', name: 'Grilled Vegetables', description: 'Seasonal vegetables with herbs', price: 6.99, sectionId: 'sides', available: true },
+    { id: '17', name: 'French Fries', description: 'Crispy golden fries with sea salt', price: 4.99, sectionId: 'sides', available: true },
+    { id: '18', name: 'House Salad', description: 'Mixed greens, tomato, cucumber, balsamic', price: 7.99, sectionId: 'sides', available: true },
+    
+    // Desserts
+    { id: '19', name: 'Chocolate Lava Cake', description: 'Warm cake with molten chocolate center, vanilla ice cream', price: 9.99, sectionId: 'desserts', available: true },
+    { id: '20', name: 'Tiramisu', description: 'Classic Italian dessert with espresso and mascarpone', price: 8.99, sectionId: 'desserts', available: true },
+    { id: '21', name: 'New York Cheesecake', description: 'Creamy cheesecake with berry compote', price: 8.99, sectionId: 'desserts', available: true },
+    { id: '22', name: 'Gelato', description: 'Three scoops, ask for todays flavors', price: 6.99, sectionId: 'desserts', available: true },
+    
+    // Drinks
+    { id: '23', name: 'Soft Drinks', description: 'Coke, Diet Coke, Sprite, Lemonade', price: 2.99, sectionId: 'drinks', available: true },
+    { id: '24', name: 'Iced Tea', description: 'Fresh brewed, sweetened or unsweetened', price: 2.99, sectionId: 'drinks', available: true },
+    { id: '25', name: 'Italian Soda', description: 'Choice of flavors with cream', price: 4.99, sectionId: 'drinks', available: true },
+    { id: '26', name: 'Espresso', description: 'Double shot', price: 3.99, sectionId: 'drinks', available: true },
+    { id: '27', name: 'Cappuccino', description: 'Espresso with steamed milk foam', price: 4.99, sectionId: 'drinks', available: true },
   ])
 
   const [newItem, setNewItem] = useState({
