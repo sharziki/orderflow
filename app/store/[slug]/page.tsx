@@ -1,41 +1,15 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams } from 'next/navigation'
-import Image from 'next/image'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Button } from '@/components/ui/button'
-import OrderModal from '@/components/OrderModal'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
-import {
-  ShoppingCart,
-  Plus,
-  Minus,
-  X,
-  Clock,
-  MapPin,
-  Phone,
-  Truck,
-  Store,
-  ChevronRight,
-  Search,
-  Utensils,
-  Check,
-  AlertCircle,
-  Loader2
-} from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, Clock, MapPin, Phone, ChevronRight, Loader2 } from 'lucide-react'
 
 interface MenuItem {
   id: string
   name: string
-  description: string
+  description: string | null
   price: number
   image: string | null
-  options: any
-  calories: number | null
 }
 
 interface Category {
@@ -44,503 +18,453 @@ interface Category {
   menuItems: MenuItem[]
 }
 
-interface StoreInfo {
+interface Store {
   id: string
   name: string
   slug: string
-  phone: string
-  address: string
-  city: string
-  state: string
-  zip: string
+  phone: string | null
+  address: string | null
+  city: string | null
+  state: string | null
   logo: string | null
-  template: string
   primaryColor: string
-  secondaryColor: string
+  template: string
   pickupEnabled: boolean
   deliveryEnabled: boolean
   taxRate: number
-  deliveryFee: number
-  minOrderAmount: number
   isOpen: boolean
 }
 
 interface CartItem {
   menuItem: MenuItem
   quantity: number
-  options: any[]
-  specialRequests: string
+}
+
+const THEMES: Record<string, { font: string; radius: string; button: string }> = {
+  modern: { font: 'font-sans', radius: 'rounded-xl', button: 'rounded-lg' },
+  classic: { font: 'font-serif', radius: 'rounded-md', button: 'rounded-md' },
+  bold: { font: 'font-sans', radius: 'rounded-2xl', button: 'rounded-full' },
+  minimal: { font: 'font-sans', radius: 'rounded-none', button: 'rounded-sm' },
 }
 
 export default function StorePage() {
   const params = useParams()
   const slug = params.slug as string
   
-  const [store, setStore] = useState<StoreInfo | null>(null)
+  const [store, setStore] = useState<Store | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
   const [cart, setCart] = useState<CartItem[]>([])
-  const [isCartOpen, setIsCartOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
-  
+  const [cartOpen, setCartOpen] = useState(false)
   const [orderType, setOrderType] = useState<'pickup' | 'delivery'>('pickup')
-  const [showCheckout, setShowCheckout] = useState(false)
+  const [activeCategory, setActiveCategory] = useState<string | null>(null)
   
-  // Fetch store data
+  const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({})
+  const navRef = useRef<HTMLDivElement>(null)
+
+  const theme = THEMES[store?.template || 'modern'] || THEMES.modern
+  const primaryColor = store?.primaryColor || '#2563eb'
+
   useEffect(() => {
-    async function fetchStore() {
-      try {
-        const res = await fetch(`/api/store/${slug}`)
-        if (!res.ok) {
-          if (res.status === 404) {
-            setError('Restaurant not found')
-          } else {
-            setError('Failed to load restaurant')
+    fetchStore()
+  }, [slug])
+
+  // Scroll spy for sticky nav
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPos = window.scrollY + 200
+      
+      for (const category of categories) {
+        const el = categoryRefs.current[category.id]
+        if (el) {
+          const top = el.offsetTop
+          const bottom = top + el.offsetHeight
+          if (scrollPos >= top && scrollPos < bottom) {
+            setActiveCategory(category.id)
+            break
           }
-          return
         }
-        const data = await res.json()
-        setStore(data.store)
-        setCategories(data.categories)
-        
-        // Set default order type
-        if (data.store.pickupEnabled) {
-          setOrderType('pickup')
-        } else if (data.store.deliveryEnabled) {
-          setOrderType('delivery')
-        }
-      } catch (err) {
-        setError('Failed to load restaurant')
-      } finally {
-        setLoading(false)
       }
     }
-    
-    if (slug) fetchStore()
-  }, [slug])
-  
-  // Filter items
-  const filteredCategories = useMemo(() => {
-    return categories.map(cat => ({
-      ...cat,
-      menuItems: cat.menuItems.filter(item =>
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      ),
-    })).filter(cat => 
-      (!selectedCategory || cat.id === selectedCategory) && 
-      cat.menuItems.length > 0
-    )
-  }, [categories, searchQuery, selectedCategory])
-  
-  // Cart functions
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [categories])
+
+  const fetchStore = async () => {
+    try {
+      const res = await fetch(`/api/store/${slug}`)
+      if (!res.ok) {
+        if (res.status === 404) {
+          setError('Restaurant not found')
+        } else {
+          setError('Failed to load store')
+        }
+        setLoading(false)
+        return
+      }
+      
+      const data = await res.json()
+      setStore(data.store)
+      setCategories(data.categories || [])
+      if (data.categories?.length > 0) {
+        setActiveCategory(data.categories[0].id)
+      }
+    } catch (err) {
+      setError('Failed to load store')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const scrollToCategory = (categoryId: string) => {
+    const el = categoryRefs.current[categoryId]
+    if (el) {
+      const navHeight = navRef.current?.offsetHeight || 0
+      window.scrollTo({
+        top: el.offsetTop - navHeight - 20,
+        behavior: 'smooth'
+      })
+    }
+  }
+
   const addToCart = (item: MenuItem) => {
     setCart(prev => {
       const existing = prev.find(c => c.menuItem.id === item.id)
       if (existing) {
-        return prev.map(c => 
-          c.menuItem.id === item.id 
-            ? { ...c, quantity: c.quantity + 1 }
-            : c
-        )
+        return prev.map(c => c.menuItem.id === item.id ? { ...c, quantity: c.quantity + 1 } : c)
       }
-      return [...prev, { menuItem: item, quantity: 1, options: [], specialRequests: '' }]
+      return [...prev, { menuItem: item, quantity: 1 }]
     })
   }
-  
-  const removeFromCart = (itemId: string) => {
+
+  const updateQuantity = (itemId: string, delta: number) => {
     setCart(prev => {
-      const existing = prev.find(c => c.menuItem.id === itemId)
-      if (existing && existing.quantity > 1) {
-        return prev.map(c =>
-          c.menuItem.id === itemId
-            ? { ...c, quantity: c.quantity - 1 }
-            : c
-        )
-      }
-      return prev.filter(c => c.menuItem.id !== itemId)
+      return prev.map(c => {
+        if (c.menuItem.id === itemId) {
+          const newQty = c.quantity + delta
+          return newQty > 0 ? { ...c, quantity: newQty } : c
+        }
+        return c
+      }).filter(c => c.quantity > 0)
     })
   }
-  
-  const cartTotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.menuItem.price * item.quantity, 0)
-  }, [cart])
-  
-  const cartCount = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.quantity, 0)
-  }, [cart])
-  
-  const tax = store ? cartTotal * (store.taxRate / 100) : 0
-  const deliveryFee = orderType === 'delivery' && store ? store.deliveryFee : 0
-  const orderTotal = cartTotal + tax + deliveryFee
-  
+
+  const removeFromCart = (itemId: string) => {
+    setCart(prev => prev.filter(c => c.menuItem.id !== itemId))
+  }
+
+  const cartTotal = cart.reduce((sum, c) => sum + c.menuItem.price * c.quantity, 0)
+  const cartCount = cart.reduce((sum, c) => sum + c.quantity, 0)
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-slate-600">Loading menu...</p>
-        </div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
       </div>
     )
   }
-  
+
   if (error || !store) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Oops!</h1>
-          <p className="text-slate-600">{error || 'Something went wrong'}</p>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Restaurant not found</h1>
+          <p className="text-slate-600">This store doesn't exist or is not available.</p>
         </div>
       </div>
     )
   }
-  
+
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className={`min-h-screen bg-slate-50 ${theme.font}`}>
       {/* Header */}
       <header 
-        className="sticky top-0 z-40 border-b"
-        style={{ backgroundColor: store.primaryColor }}
+        className="text-white"
+        style={{ backgroundColor: primaryColor }}
       >
-        <div className="max-w-6xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+        <div className="max-w-3xl mx-auto px-4 py-6">
+          <div className="flex items-center gap-4">
+            {/* Logo/Initial */}
+            <div className={`w-16 h-16 bg-white/20 ${theme.radius} flex items-center justify-center text-2xl font-bold`}>
               {store.logo ? (
-                <Image
-                  src={store.logo}
-                  alt={store.name}
-                  width={48}
-                  height={48}
-                  className="rounded-lg"
-                />
+                <img src={store.logo} alt={store.name} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
-                  <Utensils className="w-6 h-6 text-white" />
-                </div>
+                store.name.charAt(0).toUpperCase()
               )}
-              <div>
-                <h1 className="text-xl font-bold text-white">{store.name}</h1>
-                <div className="flex items-center gap-2 text-white/80 text-sm">
-                  <Badge variant={store.isOpen ? 'default' : 'secondary'} className="text-xs">
-                    {store.isOpen ? 'Open' : 'Closed'}
-                  </Badge>
-                  <span>{store.city}, {store.state}</span>
-                </div>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">{store.name}</h1>
+              <div className="flex items-center gap-4 text-white/80 text-sm mt-1">
+                {store.address && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="w-4 h-4" />
+                    {store.address}
+                  </span>
+                )}
+                {store.isOpen ? (
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    Open now
+                  </span>
+                ) : (
+                  <span className="text-white/60">Closed</span>
+                )}
               </div>
             </div>
-            
-            {/* Cart Button */}
-            <Button
-              onClick={() => setIsCartOpen(true)}
-              className="gap-2 bg-white text-slate-900 hover:bg-white/90"
+          </div>
+
+          {/* Order Type Toggle */}
+          <div className="flex gap-3 mt-6">
+            <button
+              onClick={() => setOrderType('pickup')}
+              className={`flex-1 py-3 ${theme.radius} font-semibold transition-all ${
+                orderType === 'pickup'
+                  ? 'bg-white text-slate-900 shadow-lg'
+                  : 'bg-white/20 text-white hover:bg-white/30'
+              }`}
             >
-              <ShoppingCart className="w-5 h-5" />
-              {cartCount > 0 && (
-                <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  {cartCount}
-                </span>
-              )}
-            </Button>
+              <span className="block text-sm">Pickup</span>
+              <span className="block text-xs opacity-70">15-20 min</span>
+            </button>
+            {store.deliveryEnabled && (
+              <button
+                onClick={() => setOrderType('delivery')}
+                className={`flex-1 py-3 ${theme.radius} font-semibold transition-all ${
+                  orderType === 'delivery'
+                    ? 'bg-white text-slate-900 shadow-lg'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+              >
+                <span className="block text-sm">Delivery</span>
+                <span className="block text-xs opacity-70">30-45 min</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
-      
-      {/* Order Type Toggle */}
-      <div className="bg-white border-b">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-2">
-            {store.pickupEnabled && (
-              <Button
-                variant={orderType === 'pickup' ? 'default' : 'outline'}
-                onClick={() => setOrderType('pickup')}
-                className="gap-2"
+
+      {/* Sticky Category Nav */}
+      <nav 
+        ref={navRef}
+        className="sticky top-0 bg-white border-b border-slate-200 z-40 shadow-sm"
+      >
+        <div className="max-w-3xl mx-auto px-4">
+          <div className="flex gap-1 overflow-x-auto py-3 scrollbar-hide">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => scrollToCategory(category.id)}
+                className={`px-4 py-2 ${theme.button} font-medium text-sm whitespace-nowrap transition-all ${
+                  activeCategory === category.id
+                    ? 'text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+                style={activeCategory === category.id ? { backgroundColor: primaryColor } : {}}
               >
-                <Store className="w-4 h-4" />
-                Pickup
-              </Button>
-            )}
-            {store.deliveryEnabled && (
-              <Button
-                variant={orderType === 'delivery' ? 'default' : 'outline'}
-                onClick={() => setOrderType('delivery')}
-                className="gap-2"
-              >
-                <Truck className="w-4 h-4" />
-                Delivery
-                {store.deliveryFee > 0 && (
-                  <span className="text-xs opacity-70">+${store.deliveryFee.toFixed(2)}</span>
-                )}
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-      
-      {/* Search */}
-      <div className="bg-white border-b">
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search menu..."
-              className="pl-10"
-            />
-          </div>
-        </div>
-      </div>
-      
-      {/* Categories Nav */}
-      <div className="bg-white border-b sticky top-[73px] z-30">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex gap-2 py-2 overflow-x-auto">
-            <Button
-              variant={selectedCategory === null ? 'default' : 'ghost'}
-              onClick={() => setSelectedCategory(null)}
-              className="whitespace-nowrap"
-              size="sm"
-            >
-              All
-            </Button>
-            {categories.map(cat => (
-              <Button
-                key={cat.id}
-                variant={selectedCategory === cat.id ? 'default' : 'ghost'}
-                onClick={() => setSelectedCategory(cat.id)}
-                className="whitespace-nowrap"
-                size="sm"
-              >
-                {cat.name}
-              </Button>
+                {category.name}
+              </button>
             ))}
           </div>
         </div>
-      </div>
-      
-      {/* Menu */}
-      <main className="max-w-6xl mx-auto px-4 py-6">
-        {filteredCategories.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-slate-500">No items found</p>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            {filteredCategories.map(category => (
-              <div key={category.id}>
-                <h2 className="text-xl font-bold text-slate-900 mb-4">{category.name}</h2>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {category.menuItems.map(item => {
-                    const inCart = cart.find(c => c.menuItem.id === item.id)
-                    return (
-                      <motion.div
-                        key={item.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        whileHover={{ scale: 1.02 }}
-                      >
-                        <Card className="overflow-hidden h-full">
-                          {item.image && (
-                            <div className="h-40 bg-slate-100 relative">
-                              <Image
-                                src={item.image}
-                                alt={item.name}
-                                fill
-                                className="object-cover"
-                              />
-                            </div>
-                          )}
-                          <CardContent className="p-4">
-                            <div className="flex justify-between items-start mb-2">
-                              <h3 className="font-semibold text-slate-900">{item.name}</h3>
-                              <span className="font-bold" style={{ color: store.primaryColor }}>
-                                ${item.price.toFixed(2)}
-                              </span>
-                            </div>
-                            {item.description && (
-                              <p className="text-sm text-slate-500 line-clamp-2 mb-3">
-                                {item.description}
-                              </p>
-                            )}
-                            {inCart ? (
-                              <div className="flex items-center justify-between">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => removeFromCart(item.id)}
-                                >
-                                  <Minus className="w-4 h-4" />
-                                </Button>
-                                <span className="font-semibold">{inCart.quantity}</span>
-                                <Button
-                                  size="sm"
-                                  onClick={() => addToCart(item)}
-                                  style={{ backgroundColor: store.primaryColor }}
-                                >
-                                  <Plus className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button
-                                className="w-full"
-                                onClick={() => addToCart(item)}
-                                style={{ backgroundColor: store.primaryColor }}
-                              >
-                                <Plus className="w-4 h-4 mr-2" />
-                                Add to Cart
-                              </Button>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    )
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </main>
-      
-      {/* Cart Sidebar */}
-      <AnimatePresence>
-        {isCartOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsCartOpen(false)}
-              className="fixed inset-0 bg-black/50 z-50"
-            />
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 30 }}
-              className="fixed right-0 top-0 h-full w-full max-w-md bg-white z-50 shadow-xl flex flex-col"
-            >
-              <div className="p-4 border-b flex items-center justify-between">
-                <h2 className="text-lg font-bold">Your Order</h2>
-                <Button variant="ghost" size="icon" onClick={() => setIsCartOpen(false)}>
-                  <X className="w-5 h-5" />
-                </Button>
-              </div>
-              
-              {cart.length === 0 ? (
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <ShoppingCart className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-500">Your cart is empty</p>
+      </nav>
+
+      {/* Menu Items */}
+      <main className="max-w-3xl mx-auto px-4 py-6 pb-32">
+        {categories.map((category) => (
+          <div 
+            key={category.id}
+            ref={(el) => { categoryRefs.current[category.id] = el }}
+            className="mb-8"
+          >
+            <h2 className="text-xl font-bold text-slate-900 mb-4">{category.name}</h2>
+            <div className="space-y-3">
+              {category.menuItems.map((item) => (
+                <div 
+                  key={item.id}
+                  className={`bg-white border border-slate-200 ${theme.radius} p-4 flex justify-between items-start hover:shadow-md transition-shadow`}
+                >
+                  <div className="flex-1 min-w-0 pr-4">
+                    <h3 className="font-semibold text-slate-900">{item.name}</h3>
+                    {item.description && (
+                      <p className="text-sm text-slate-500 mt-1 line-clamp-2">{item.description}</p>
+                    )}
+                    <p className="font-bold mt-2" style={{ color: primaryColor }}>
+                      ${item.price.toFixed(2)}
+                    </p>
                   </div>
+                  <button
+                    onClick={() => addToCart(item)}
+                    className={`w-10 h-10 flex items-center justify-center text-white ${theme.button} flex-shrink-0 hover:opacity-90 transition-opacity`}
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
+              ))}
+              {category.menuItems.length === 0 && (
+                <p className="text-slate-400 text-sm italic py-4">No items in this category</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </main>
+
+      {/* Floating Cart Button */}
+      {cartCount > 0 && !cartOpen && (
+        <button
+          onClick={() => setCartOpen(true)}
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-4 text-white font-semibold ${theme.radius} shadow-xl flex items-center gap-4 hover:opacity-90 transition-all z-50`}
+          style={{ backgroundColor: primaryColor }}
+        >
+          <div className="flex items-center gap-2">
+            <ShoppingCart className="w-5 h-5" />
+            <span>{cartCount} item{cartCount !== 1 ? 's' : ''}</span>
+          </div>
+          <span className="border-l border-white/30 pl-4">
+            ${cartTotal.toFixed(2)}
+          </span>
+          <ChevronRight className="w-5 h-5" />
+        </button>
+      )}
+
+      {/* Slide-out Cart */}
+      {cartOpen && (
+        <>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 z-50"
+            onClick={() => setCartOpen(false)}
+          />
+          
+          {/* Cart Panel */}
+          <div className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col">
+            {/* Cart Header */}
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h2 className="text-lg font-bold text-slate-900">Your Order</h2>
+              <button
+                onClick={() => setCartOpen(false)}
+                className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-slate-600" />
+              </button>
+            </div>
+
+            {/* Cart Items */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {cart.length === 0 ? (
+                <div className="text-center py-12">
+                  <ShoppingCart className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500">Your cart is empty</p>
                 </div>
               ) : (
-                <>
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {cart.map(item => (
-                      <div key={item.menuItem.id} className="flex gap-3">
-                        <div className="flex-1">
-                          <p className="font-medium">{item.menuItem.name}</p>
-                          <p className="text-sm text-slate-500">
-                            ${item.menuItem.price.toFixed(2)} × {item.quantity}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8"
-                            onClick={() => removeFromCart(item.menuItem.id)}
-                          >
-                            <Minus className="w-4 h-4" />
-                          </Button>
-                          <span className="w-8 text-center">{item.quantity}</span>
-                          <Button
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => addToCart(item.menuItem)}
-                          >
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                        </div>
+                <div className="space-y-4">
+                  {cart.map((item) => (
+                    <div key={item.menuItem.id} className="flex items-start gap-4">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-slate-900">{item.menuItem.name}</h4>
+                        <p className="text-sm text-slate-500">${item.menuItem.price.toFixed(2)} each</p>
                       </div>
-                    ))}
-                  </div>
-                  
-                  <div className="border-t p-4 space-y-3">
-                    <div className="flex justify-between text-sm">
-                      <span>Subtotal</span>
-                      <span>${cartTotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Tax ({store.taxRate}%)</span>
-                      <span>${tax.toFixed(2)}</span>
-                    </div>
-                    {orderType === 'delivery' && (
-                      <div className="flex justify-between text-sm">
-                        <span>Delivery Fee</span>
-                        <span>${deliveryFee.toFixed(2)}</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateQuantity(item.menuItem.id, -1)}
+                          className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-full hover:bg-slate-50"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </button>
+                        <span className="w-8 text-center font-medium">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(item.menuItem.id, 1)}
+                          className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-full hover:bg-slate-50"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
                       </div>
-                    )}
-                    <Separator />
-                    <div className="flex justify-between font-bold text-lg">
-                      <span>Total</span>
-                      <span>${orderTotal.toFixed(2)}</span>
+                      <button
+                        onClick={() => removeFromCart(item.menuItem.id)}
+                        className="p-2 text-slate-400 hover:text-red-500"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
-                    
-                    {store.minOrderAmount > 0 && cartTotal < store.minOrderAmount && (
-                      <p className="text-sm text-amber-600">
-                        Minimum order: ${store.minOrderAmount.toFixed(2)}
-                      </p>
-                    )}
-                    
-                    <Button
-                      className="w-full"
-                      size="lg"
-                      disabled={cartTotal < (store.minOrderAmount || 0)}
-                      style={{ backgroundColor: store.primaryColor }}
-                      onClick={() => setShowCheckout(true)}
-                    >
-                      Checkout • ${orderTotal.toFixed(2)}
-                    </Button>
-                  </div>
-                </>
+                  ))}
+                </div>
               )}
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-      
-      {/* Checkout Modal */}
-      <OrderModal
-        isOpen={showCheckout}
-        onClose={() => setShowCheckout(false)}
-        cart={cart.map(item => ({
-          id: item.menuItem.id,
-          name: item.menuItem.name,
-          description: item.menuItem.description || '',
-          price: item.menuItem.price,
-          category: '',
-          quantity: item.quantity
-        }))}
-        onUpdateCart={(newCart) => {
-          // Transform back if needed - for now just close modal on changes
-          setCart(prev => prev.map(item => {
-            const updated = newCart.find(c => c.id === item.menuItem.id)
-            return updated ? { ...item, quantity: updated.quantity } : item
-          }).filter(item => {
-            const inNewCart = newCart.find(c => c.id === item.menuItem.id)
-            return inNewCart && inNewCart.quantity > 0
-          }))
-        }}
-        total={orderTotal}
-        preselectedOrderType={orderType === 'delivery' ? 'DELIVERY' : 'PICKUP'}
-      />
+            </div>
+
+            {/* Cart Footer */}
+            {cart.length > 0 && (
+              <div className="border-t border-slate-200 p-4 space-y-4">
+                {/* Order Type */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setOrderType('pickup')}
+                    className={`flex-1 py-2 ${theme.button} text-sm font-medium transition-all ${
+                      orderType === 'pickup'
+                        ? 'text-white'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
+                    style={orderType === 'pickup' ? { backgroundColor: primaryColor } : {}}
+                  >
+                    Pickup
+                  </button>
+                  {store.deliveryEnabled && (
+                    <button
+                      onClick={() => setOrderType('delivery')}
+                      className={`flex-1 py-2 ${theme.button} text-sm font-medium transition-all ${
+                        orderType === 'delivery'
+                          ? 'text-white'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}
+                      style={orderType === 'delivery' ? { backgroundColor: primaryColor } : {}}
+                    >
+                      Delivery
+                    </button>
+                  )}
+                </div>
+
+                {/* Totals */}
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Subtotal</span>
+                    <span className="font-medium">${cartTotal.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Tax ({((store.taxRate || 0) * 100).toFixed(2)}%)</span>
+                    <span className="font-medium">${(cartTotal * (store.taxRate || 0)).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-base font-bold pt-2 border-t border-slate-200">
+                    <span>Total</span>
+                    <span style={{ color: primaryColor }}>
+                      ${(cartTotal * (1 + (store.taxRate || 0))).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Checkout Button */}
+                <button
+                  className={`w-full py-4 text-white font-semibold ${theme.radius} hover:opacity-90 transition-opacity`}
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  Checkout • ${(cartTotal * (1 + (store.taxRate || 0))).toFixed(2)}
+                </button>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      <style jsx global>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </div>
   )
 }
