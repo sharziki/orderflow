@@ -160,24 +160,18 @@ export default function CheckoutPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          storeSlug: slug,
-          customer: {
-            name: form.name,
-            email: form.email,
-            phone: form.phone,
-          },
+          tenantSlug: slug,
+          type: orderType,
+          customerName: form.name,
+          customerEmail: form.email,
+          customerPhone: form.phone,
           items: cart.map(c => ({
-            id: c.menuItem.id,
-            name: c.menuItem.name,
-            price: c.menuItem.price,
+            menuItemId: c.menuItem.id,
             quantity: c.quantity,
+            options: [],
           })),
-          orderType,
           deliveryAddress: orderType === 'delivery' ? form.address : null,
           notes: form.notes,
-          subtotal,
-          tax,
-          total,
         })
       })
 

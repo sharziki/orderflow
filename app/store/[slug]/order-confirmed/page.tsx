@@ -63,7 +63,7 @@ export default function OrderConfirmedPage() {
 
         if (orderRes.ok) {
           const orderData = await orderRes.json()
-          setOrder(orderData)
+          setOrder(orderData.order || orderData)
         }
 
         if (storeRes.ok) {
@@ -85,7 +85,7 @@ export default function OrderConfirmedPage() {
         const res = await fetch(`/api/orders/${orderId}`)
         if (res.ok) {
           const data = await res.json()
-          setOrder(data)
+          setOrder(data.order || data)
         }
       } catch (err) {}
     }, 15000)
