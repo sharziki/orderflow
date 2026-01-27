@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { MenuPreview } from '@/components/ui/menu-preview'
 import {
   ArrowLeft,
   Plus,
@@ -21,7 +22,9 @@ import {
   Utensils,
   X,
   Save,
-  Upload
+  Upload,
+  Monitor,
+  Smartphone
 } from 'lucide-react'
 
 interface MenuItem {
@@ -44,7 +47,16 @@ export default function MenuPage() {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState('all')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null)
+  
+  // Restaurant settings (would come from API)
+  const restaurantSettings = {
+    name: 'Demo Restaurant',
+    template: 'modern' as const,
+    primaryColor: '#2563eb',
+    secondaryColor: '#1e40af',
+  }
 
   // Sample data
   const [categories] = useState<Category[]>([
@@ -124,10 +136,20 @@ export default function MenuPage() {
                 <p className="text-sm text-slate-500">{menuItems.length} items</p>
               </div>
             </div>
-            <Button onClick={() => setShowAddModal(true)} className="gap-2">
-              <Plus className="w-4 h-4" />
-              Add Item
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowPreview(true)} 
+                className="gap-2"
+              >
+                <Monitor className="w-4 h-4" />
+                Preview
+              </Button>
+              <Button onClick={() => setShowAddModal(true)} className="gap-2">
+                <Plus className="w-4 h-4" />
+                Add Item
+              </Button>
+            </div>
           </div>
         </div>
       </header>
@@ -268,6 +290,19 @@ export default function MenuPage() {
           </div>
         </div>
       </div>
+
+      {/* Menu Preview */}
+      {showPreview && (
+        <MenuPreview
+          template={restaurantSettings.template}
+          restaurantName={restaurantSettings.name}
+          primaryColor={restaurantSettings.primaryColor}
+          secondaryColor={restaurantSettings.secondaryColor}
+          menuItems={menuItems}
+          categories={categories}
+          onClose={() => setShowPreview(false)}
+        />
+      )}
 
       {/* Add Item Modal */}
       {showAddModal && (
