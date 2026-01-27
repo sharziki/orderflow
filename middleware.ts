@@ -1,6 +1,83 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+// CSRF Protection: Check Origin header for mutations
+function checkCsrf(request: NextRequest): NextResponse | null {
+  const method = request.method
+  
+  // Only check mutations (POST, PUT, DELETE, PATCH)
+  if (!['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
+    return null
+  }
+  
+  const path = request.nextUrl.pathname
+  
+  // Skip CSRF check for webhook endpoints (they use signature verification)
+  if (
+    path.startsWith('/api/webhooks/') ||
+    path === '/api/doordash/webhook'
+  ) {
+    return null
+  }
+  
+  const origin = request.headers.get('origin')
+  const host = request.headers.get('host')
+  
+  // If no Origin header (same-origin requests from some browsers), allow
+  if (!origin) {
+    return null
+  }
+  
+  try {
+    const originUrl = new URL(origin)
+    const hostParts = host?.split(':')[0] || ''
+    
+    // Allow same origin
+    if (originUrl.hostname === hostParts) {
+      return null
+    }
+    
+    // Allow localhost variations for development
+    const localhostVariants = ['localhost', '127.0.0.1']
+    if (localhostVariants.includes(originUrl.hostname) && localhostVariants.includes(hostParts)) {
+      return null
+    }
+    
+    // Allow orderflow.io domains (including subdomains)
+    if (
+      originUrl.hostname.endsWith('.orderflow.io') ||
+      originUrl.hostname === 'orderflow.io'
+    ) {
+      const hostIsOrderflow = hostParts.endsWith('.orderflow.io') || hostParts === 'orderflow.io'
+      if (hostIsOrderflow) {
+        return null
+      }
+    }
+    
+    // Allow Vercel preview deployments
+    if (
+      originUrl.hostname.endsWith('.vercel.app') && 
+      (host?.endsWith('.vercel.app') || host?.includes('localhost'))
+    ) {
+      return null
+    }
+    
+    // Cross-origin request detected - reject
+    console.warn(`[CSRF] Blocked cross-origin ${method} from ${origin} to ${host}${path}`)
+    return NextResponse.json(
+      { error: 'Cross-origin requests not allowed' },
+      { status: 403 }
+    )
+  } catch {
+    // Invalid origin header
+    console.warn(`[CSRF] Invalid origin header: ${origin}`)
+    return NextResponse.json(
+      { error: 'Invalid request origin' },
+      { status: 403 }
+    )
+  }
+}
+
 export function middleware(request: NextRequest) {
   const url = request.nextUrl
   const hostname = request.headers.get('host') || ''
@@ -8,9 +85,17 @@ export function middleware(request: NextRequest) {
   // Get the pathname
   const path = url.pathname
   
-  // Skip for API routes, static files, and internal Next.js routes
+  // CSRF check for API mutations
+  if (path.startsWith('/api')) {
+    const csrfResponse = checkCsrf(request)
+    if (csrfResponse) {
+      return csrfResponse
+    }
+    return NextResponse.next()
+  }
+  
+  // Skip for static files and internal Next.js routes
   if (
-    path.startsWith('/api') ||
     path.startsWith('/_next') ||
     path.startsWith('/static') ||
     path.includes('.') ||
@@ -40,10 +125,13 @@ export function middleware(request: NextRequest) {
     'localhost:3456',
     'orderflow.io',
     'www.orderflow.io',
+    'orderflow-silk.vercel.app',
     process.env.VERCEL_URL,
   ].filter(Boolean)
   
-  const isMainDomain = mainDomains.some(d => hostname.includes(d as string))
+  // Also treat any *.vercel.app as main domain (deployment previews)
+  const isVercelPreview = hostname.endsWith('.vercel.app')
+  const isMainDomain = isVercelPreview || mainDomains.some(d => hostname.includes(d as string))
   
   // If we're on a subdomain (e.g., joes-pizza.orderflow.io)
   if (!isMainDomain) {

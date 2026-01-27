@@ -3,9 +3,13 @@ import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+// Lazy-init to avoid build-time errors
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!)
+}
 
 export async function POST(req: NextRequest) {
+  const stripe = getStripe()
   try {
     const session = await getSession()
     if (!session) {

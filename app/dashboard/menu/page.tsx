@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent } from '@/components/ui/card'
 import { MenuPreview } from '@/components/ui/menu-preview'
+import { type MenuLayoutId } from '@/components/menu-layouts'
 import {
   ArrowLeft,
   Plus,
@@ -732,20 +733,22 @@ export default function MenuPage() {
       {/* Preview Modal */}
       {showPreview && (
         <MenuPreview
-          isOpen={showPreview}
           onClose={() => setShowPreview(false)}
           categories={categories.map(c => ({ id: c.id, name: c.name }))}
-          items={menuItems.map(i => ({ 
+          menuItems={menuItems.map(i => ({ 
             id: i.id, 
             name: i.name, 
             description: i.description || '', 
             price: i.price, 
             category: i.categoryId,
+            imageUrl: i.image || undefined,
             available: i.isAvailable
           }))}
-          template="modern"
+          layout="blu-bentonville"
           primaryColor="#2563eb"
+          secondaryColor="#1e40af"
           restaurantName="Your Restaurant"
+          enableRealtime={true}
         />
       )}
     </div>

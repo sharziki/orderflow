@@ -1,6 +1,8 @@
 import axios from 'axios'
 import { SignJWT } from 'jose'
 import { prisma } from './db'
+import { withDoorDashRetry } from './retry'
+import { logger } from './logger'
 
 // ============================================
 // TYPES
@@ -93,28 +95,30 @@ class DoorDashApiHelper {
   }
 
   async request(method: 'GET' | 'POST' | 'PUT', endpoint: string, data?: any): Promise<any> {
-    const token = await this.generateJwt()
-    
-    try {
-      const response = await axios({
-        method,
-        url: `${this.baseUrl}${endpoint}`,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        data,
-      })
-      return response.data
-    } catch (error: any) {
-      if (error.response) {
-        const err: any = new Error(error.response?.data?.message || 'DoorDash API error')
-        err.response = error.response
-        err.status = error.response.status
-        throw err
+    return withDoorDashRetry(async () => {
+      const token = await this.generateJwt()
+      
+      try {
+        const response = await axios({
+          method,
+          url: `${this.baseUrl}${endpoint}`,
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          data,
+        })
+        return response.data
+      } catch (error: any) {
+        if (error.response) {
+          const err: any = new Error(error.response?.data?.message || 'DoorDash API error')
+          err.response = error.response
+          err.status = error.response.status
+          throw err
+        }
+        throw error
       }
-      throw error
-    }
+    }, `doordash_${method}_${endpoint}`)
   }
 }
 
@@ -316,13 +320,24 @@ export class DoorDashMultiTenant {
         },
       })
 
+      logger.deliveryRequested(
+        tenant.id,
+        orderId,
+        delivery.delivery_id,
+        order.deliveryAddress
+      )
+
       return {
         success: true,
         deliveryId: delivery.delivery_id,
         fee: quote.fee / 100,
       }
     } catch (error: any) {
-      console.error('[DoorDash] Failed to create delivery:', error.message)
+      logger.error('doordash_delivery_failed', {
+        orderId,
+        tenantId: tenant.id,
+        error: error.message,
+      })
       return {
         success: false,
         error: error.response?.data?.message || error.message || 'Failed to create delivery',

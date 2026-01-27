@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -29,6 +30,7 @@ import {
   Package,
   RefreshCcw,
   Bell,
+  BellOff,
   DollarSign,
   TrendingUp,
   Calendar,
@@ -37,7 +39,9 @@ import {
   MapPin,
   User,
   Printer,
-  Eye
+  Eye,
+  Volume2,
+  VolumeX,
 } from 'lucide-react'
 
 const cardVariants = {
@@ -50,39 +54,42 @@ const cardVariants = {
   exit: { opacity: 0, x: -20 }
 }
 
-type OrderStatus = 'pending' | 'preparing' | 'ready' | 'out_for_delivery' | 'completed' | 'cancelled'
+type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'completed' | 'cancelled'
 type OrderType = 'pickup' | 'delivery'
+
+interface OrderItem {
+  menuItemId: string
+  name: string
+  quantity: number
+  price: number
+  options?: any[]
+  specialRequests?: string
+}
 
 interface Order {
   id: string
   orderNumber: string
-  customer: {
-    name: string
-    phone: string
-    email: string
-  }
+  customerName: string
+  customerPhone: string
+  customerEmail: string
   type: OrderType
   status: OrderStatus
-  items: {
-    name: string
-    quantity: number
-    price: number
-    options?: string[]
-  }[]
+  items: OrderItem[]
   subtotal: number
   tax: number
-  deliveryFee?: number
-  tip?: number
+  deliveryFee: number
+  tip: number
   total: number
-  createdAt: Date
-  scheduledFor?: Date
-  address?: string
+  createdAt: string
+  scheduledFor?: string
+  deliveryAddress?: string
   notes?: string
   doordashDeliveryId?: string
 }
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
   pending: { label: 'New Order', color: 'bg-yellow-100 text-yellow-800', icon: Bell },
+  confirmed: { label: 'Confirmed', color: 'bg-blue-100 text-blue-800', icon: CheckCircle2 },
   preparing: { label: 'Preparing', color: 'bg-blue-100 text-blue-800', icon: ChefHat },
   ready: { label: 'Ready', color: 'bg-green-100 text-green-800', icon: Package },
   out_for_delivery: { label: 'Out for Delivery', color: 'bg-orange-100 text-orange-800', icon: Truck },
@@ -90,108 +97,178 @@ const statusConfig = {
   cancelled: { label: 'Cancelled', color: 'bg-red-100 text-red-800', icon: XCircle },
 }
 
-// Demo orders
-const demoOrders: Order[] = [
-  {
-    id: '1',
-    orderNumber: 'ORD-001',
-    customer: { name: 'John Smith', phone: '(555) 123-4567', email: 'john@example.com' },
-    type: 'pickup',
-    status: 'pending',
-    items: [
-      { name: 'Margherita Pizza', quantity: 2, price: 14.99 },
-      { name: 'Caesar Salad', quantity: 1, price: 12.99 },
-      { name: 'Garlic Bread', quantity: 1, price: 6.99 },
-    ],
-    subtotal: 48.96,
-    tax: 4.04,
-    tip: 8.00,
-    total: 61.00,
-    createdAt: new Date(Date.now() - 5 * 60000),
-  },
-  {
-    id: '2',
-    orderNumber: 'ORD-002',
-    customer: { name: 'Sarah Johnson', phone: '(555) 987-6543', email: 'sarah@example.com' },
-    type: 'delivery',
-    status: 'preparing',
-    items: [
-      { name: 'Ribeye Steak', quantity: 1, price: 34.99 },
-      { name: 'Mashed Potatoes', quantity: 1, price: 5.99 },
-      { name: 'Grilled Vegetables', quantity: 1, price: 6.99 },
-    ],
-    subtotal: 47.97,
-    tax: 3.96,
-    deliveryFee: 4.99,
-    tip: 10.00,
-    total: 66.92,
-    createdAt: new Date(Date.now() - 15 * 60000),
-    address: '123 Main St, Apt 4B, New York, NY 10001',
-  },
-  {
-    id: '3',
-    orderNumber: 'ORD-003',
-    customer: { name: 'Mike Davis', phone: '(555) 456-7890', email: 'mike@example.com' },
-    type: 'pickup',
-    status: 'ready',
-    items: [
-      { name: 'BBQ Chicken Pizza', quantity: 1, price: 18.99 },
-      { name: 'Soft Drinks', quantity: 2, price: 2.99 },
-    ],
-    subtotal: 24.97,
-    tax: 2.06,
-    total: 27.03,
-    createdAt: new Date(Date.now() - 25 * 60000),
-  },
-  {
-    id: '4',
-    orderNumber: 'ORD-004',
-    customer: { name: 'Emily Chen', phone: '(555) 321-0987', email: 'emily@example.com' },
-    type: 'delivery',
-    status: 'pending',
-    items: [
-      { name: 'Chicken Parmesan', quantity: 2, price: 19.99 },
-      { name: 'Tiramisu', quantity: 2, price: 8.99 },
-      { name: 'Italian Soda', quantity: 2, price: 4.99 },
-    ],
-    subtotal: 67.94,
-    tax: 5.60,
-    deliveryFee: 4.99,
-    tip: 12.00,
-    total: 90.53,
-    createdAt: new Date(Date.now() - 2 * 60000),
-    address: '456 Oak Ave, Brooklyn, NY 11201',
-    scheduledFor: new Date(Date.now() + 60 * 60000),
-  },
-  {
-    id: '5',
-    orderNumber: 'ORD-005',
-    customer: { name: 'David Wilson', phone: '(555) 654-3210', email: 'david@example.com' },
-    type: 'pickup',
-    status: 'completed',
-    items: [
-      { name: 'Pepperoni Pizza', quantity: 1, price: 16.99 },
-      { name: 'Mozzarella Sticks', quantity: 1, price: 8.99 },
-    ],
-    subtotal: 25.98,
-    tax: 2.14,
-    total: 28.12,
-    createdAt: new Date(Date.now() - 120 * 60000),
-  },
-]
+// Notification sound (local file)
+const NOTIFICATION_SOUND_URL = '/sounds/new-order.mp3'
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<Order[]>(demoOrders)
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<OrderStatus | 'all'>('all')
   const [filterType, setFilterType] = useState<OrderType | 'all'>('all')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null)
+  
+  // Refs for tracking state across refreshes
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const previousOrderIdsRef = useRef<Set<string>>(new Set())
+  const isFirstLoadRef = useRef(true)
+  
+  // Initialize audio element
+  useEffect(() => {
+    audioRef.current = new Audio(NOTIFICATION_SOUND_URL)
+    audioRef.current.volume = 0.7
+    
+    // Load sound preference from localStorage
+    const savedSoundPref = localStorage.getItem('orderflow-sound-enabled')
+    if (savedSoundPref !== null) {
+      setSoundEnabled(savedSoundPref === 'true')
+    }
+    
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+    }
+  }, [])
+  
+  // Play notification sound
+  const playNotificationSound = useCallback(() => {
+    if (soundEnabled && audioRef.current) {
+      audioRef.current.currentTime = 0
+      audioRef.current.play().catch(err => {
+        console.log('[Orders] Could not play sound:', err)
+      })
+    }
+  }, [soundEnabled])
+  
+  // Toggle sound and save preference
+  const toggleSound = () => {
+    const newValue = !soundEnabled
+    setSoundEnabled(newValue)
+    localStorage.setItem('orderflow-sound-enabled', String(newValue))
+  }
+  
+  // Fetch orders from API
+  const fetchOrders = useCallback(async (showLoading = false) => {
+    if (showLoading) setLoading(true)
+    
+    try {
+      const params = new URLSearchParams()
+      if (filterStatus !== 'all') params.set('status', filterStatus)
+      if (filterType !== 'all') params.set('type', filterType)
+      params.set('limit', '100')
+      
+      const res = await fetch(`/api/orders?${params.toString()}`)
+      
+      if (!res.ok) {
+        throw new Error('Failed to fetch orders')
+      }
+      
+      const data = await res.json()
+      const fetchedOrders: Order[] = data.orders || []
+      
+      // Check for new orders (not on first load)
+      if (!isFirstLoadRef.current) {
+        const newPendingOrders = fetchedOrders.filter(
+          order => 
+            order.status === 'pending' && 
+            !previousOrderIdsRef.current.has(order.id)
+        )
+        
+        if (newPendingOrders.length > 0) {
+          playNotificationSound()
+          console.log(`[Orders] ${newPendingOrders.length} new order(s) received!`)
+        }
+      }
+      
+      // Update tracking refs
+      isFirstLoadRef.current = false
+      previousOrderIdsRef.current = new Set(fetchedOrders.map(o => o.id))
+      
+      setOrders(fetchedOrders)
+      setLastFetchTime(new Date())
+      
+      // Update selected order if it exists
+      if (selectedOrder) {
+        const updatedSelected = fetchedOrders.find(o => o.id === selectedOrder.id)
+        if (updatedSelected) {
+          setSelectedOrder(updatedSelected)
+        }
+      }
+    } catch (error) {
+      console.error('[Orders] Fetch error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [filterStatus, filterType, selectedOrder, playNotificationSound])
+  
+  // Initial fetch
+  useEffect(() => {
+    fetchOrders(true)
+  }, []) // Only on mount
+  
+  // Refetch when filters change
+  useEffect(() => {
+    if (!isFirstLoadRef.current) {
+      fetchOrders(false)
+    }
+  }, [filterStatus, filterType])
+  
+  // Auto-refresh every 30 seconds (fallback for realtime)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchOrders(false)
+    }, 30000)
+    
+    return () => clearInterval(interval)
+  }, [fetchOrders])
+
+  // Supabase realtime subscription for instant order updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('orders-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'Order',
+        },
+        (payload) => {
+          console.log('[Orders] Realtime: New order received', payload)
+          playNotificationSound()
+          fetchOrders(false) // Refresh to get full order data
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'Order',
+        },
+        (payload) => {
+          console.log('[Orders] Realtime: Order updated', payload)
+          fetchOrders(false)
+        }
+      )
+      .subscribe((status) => {
+        console.log('[Orders] Realtime subscription status:', status)
+      })
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [playNotificationSound, fetchOrders])
 
   // Calculate stats
   const stats = {
     total: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
-    preparing: orders.filter(o => o.status === 'preparing').length,
+    preparing: orders.filter(o => o.status === 'preparing' || o.status === 'confirmed').length,
     ready: orders.filter(o => o.status === 'ready').length,
     pickup: orders.filter(o => o.type === 'pickup').length,
     delivery: orders.filter(o => o.type === 'delivery').length,
@@ -201,24 +278,45 @@ export default function OrdersPage() {
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
       order.orderNumber.toLowerCase().includes(search.toLowerCase()) ||
-      order.customer.name.toLowerCase().includes(search.toLowerCase()) ||
-      order.customer.phone.includes(search)
-    const matchesStatus = filterStatus === 'all' || order.status === filterStatus
-    const matchesType = filterType === 'all' || order.type === filterType
-    return matchesSearch && matchesStatus && matchesType
+      order.customerName.toLowerCase().includes(search.toLowerCase()) ||
+      order.customerPhone.includes(search)
+    return matchesSearch
   })
 
   const [requestingDelivery, setRequestingDelivery] = useState(false)
   const [deliveryError, setDeliveryError] = useState<string | null>(null)
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null)
 
-  const updateOrderStatus = (orderId: string, newStatus: OrderStatus) => {
-    setOrders(prev => 
-      prev.map(order => 
-        order.id === orderId ? { ...order, status: newStatus } : order
+  const updateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
+    setUpdatingStatus(orderId)
+    
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to update order')
+      }
+      
+      const { order } = await res.json()
+      
+      // Update local state
+      setOrders(prev => 
+        prev.map(o => o.id === orderId ? { ...o, status: order.status } : o)
       )
-    )
-    if (selectedOrder?.id === orderId) {
-      setSelectedOrder(prev => prev ? { ...prev, status: newStatus } : null)
+      
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(prev => prev ? { ...prev, status: order.status } : null)
+      }
+    } catch (error: any) {
+      console.error('[Orders] Update error:', error)
+      alert(error.message || 'Failed to update order status')
+    } finally {
+      setUpdatingStatus(null)
     }
   }
 
@@ -250,7 +348,8 @@ export default function OrdersPage() {
     }
   }
 
-  const formatTime = (date: Date) => {
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr)
     const now = new Date()
     const diff = Math.floor((now.getTime() - date.getTime()) / 60000)
     if (diff < 1) return 'Just now'
@@ -272,18 +371,43 @@ export default function OrdersPage() {
               </Link>
               <div>
                 <h1 className="text-xl font-bold text-slate-900">Orders</h1>
-                <p className="text-sm text-slate-500">Manage incoming orders</p>
+                <p className="text-sm text-slate-500">
+                  {lastFetchTime 
+                    ? `Updated ${formatTime(lastFetchTime.toISOString())}`
+                    : 'Loading...'
+                  }
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Button variant="outline" className="gap-2">
-                <RefreshCcw className="w-4 h-4" />
+              {/* Sound Toggle */}
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={toggleSound}
+                title={soundEnabled ? 'Mute notifications' : 'Enable notifications'}
+              >
+                {soundEnabled ? (
+                  <Volume2 className="w-4 h-4 text-green-600" />
+                ) : (
+                  <VolumeX className="w-4 h-4 text-slate-400" />
+                )}
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="gap-2"
+                onClick={() => fetchOrders(true)}
+                disabled={loading}
+              >
+                <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                 Refresh
               </Button>
+              
               <Button variant="outline" className="gap-2 relative">
                 <Bell className="w-4 h-4" />
                 {stats.pending > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
                     {stats.pending}
                   </span>
                 )}
@@ -423,7 +547,14 @@ export default function OrdersPage() {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Orders List */}
           <div className="lg:col-span-2 space-y-4">
-            {filteredOrders.length === 0 ? (
+            {loading && orders.length === 0 ? (
+              <Card>
+                <CardContent className="p-12 text-center">
+                  <RefreshCcw className="w-12 h-12 text-slate-200 mx-auto mb-4 animate-spin" />
+                  <p className="text-slate-500">Loading orders...</p>
+                </CardContent>
+              </Card>
+            ) : filteredOrders.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
                   <ShoppingBag className="w-12 h-12 text-slate-200 mx-auto mb-4" />
@@ -433,7 +564,8 @@ export default function OrdersPage() {
             ) : (
               <AnimatePresence mode="popLayout">
               {filteredOrders.map((order, i) => {
-                const StatusIcon = statusConfig[order.status].icon
+                const StatusIcon = statusConfig[order.status]?.icon || Bell
+                const statusStyle = statusConfig[order.status] || statusConfig.pending
                 return (
                   <motion.div
                     key={order.id}
@@ -455,9 +587,9 @@ export default function OrdersPage() {
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-3">
-                          <div className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig[order.status].color}`}>
+                          <div className={`px-2 py-1 rounded-full text-xs font-medium ${statusStyle.color}`}>
                             <StatusIcon className="w-3 h-3 inline mr-1" />
-                            {statusConfig[order.status].label}
+                            {statusStyle.label}
                           </div>
                           <div className={`px-2 py-1 rounded-full text-xs font-medium ${
                             order.type === 'delivery' 
@@ -483,7 +615,7 @@ export default function OrdersPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-semibold text-slate-900">{order.orderNumber}</p>
-                          <p className="text-sm text-slate-500">{order.customer.name}</p>
+                          <p className="text-sm text-slate-500">{order.customerName}</p>
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-lg text-slate-900">${order.total.toFixed(2)}</p>
@@ -498,19 +630,29 @@ export default function OrdersPage() {
                             <Button 
                               size="sm" 
                               className="flex-1 gap-1"
+                              disabled={updatingStatus === order.id}
                               onClick={(e) => { e.stopPropagation(); updateOrderStatus(order.id, 'preparing'); }}
                             >
-                              <ChefHat className="w-4 h-4" />
+                              {updatingStatus === order.id ? (
+                                <RefreshCcw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <ChefHat className="w-4 h-4" />
+                              )}
                               Start Preparing
                             </Button>
                           )}
-                          {order.status === 'preparing' && (
+                          {(order.status === 'preparing' || order.status === 'confirmed') && (
                             <Button 
                               size="sm" 
                               className="flex-1 gap-1 bg-green-600 hover:bg-green-700"
+                              disabled={updatingStatus === order.id}
                               onClick={(e) => { e.stopPropagation(); updateOrderStatus(order.id, 'ready'); }}
                             >
-                              <Package className="w-4 h-4" />
+                              {updatingStatus === order.id ? (
+                                <RefreshCcw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Package className="w-4 h-4" />
+                              )}
                               Mark Ready
                             </Button>
                           )}
@@ -518,9 +660,14 @@ export default function OrdersPage() {
                             <Button 
                               size="sm" 
                               className="flex-1 gap-1"
+                              disabled={updatingStatus === order.id}
                               onClick={(e) => { e.stopPropagation(); updateOrderStatus(order.id, 'completed'); }}
                             >
-                              <CheckCircle2 className="w-4 h-4" />
+                              {updatingStatus === order.id ? (
+                                <RefreshCcw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CheckCircle2 className="w-4 h-4" />
+                              )}
                               Complete Order
                             </Button>
                           )}
@@ -554,8 +701,8 @@ export default function OrdersPage() {
                     </Button>
                   </div>
                   <div className="flex gap-2">
-                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig[selectedOrder.status].color}`}>
-                      {statusConfig[selectedOrder.status].label}
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${statusConfig[selectedOrder.status]?.color || 'bg-slate-100 text-slate-800'}`}>
+                      {statusConfig[selectedOrder.status]?.label || selectedOrder.status}
                     </div>
                     <div className={`px-2 py-1 rounded-full text-xs font-medium ${
                       selectedOrder.type === 'delivery' ? 'bg-orange-100 text-orange-700' : 'bg-purple-100 text-purple-700'
@@ -571,16 +718,16 @@ export default function OrdersPage() {
                     <div className="space-y-1">
                       <p className="flex items-center gap-2 text-sm">
                         <User className="w-4 h-4 text-slate-400" />
-                        {selectedOrder.customer.name}
+                        {selectedOrder.customerName}
                       </p>
                       <p className="flex items-center gap-2 text-sm">
                         <Phone className="w-4 h-4 text-slate-400" />
-                        {selectedOrder.customer.phone}
+                        {selectedOrder.customerPhone}
                       </p>
-                      {selectedOrder.address && (
+                      {selectedOrder.deliveryAddress && (
                         <p className="flex items-start gap-2 text-sm">
                           <MapPin className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5" />
-                          {selectedOrder.address}
+                          {selectedOrder.deliveryAddress}
                         </p>
                       )}
                     </div>
@@ -591,7 +738,7 @@ export default function OrdersPage() {
                     <div className="p-3 bg-blue-50 rounded-lg">
                       <p className="text-sm font-medium text-blue-800 flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
-                        Scheduled for {selectedOrder.scheduledFor.toLocaleTimeString('en-US', { 
+                        Scheduled for {new Date(selectedOrder.scheduledFor).toLocaleTimeString('en-US', { 
                           hour: 'numeric', 
                           minute: '2-digit' 
                         })}
@@ -633,13 +780,13 @@ export default function OrdersPage() {
                       <span className="text-slate-500">Tax</span>
                       <span>${selectedOrder.tax.toFixed(2)}</span>
                     </div>
-                    {selectedOrder.deliveryFee && (
+                    {selectedOrder.deliveryFee > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-500">Delivery Fee</span>
                         <span>${selectedOrder.deliveryFee.toFixed(2)}</span>
                       </div>
                     )}
-                    {selectedOrder.tip && (
+                    {selectedOrder.tip > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-slate-500">Tip</span>
                         <span>${selectedOrder.tip.toFixed(2)}</span>
@@ -656,27 +803,42 @@ export default function OrdersPage() {
                     {selectedOrder.status === 'pending' && (
                       <Button 
                         className="w-full gap-2"
+                        disabled={updatingStatus === selectedOrder.id}
                         onClick={() => updateOrderStatus(selectedOrder.id, 'preparing')}
                       >
-                        <ChefHat className="w-4 h-4" />
+                        {updatingStatus === selectedOrder.id ? (
+                          <RefreshCcw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <ChefHat className="w-4 h-4" />
+                        )}
                         Start Preparing
                       </Button>
                     )}
-                    {selectedOrder.status === 'preparing' && (
+                    {(selectedOrder.status === 'preparing' || selectedOrder.status === 'confirmed') && (
                       <Button 
                         className="w-full gap-2 bg-green-600 hover:bg-green-700"
+                        disabled={updatingStatus === selectedOrder.id}
                         onClick={() => updateOrderStatus(selectedOrder.id, 'ready')}
                       >
-                        <Package className="w-4 h-4" />
+                        {updatingStatus === selectedOrder.id ? (
+                          <RefreshCcw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Package className="w-4 h-4" />
+                        )}
                         Mark as Ready
                       </Button>
                     )}
                     {selectedOrder.status === 'ready' && (
                       <Button 
                         className="w-full gap-2"
+                        disabled={updatingStatus === selectedOrder.id}
                         onClick={() => updateOrderStatus(selectedOrder.id, 'completed')}
                       >
-                        <CheckCircle2 className="w-4 h-4" />
+                        {updatingStatus === selectedOrder.id ? (
+                          <RefreshCcw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4" />
+                        )}
                         Complete Order
                       </Button>
                     )}
@@ -723,7 +885,11 @@ export default function OrdersPage() {
                         <Printer className="w-4 h-4" />
                         Print
                       </Button>
-                      <Button variant="outline" className="gap-2">
+                      <Button 
+                        variant="outline" 
+                        className="gap-2"
+                        onClick={() => window.open(`tel:${selectedOrder.customerPhone}`)}
+                      >
                         <Phone className="w-4 h-4" />
                         Call
                       </Button>
@@ -732,6 +898,7 @@ export default function OrdersPage() {
                       <Button 
                         variant="ghost" 
                         className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                        disabled={updatingStatus === selectedOrder.id}
                         onClick={() => updateOrderStatus(selectedOrder.id, 'cancelled')}
                       >
                         Cancel Order

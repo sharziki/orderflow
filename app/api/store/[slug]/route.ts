@@ -22,6 +22,7 @@ export async function GET(
         zip: true,
         logo: true,
         template: true,
+        menuLayout: true,
         primaryColor: true,
         secondaryColor: true,
         pickupEnabled: true,

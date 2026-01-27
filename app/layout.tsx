@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Lato, Open_Sans } from 'next/font/google'
 import './globals.css'
+import { ToastProvider } from '@/components/providers/toast-provider'
 
 const lato = Lato({
   subsets: ['latin'],
@@ -41,6 +42,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${lato.variable} ${openSans.variable}`}>
       <body className={`${openSans.className} antialiased bg-white`}>
+        <ToastProvider />
         {children}
       </body>
     </html>

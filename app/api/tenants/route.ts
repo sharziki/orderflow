@@ -155,10 +155,14 @@ export async function POST(req: NextRequest) {
       },
     })
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating tenant:', error)
+    // Return more helpful error in development/preview
+    const errorMessage = process.env.NODE_ENV === 'production' && !process.env.VERCEL_ENV?.includes('preview')
+      ? 'Failed to create restaurant. Please try again.'
+      : `Database error: ${error.message || 'Unknown error'}. Make sure DATABASE_URL is configured.`
     return NextResponse.json(
-      { error: 'Failed to create restaurant. Please try again.' },
+      { error: errorMessage },
       { status: 500 }
     )
   }

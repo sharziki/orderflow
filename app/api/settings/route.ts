@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
         timezone: true,
         logo: true,
         template: true,
+        menuLayout: true,
         primaryColor: true,
         secondaryColor: true,
         stripeAccountId: true,
@@ -92,6 +93,7 @@ export async function PUT(req: NextRequest) {
       timezone,
       logo,
       template,
+      menuLayout,
       primaryColor,
       secondaryColor,
       pickupEnabled,
@@ -120,6 +122,7 @@ export async function PUT(req: NextRequest) {
     if (timezone !== undefined) updateData.timezone = timezone
     if (logo !== undefined) updateData.logo = logo
     if (template !== undefined) updateData.template = template
+    if (menuLayout !== undefined) updateData.menuLayout = menuLayout
     if (primaryColor !== undefined) updateData.primaryColor = primaryColor
     if (secondaryColor !== undefined) updateData.secondaryColor = secondaryColor
     if (pickupEnabled !== undefined) updateData.pickupEnabled = pickupEnabled

@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+// Lazy-init Stripe to avoid build-time errors
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!)
+}
 
 // Platform fee: flat $1 per order (100 cents)
 const PLATFORM_FEE_CENTS = parseInt(process.env.PLATFORM_FEE_CENTS || '100', 10)
 
 export async function POST(req: NextRequest) {
+  const stripe = getStripe()
   try {
     const { orderId, tenantSlug } = await req.json()
     

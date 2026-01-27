@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getSession, generateOrderNumber } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { sanitizeField, sanitizeEmail, sanitizePhone } from '@/lib/sanitize'
+import { sendOrderConfirmation, sendNewOrderNotification } from '@/lib/email'
 
 // GET /api/orders - List orders for current tenant
 export async function GET(req: NextRequest) {
@@ -60,24 +63,29 @@ export async function GET(req: NextRequest) {
 
 // POST /api/orders - Create new order (from customer storefront)
 export async function POST(req: NextRequest) {
+  // Rate limit: 10 orders per minute per IP
+  const rateCheck = checkRateLimit(req, 'order')
+  if (!rateCheck.success && rateCheck.response) {
+    return rateCheck.response
+  }
+
   try {
     const body = await req.json()
     
-    const {
-      tenantSlug, // or tenantId
-      type,
-      customerName,
-      customerEmail,
-      customerPhone,
-      items,
-      deliveryAddress,
-      deliveryLat,
-      deliveryLng,
-      scheduledFor,
-      notes,
-      tip,
-      giftCardCode,
-    } = body
+    // Sanitize user input
+    const tenantSlug = body.tenantSlug // or tenantId
+    const type = body.type
+    const customerName = sanitizeField(body.customerName)
+    const customerEmail = sanitizeEmail(body.customerEmail)
+    const customerPhone = sanitizePhone(body.customerPhone)
+    const items = body.items
+    const deliveryAddress = sanitizeField(body.deliveryAddress)
+    const deliveryLat = body.deliveryLat
+    const deliveryLng = body.deliveryLng
+    const scheduledFor = body.scheduledFor
+    const notes = sanitizeField(body.notes)
+    const tip = body.tip
+    const giftCardCode = body.giftCardCode
     
     // Find tenant
     const tenant = await prisma.tenant.findFirst({
@@ -230,6 +238,52 @@ export async function POST(req: NextRequest) {
       }
       
       return newOrder
+    })
+    
+    // Send email notifications (fire and forget - don't block response)
+    const emailPromises: Promise<void>[] = []
+    
+    // Send confirmation to customer
+    if (customerEmail) {
+      emailPromises.push(
+        sendOrderConfirmation(customerEmail, {
+          orderNumber: order.orderNumber,
+          customerName,
+          items: orderItems.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+          subtotal,
+          tax,
+          deliveryFee: type === 'delivery' ? deliveryFee : undefined,
+          tip: tipAmount || undefined,
+          total: order.total,
+          type: type as 'pickup' | 'delivery',
+          restaurantName: tenant.name,
+          restaurantPhone: tenant.phone || undefined,
+          restaurantAddress: tenant.address ? `${tenant.address}, ${tenant.city}, ${tenant.state} ${tenant.zip}` : undefined,
+          estimatedTime: scheduledFor ? new Date(scheduledFor).toLocaleString() : undefined,
+        })
+      )
+    }
+    
+    // Send alert to restaurant
+    if (tenant.email) {
+      emailPromises.push(
+        sendNewOrderNotification(tenant.email, {
+          orderNumber: order.orderNumber,
+          customerName,
+          total: order.total,
+          itemCount: orderItems.length,
+          type: type as 'pickup' | 'delivery',
+        })
+      )
+    }
+    
+    // Don't await - let emails send in background
+    Promise.all(emailPromises).catch(err => {
+      console.error('[Orders] Email notification error:', err)
     })
     
     return NextResponse.json({ 

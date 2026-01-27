@@ -2,10 +2,20 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { verifyPassword, createToken } from '@/lib/auth'
 import { cookies } from 'next/headers'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { sanitizeEmail } from '@/lib/sanitize'
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 5 attempts per 15 minutes per IP
+  const rateCheck = checkRateLimit(req, 'login')
+  if (!rateCheck.success && rateCheck.response) {
+    return rateCheck.response
+  }
+
   try {
-    const { email, password } = await req.json()
+    const body = await req.json()
+    const email = sanitizeEmail(body.email)
+    const password = body.password
     
     if (!email || !password) {
       return NextResponse.json(

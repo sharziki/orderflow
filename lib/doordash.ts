@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { SignJWT } from 'jose'
+import { withDoorDashRetry } from './retry'
 
 interface DoorDashDeliveryRequest {
   external_delivery_id: string
@@ -123,32 +124,34 @@ class DoorDashApiHelper {
   }
 
   /**
-   * Make a request to DoorDash API
+   * Make a request to DoorDash API with retry logic
    */
   async makeRequest(method: 'GET' | 'POST' | 'PUT', endpoint: string, data?: any): Promise<any> {
-    const url = `${this.baseUrl}${endpoint}`
-    const headers = await this.getHeaders()
-    
-    try {
-      const response = await axios({
-        method,
-        url,
-        headers,
-        data,
-      })
+    return withDoorDashRetry(async () => {
+      const url = `${this.baseUrl}${endpoint}`
+      const headers = await this.getHeaders()
       
-      return response.data
-    } catch (error: any) {
-      // Preserve axios error structure so API routes can access response.data
-      if (error.response) {
-        // Re-throw with response structure intact
-        const axiosError: any = new Error(error.response?.data?.message || error.message || 'DoorDash API request failed')
-        axiosError.response = error.response
-        axiosError.isAxiosError = true
-        throw axiosError
+      try {
+        const response = await axios({
+          method,
+          url,
+          headers,
+          data,
+        })
+        
+        return response.data
+      } catch (error: any) {
+        // Preserve axios error structure so API routes can access response.data
+        if (error.response) {
+          // Re-throw with response structure intact
+          const axiosError: any = new Error(error.response?.data?.message || error.message || 'DoorDash API request failed')
+          axiosError.response = error.response
+          axiosError.isAxiosError = true
+          throw axiosError
+        }
+        throw error
       }
-      throw error
-    }
+    }, `doordash_${method}_${endpoint}`)
   }
 }
 

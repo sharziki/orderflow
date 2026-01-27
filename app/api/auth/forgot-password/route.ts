@@ -2,18 +2,28 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { sendPasswordResetEmail } from '@/lib/email'
 import crypto from 'crypto'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { sanitizeEmail } from '@/lib/sanitize'
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 3 attempts per hour per IP
+  const rateCheck = checkRateLimit(req, 'reset')
+  if (!rateCheck.success && rateCheck.response) {
+    return rateCheck.response
+  }
+
   try {
-    const { email } = await req.json()
+    const body = await req.json()
+    const email = sanitizeEmail(body.email)
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 })
     }
 
     // Find user (email might exist in multiple tenants, but reset works for any)
+    // email is already sanitized and lowercased
     const user = await prisma.user.findFirst({
-      where: { email: email.toLowerCase() },
+      where: { email },
     })
 
     // Always return success to prevent email enumeration

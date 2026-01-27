@@ -30,6 +30,7 @@ model Tenant {
   // Branding
   logo                  String?   // URL to logo image
   template              String    @default("modern") // modern, classic, bold, compact
+  menuLayout            String    @default("blu-bentonville") // blu-bentonville, slice
   primaryColor          String    @default("#2563eb")
   secondaryColor        String    @default("#1e40af")
   
@@ -125,7 +126,7 @@ model Category {
   menuItems   MenuItem[]
   
   @@index([tenantId])
-  @@index([tenantId, sortOrder])
+  @@index([sortOrder])
 }
 
 // ============================================
@@ -220,6 +221,21 @@ model Order {
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
   @@index([orderNumber])
+  @@index([paymentIntentId])
+}
+
+// ============================================
+// PROCESSED WEBHOOK (Idempotency)
+// ============================================
+model ProcessedWebhook {
+  id          String    @id @default(cuid())
+  eventId     String    @unique  // Stripe event ID or DoorDash delivery ID + status
+  source      String    // 'stripe' | 'doordash'
+  eventType   String    // Event type for debugging
+  processedAt DateTime  @default(now())
+  
+  @@index([eventId])
+  @@index([source, processedAt])
 }
 
 // ============================================

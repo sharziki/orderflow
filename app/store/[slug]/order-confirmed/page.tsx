@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
-import { CheckCircle, Clock, MapPin, Phone, Loader2, RefreshCw } from 'lucide-react'
+import { CheckCircle, Clock, MapPin, Phone, Loader2, RefreshCw, Download } from 'lucide-react'
+import { downloadReceipt } from '@/lib/pdf-receipt'
 import Confetti from 'react-confetti'
 
 interface Order {
@@ -300,8 +301,39 @@ export default function OrderConfirmedPage() {
           )}
         </div>
 
+        {/* Download Receipt */}
+        <div className="mt-6">
+          <button
+            onClick={() => {
+              if (!order || !store) return
+              downloadReceipt({
+                restaurantName: store.name,
+                restaurantAddress: store.address,
+                restaurantPhone: store.phone,
+                orderNumber: order.orderNumber,
+                orderDate: new Date(order.createdAt),
+                customerName: order.customerName,
+                orderType: order.type,
+                items: order.items?.map((item: any) => ({
+                  name: item.name,
+                  quantity: item.quantity,
+                  price: item.price,
+                  options: item.options?.map((o: any) => o.name) || [],
+                })) || [],
+                subtotal: order.total * 0.9, // Approximate
+                tax: order.total * 0.1, // Approximate
+                total: order.total,
+              })
+            }}
+            className="w-full py-3 border border-slate-300 text-slate-700 rounded-xl font-medium hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
+          >
+            <Download className="w-5 h-5" />
+            Download Receipt
+          </button>
+        </div>
+
         {/* Back to Menu */}
-        <div className="mt-8 text-center">
+        <div className="mt-4 text-center">
           <a
             href={`/store/${slug}`}
             className="text-slate-600 hover:text-slate-900"

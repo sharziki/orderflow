@@ -13,17 +13,26 @@ const DEFAULT_CONFIG: RateLimitConfig = {
   max: 60,             // 60 requests per minute
 }
 
-// Stricter limits for auth endpoints
-const AUTH_CONFIG: RateLimitConfig = {
+// Login: 5 attempts per 15 minutes per IP
+const LOGIN_CONFIG: RateLimitConfig = {
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,                   // 10 attempts per 15 minutes
+  max: 5,                    // 5 attempts per 15 minutes
 }
 
-// Very strict for password reset
+// Password reset: 3 attempts per hour per IP
 const RESET_CONFIG: RateLimitConfig = {
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 5,                    // 5 attempts per hour
+  max: 3,                    // 3 attempts per hour
 }
+
+// Order creation: 10 orders per minute per session/IP
+const ORDER_CONFIG: RateLimitConfig = {
+  windowMs: 60 * 1000,       // 1 minute
+  max: 10,                   // 10 orders per minute
+}
+
+// Legacy alias for backward compatibility
+const AUTH_CONFIG = LOGIN_CONFIG
 
 export function getClientIp(req: NextRequest): string {
   return (
@@ -88,13 +97,28 @@ export function rateLimitResponse(reset: number): NextResponse {
 // Middleware helper
 export function checkRateLimit(
   req: NextRequest,
-  type: 'default' | 'auth' | 'reset' = 'default'
+  type: 'default' | 'auth' | 'login' | 'reset' | 'order' = 'default'
 ): { success: boolean; response?: NextResponse } {
   const ip = getClientIp(req)
   const path = req.nextUrl.pathname
   const key = `${type}:${ip}:${path}`
 
-  const config = type === 'auth' ? AUTH_CONFIG : type === 'reset' ? RESET_CONFIG : DEFAULT_CONFIG
+  let config: RateLimitConfig
+  switch (type) {
+    case 'login':
+    case 'auth':
+      config = LOGIN_CONFIG
+      break
+    case 'reset':
+      config = RESET_CONFIG
+      break
+    case 'order':
+      config = ORDER_CONFIG
+      break
+    default:
+      config = DEFAULT_CONFIG
+  }
+  
   const result = rateLimit(key, config)
 
   if (!result.success) {
@@ -107,7 +131,7 @@ export function checkRateLimit(
 // Wrap API handler with rate limiting
 export function withRateLimit(
   handler: (req: NextRequest) => Promise<NextResponse>,
-  type: 'default' | 'auth' | 'reset' = 'default'
+  type: 'default' | 'auth' | 'login' | 'reset' | 'order' = 'default'
 ) {
   return async (req: NextRequest): Promise<NextResponse> => {
     const { success, response } = checkRateLimit(req, type)
@@ -119,3 +143,6 @@ export function withRateLimit(
     return handler(req)
   }
 }
+
+// Export configs for direct use if needed
+export { LOGIN_CONFIG, RESET_CONFIG, ORDER_CONFIG, DEFAULT_CONFIG }

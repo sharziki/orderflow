@@ -3,9 +3,16 @@ import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import Stripe from 'stripe'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+// Force dynamic to prevent static generation
+export const dynamic = 'force-dynamic'
+
+// Lazy-init to avoid build-time errors
+function getStripe() {
+  return new Stripe(process.env.STRIPE_SECRET_KEY!)
+}
 
 export async function GET(req: NextRequest) {
+  const stripe = getStripe()
   try {
     const session = await getSession()
     if (!session) {
