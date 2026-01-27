@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { X, Plus, Minus, Truck, Store, CreditCard, MapPin, Check, Gift, Loader2 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import AddressPicker from './AddressPicker'
@@ -461,7 +462,7 @@ export default function OrderModal({
       if (!orderResponse.ok) {
         const text = await orderResponse.text().catch(() => '')
         console.error('[Checkout] Order API non-OK:', orderResponse.status, text)
-        alert('Order creation failed. Please try again.')
+        toast.error('Order creation failed. Please try again.')
         return
       }
 
@@ -498,11 +499,11 @@ export default function OrderModal({
         onUpdateCart([])
         window.location.href = `/track/${result.orderId}`
       } else {
-        alert(result.error || 'Order creation failed. Please try again.')
+        toast.error(result.error || 'Order creation failed. Please try again.')
       }
     } catch (err) {
       console.error('[Checkout] Gift-card-only order error:', err)
-      alert('An unexpected error occurred. Please try again.')
+      toast.error('Something went wrong. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -564,14 +565,14 @@ export default function OrderModal({
     }
 
     if (!orderType || !customerInfo.name || !customerInfo.email) {
-      alert('Please fill in all required fields')
+      toast.error('Please fill in your name and email')
       return
     }
 
     // Basic email validation
     const emailValid = /.+@.+\..+/.test(customerInfo.email)
     if (!emailValid) {
-      alert('Please enter a valid email address')
+      toast.error('Please enter a valid email address')
       return
     }
 
@@ -579,18 +580,18 @@ export default function OrderModal({
     if (customerInfo.phone && customerInfo.phone.trim()) {
       const phoneDigits = customerInfo.phone.replace(/\D/g, '')
       if (phoneDigits.length < 10) {
-        alert('Please enter a valid phone number with at least 10 digits, or leave it empty to use default')
+        toast.error('Please enter a valid 10-digit phone number (e.g., 555-123-4567)')
         return
       }
     }
 
     if (orderType === 'DELIVERY' && !deliveryAddress) {
-      alert('Please provide delivery address')
+      toast.error('Please enter a delivery address')
       return
     }
 
     if (orderType === 'DELIVERY' && !addressValidated) {
-      alert('Please select a validated address from the dropdown suggestions, or click one of the test address buttons.')
+      toast.error('Please select an address from the suggestions to verify it')
       return
     }
 
@@ -791,7 +792,7 @@ export default function OrderModal({
       
     } catch (error) {
       console.error('Payment setup error:', error)
-      alert('Failed to initialize payment. Please try again.')
+      toast.error('Payment setup failed. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -1395,7 +1396,7 @@ export default function OrderModal({
                 <button
                   onClick={async () => {
                     if (quoteLoading || quoteError || deliveryFeeCents === null) {
-                      alert('Please wait for the quote to load or fix any errors.')
+                      toast.error('Please wait for the delivery quote to load')
                       return
                     }
 
@@ -1413,7 +1414,7 @@ export default function OrderModal({
                         })
                         const acceptJson = await acceptRes.json()
                         if (!acceptJson.success) {
-                          alert('Failed to accept delivery quote. Please adjust details or try again.')
+                          toast.error('Could not confirm delivery. Please try again.')
                           return
                         }
                         setAcceptedDeliveryId(acceptJson.delivery?.delivery_id ?? null)
@@ -1443,7 +1444,7 @@ export default function OrderModal({
                       setClientSecret(paymentData.clientSecret)
                       setStep(4)
                     } catch (e) {
-                      alert('Failed to initialize payment. Please try again.')
+                      toast.error('Payment setup failed. Please try again.')
                     }
                   }}
                   disabled={quoteLoading || !!quoteError || deliveryFeeCents === null}

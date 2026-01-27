@@ -1,51 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
+import { getSession } from '@/lib/auth'
 import Stripe from 'stripe'
 
-const getStripe = () => {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('STRIPE_SECRET_KEY not configured')
-  }
-  return new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-09-30.clover' as any,
-  })
-}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const stripe = getStripe()
-    const body = await request.json()
-    const { email, businessName } = body
-
-    // Create Connect Express account
-    const account = await stripe.accounts.create({
-      type: 'express',
-      email,
-      business_profile: {
-        name: businessName,
-      },
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
-      },
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: session.tenantId },
     })
-
-    // Create onboarding link
+    
+    if (!tenant) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+    }
+    
+    let accountId = tenant.stripeAccountId
+    
+    // Create Stripe Connect account if doesn't exist
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: 'standard', // Standard accounts have full Stripe dashboard
+        email: tenant.email,
+        metadata: {
+          tenantId: tenant.id,
+          tenantSlug: tenant.slug,
+        },
+        business_profile: {
+          name: tenant.name,
+        },
+      })
+      
+      accountId = account.id
+      
+      // Save to tenant
+      await prisma.tenant.update({
+        where: { id: tenant.id },
+        data: { stripeAccountId: accountId },
+      })
+    }
+    
+    // Create account link for onboarding
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+    
     const accountLink = await stripe.accountLinks.create({
-      account: account.id,
-      refresh_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/settings?stripe=refresh`,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/settings?stripe=success`,
+      account: accountId,
+      refresh_url: `${baseUrl}/dashboard/settings?stripe=refresh`,
+      return_url: `${baseUrl}/dashboard/settings?stripe=success`,
       type: 'account_onboarding',
     })
-
-    return NextResponse.json({
-      success: true,
-      accountId: account.id,
-      onboardingUrl: accountLink.url,
-    })
+    
+    return NextResponse.json({ url: accountLink.url })
   } catch (error: any) {
-    console.error('Stripe Connect error:', error)
+    console.error('Error creating Stripe onboarding:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create Connect account' },
+      { error: error.message || 'Failed to start Stripe onboarding' },
       { status: 500 }
     )
   }

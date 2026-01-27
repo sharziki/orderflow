@@ -1,159 +1,125 @@
-import bcrypt from 'bcryptjs'
-import { SignJWT, jwtVerify } from 'jose'
+import { hash, compare } from 'bcryptjs'
+import { sign, verify } from 'jsonwebtoken'
+import { cookies } from 'next/headers'
+import { prisma } from './db'
 
-const SESSION_COOKIE_NAME = 'admin_session'
+const JWT_SECRET = process.env.JWT_SECRET || 'orderflow-secret-change-in-production'
+const SALT_ROUNDS = 12
 
-// Get JWT secret key
-function getJWTSecret(): Uint8Array {
-  const secret = process.env.SESSION_SECRET || 'your-secret-key-change-in-production'
-  return new TextEncoder().encode(secret)
-}
-
-/**
- * Verifies the admin password using bcrypt
- * @param password - The password to verify
- * @returns Promise<boolean> - True if password is correct
- */
-export async function verifyAdminPassword(password: string): Promise<boolean> {
-  const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH
-  const adminPasswordPlain = process.env.ADMIN_PASSWORD
-
-  // Support both hashed and plain passwords for backward compatibility
-  if (adminPasswordHash) {
-    // Preferred: Use bcrypt hash
-    return await bcrypt.compare(password, adminPasswordHash)
-  } else if (adminPasswordPlain) {
-    // Fallback: Plain password (less secure, for development)
-    return password === adminPasswordPlain
-  }
-
-  // Default password for development only
-  return password === 'admin123'
-}
-
-/**
- * Generates a bcrypt hash for a password
- * @param password - The password to hash
- * @returns Promise<string> - The bcrypt hash
- */
+// Password utilities
 export async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(12)
-  return await bcrypt.hash(password, salt)
+  return hash(password, SALT_ROUNDS)
 }
 
-/**
- * Creates a secure JWT session token
- * @returns Promise<string> - The JWT token
- */
-export async function createSessionToken(): Promise<string> {
-  const secret = getJWTSecret()
+export async function verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  return compare(password, hashedPassword)
+}
 
-  const token = await new SignJWT({
-    role: 'admin',
-    iat: Math.floor(Date.now() / 1000),
+// JWT utilities
+export interface JWTPayload {
+  userId: string
+  tenantId: string
+  email: string
+  role: string
+}
+
+export function createToken(payload: JWTPayload): string {
+  return sign(payload, JWT_SECRET, { expiresIn: '7d' })
+}
+
+export function verifyToken(token: string): JWTPayload | null {
+  try {
+    return verify(token, JWT_SECRET) as JWTPayload
+  } catch {
+    return null
+  }
+}
+
+// Session management
+export async function createSession(userId: string): Promise<string> {
+  const token = createToken({ userId, tenantId: '', email: '', role: '' })
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+  
+  await prisma.session.create({
+    data: {
+      userId,
+      token,
+      expiresAt,
+    },
   })
-    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
-    .setIssuedAt()
-    .setExpirationTime('24h')
-    .setIssuer('restaurant-ordering-system')
-    .setAudience('admin-dashboard')
-    .sign(secret)
-
+  
   return token
 }
 
-/**
- * Verifies and decodes a JWT session token
- * @param token - The JWT token to verify
- * @returns Promise<boolean> - True if token is valid
- */
-export async function verifySessionToken(token: string): Promise<boolean> {
-  try {
-    const secret = getJWTSecret()
-
-    const { payload } = await jwtVerify(token, secret, {
-      issuer: 'restaurant-ordering-system',
-      audience: 'admin-dashboard',
-    })
-
-    // Check if token has admin role
-    if (payload.role !== 'admin') {
-      return false
-    }
-
-    return true
-  } catch (error) {
-    // Token is invalid or expired
-    return false
-  }
-}
-
-/**
- * Rate limiting store (in-memory, for simple protection)
- */
-const loginAttempts = new Map<string, { count: number; resetAt: number }>()
-
-/**
- * Checks if an IP address has exceeded login attempt limits
- * @param ip - The IP address to check
- * @returns boolean - True if rate limit exceeded
- */
-export function isRateLimited(ip: string): boolean {
-  const MAX_ATTEMPTS = 5
-  const WINDOW_MS = 15 * 60 * 1000 // 15 minutes
-
-  const now = Date.now()
-  const attempt = loginAttempts.get(ip)
-
-  if (!attempt) {
-    return false
-  }
-
-  // Reset if window expired
-  if (now > attempt.resetAt) {
-    loginAttempts.delete(ip)
-    return false
-  }
-
-  return attempt.count >= MAX_ATTEMPTS
-}
-
-/**
- * Records a failed login attempt
- * @param ip - The IP address that failed
- */
-export function recordLoginAttempt(ip: string): void {
-  const WINDOW_MS = 15 * 60 * 1000 // 15 minutes
-  const now = Date.now()
-  const attempt = loginAttempts.get(ip)
-
-  if (!attempt || now > attempt.resetAt) {
-    loginAttempts.set(ip, {
-      count: 1,
-      resetAt: now + WINDOW_MS,
-    })
-  } else {
-    attempt.count++
-  }
-}
-
-/**
- * Clears login attempts for an IP (on successful login)
- * @param ip - The IP address to clear
- */
-export function clearLoginAttempts(ip: string): void {
-  loginAttempts.delete(ip)
-}
-
-// Cleanup old entries every hour
-setInterval(() => {
-  const now = Date.now()
-  const entries = Array.from(loginAttempts.entries())
-  entries.forEach(([ip, attempt]) => {
-    if (now > attempt.resetAt) {
-      loginAttempts.delete(ip)
-    }
+export async function getSession(): Promise<JWTPayload | null> {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('auth-token')?.value
+  
+  if (!token) return null
+  
+  const payload = verifyToken(token)
+  if (!payload) return null
+  
+  // Verify session exists in DB
+  const session = await prisma.session.findUnique({
+    where: { token },
   })
-}, 60 * 60 * 1000) // 1 hour
+  
+  if (!session || session.expiresAt < new Date()) {
+    return null
+  }
+  
+  return payload
+}
 
-export { SESSION_COOKIE_NAME }
+export async function getCurrentUser() {
+  const session = await getSession()
+  if (!session) return null
+  
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    include: { tenant: true },
+  })
+  
+  return user
+}
+
+export async function getCurrentTenant() {
+  const user = await getCurrentUser()
+  return user?.tenant || null
+}
+
+// Logout
+export async function destroySession(token: string) {
+  await prisma.session.delete({
+    where: { token },
+  }).catch(() => {}) // Ignore if not found
+}
+
+// Generate order number
+export async function generateOrderNumber(tenantId: string): Promise<string> {
+  const today = new Date()
+  const datePrefix = today.toISOString().slice(0, 10).replace(/-/g, '')
+  
+  const count = await prisma.order.count({
+    where: {
+      tenantId,
+      createdAt: {
+        gte: new Date(today.setHours(0, 0, 0, 0)),
+      },
+    },
+  })
+  
+  return `ORD-${datePrefix}-${String(count + 1).padStart(4, '0')}`
+}
+
+// Generate gift card code
+export function generateGiftCardCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let code = ''
+  for (let i = 0; i < 16; i++) {
+    if (i > 0 && i % 4 === 0) code += '-'
+    code += chars[Math.floor(Math.random() * chars.length)]
+  }
+  return code
+}

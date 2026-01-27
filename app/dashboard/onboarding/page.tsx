@@ -22,7 +22,13 @@ import {
   Clock,
   Gift,
   Truck,
-  Sparkles
+  Sparkles,
+  CreditCard,
+  Key,
+  Eye,
+  EyeOff,
+  ExternalLink,
+  AlertCircle
 } from 'lucide-react'
 
 const steps = [
@@ -30,13 +36,16 @@ const steps = [
   { id: 2, title: 'Location', icon: MapPin },
   { id: 3, title: 'Layout', icon: Layout },
   { id: 4, title: 'Branding', icon: Palette },
-  { id: 5, title: 'Launch', icon: Rocket },
+  { id: 5, title: 'Payments', icon: CreditCard },
+  { id: 6, title: 'Launch', icon: Rocket },
 ]
 
 export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [showStripeKey, setShowStripeKey] = useState(false)
+  const [stripeKeyError, setStripeKeyError] = useState('')
   const [formData, setFormData] = useState({
     restaurantName: '',
     slug: '',
@@ -55,6 +64,9 @@ export default function OnboardingPage() {
     deliveryEnabled: false,
     scheduledOrdersEnabled: true,
     giftCardsEnabled: true,
+    stripePublishableKey: '',
+    stripeSecretKey: '',
+    skipStripeSetup: false,
   })
 
   const updateField = (field: string, value: any) => {
@@ -83,7 +95,15 @@ export default function OnboardingPage() {
     }
   }
 
-  const progress = (step / 5) * 100
+  const progress = (step / 6) * 100
+
+  const validateStripeKey = (key: string, type: 'publishable' | 'secret') => {
+    if (!key) return true // Empty is ok (can skip)
+    if (type === 'publishable') {
+      return /^pk_(live|test)_[a-zA-Z0-9]{20,}$/.test(key)
+    }
+    return /^sk_(live|test)_[a-zA-Z0-9]{20,}$/.test(key)
+  }
 
   const canProceed = () => {
     switch(step) {
@@ -91,7 +111,13 @@ export default function OnboardingPage() {
       case 2: return formData.address && formData.city && formData.state
       case 3: return formData.template
       case 4: return true
-      case 5: return true
+      case 5: return formData.skipStripeSetup || (
+        formData.stripePublishableKey && 
+        formData.stripeSecretKey &&
+        validateStripeKey(formData.stripePublishableKey, 'publishable') &&
+        validateStripeKey(formData.stripeSecretKey, 'secret')
+      )
+      case 6: return true
       default: return true
     }
   }
@@ -161,14 +187,21 @@ export default function OnboardingPage() {
                 </>
               )}
               {step === 4 && 'Make it yours'}
-              {step === 5 && 'Ready to launch!'}
+              {step === 5 && (
+                <>
+                  <CreditCard className="w-5 h-5 text-green-500" />
+                  Connect payments
+                </>
+              )}
+              {step === 6 && 'Ready to launch!'}
             </CardTitle>
             <CardDescription>
               {step === 1 && 'Basic information to get started'}
               {step === 2 && 'Your customers need to find you'}
               {step === 3 && 'Select a template that fits your brand'}
               {step === 4 && 'Customize your brand colors'}
-              {step === 5 && 'Review and choose your features'}
+              {step === 5 && 'Set up Stripe to accept payments (you can skip and do this later)'}
+              {step === 6 && 'Review and choose your features'}
             </CardDescription>
           </CardHeader>
 
@@ -397,8 +430,130 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 5: Features & Launch */}
+            {/* Step 5: Payments / Stripe Setup */}
             {step === 5 && (
+              <div className="space-y-6 stagger-children">
+                {!formData.skipStripeSetup ? (
+                  <>
+                    {/* Stripe Key Inputs */}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="stripePublishable" className="flex items-center gap-2">
+                          <Key className="w-4 h-4 text-slate-400" />
+                          Stripe Publishable Key
+                        </Label>
+                        <Input
+                          id="stripePublishable"
+                          value={formData.stripePublishableKey}
+                          onChange={(e) => {
+                            updateField('stripePublishableKey', e.target.value)
+                            setStripeKeyError('')
+                          }}
+                          placeholder="pk_live_... or pk_test_..."
+                          className={`h-12 font-mono text-sm ${
+                            formData.stripePublishableKey && !validateStripeKey(formData.stripePublishableKey, 'publishable')
+                              ? 'border-red-500'
+                              : ''
+                          }`}
+                        />
+                        {formData.stripePublishableKey && !validateStripeKey(formData.stripePublishableKey, 'publishable') && (
+                          <p className="text-xs text-red-500 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Key must start with pk_live_ or pk_test_
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="stripeSecret" className="flex items-center gap-2">
+                          <Key className="w-4 h-4 text-slate-400" />
+                          Stripe Secret Key
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            id="stripeSecret"
+                            type={showStripeKey ? 'text' : 'password'}
+                            value={formData.stripeSecretKey}
+                            onChange={(e) => {
+                              updateField('stripeSecretKey', e.target.value)
+                              setStripeKeyError('')
+                            }}
+                            placeholder="sk_live_... or sk_test_..."
+                            className={`h-12 font-mono text-sm pr-12 ${
+                              formData.stripeSecretKey && !validateStripeKey(formData.stripeSecretKey, 'secret')
+                                ? 'border-red-500'
+                                : ''
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowStripeKey(!showStripeKey)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          >
+                            {showStripeKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                          </button>
+                        </div>
+                        {formData.stripeSecretKey && !validateStripeKey(formData.stripeSecretKey, 'secret') && (
+                          <p className="text-xs text-red-500 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Key must start with sk_live_ or sk_test_
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Help Link */}
+                    <div className="p-4 bg-slate-50 rounded-xl">
+                      <p className="text-sm text-slate-600 mb-2">
+                        Don't have Stripe keys yet?
+                      </p>
+                      <a 
+                        href="https://dashboard.stripe.com/apikeys" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                      >
+                        Get your API keys from Stripe Dashboard
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </div>
+
+                    {/* Skip Option */}
+                    <button
+                      type="button"
+                      onClick={() => updateField('skipStripeSetup', true)}
+                      className="w-full p-4 text-center text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
+                    >
+                      Skip for now — I'll set this up later
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* Skipped State */}
+                    <div className="p-6 bg-amber-50 rounded-xl text-center">
+                      <CreditCard className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+                      <h3 className="font-semibold text-slate-900 mb-2">Payment setup skipped</h3>
+                      <p className="text-sm text-slate-600 mb-4">
+                        No worries! You can set up Stripe anytime from your dashboard settings.
+                        Your store will be created without payment processing for now.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => updateField('skipStripeSetup', false)}
+                        className="gap-2"
+                      >
+                        <Key className="w-4 h-4" />
+                        Actually, let me add my keys
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Step 6: Features & Launch */}
+            {step === 6 && (
               <div className="space-y-6 stagger-children">
                 <div className="grid md:grid-cols-2 gap-4">
                   {[
@@ -462,6 +617,19 @@ export default function OnboardingPage() {
                       <Check className="w-4 h-4 text-green-500" />
                       {formData.template.charAt(0).toUpperCase() + formData.template.slice(1)} template
                     </li>
+                    <li className="flex items-center gap-2">
+                      {formData.skipStripeSetup ? (
+                        <>
+                          <AlertCircle className="w-4 h-4 text-amber-500" />
+                          <span className="text-amber-600">Stripe setup pending</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 text-green-500" />
+                          Stripe payments configured
+                        </>
+                      )}
+                    </li>
                   </ul>
                 </div>
               </div>
@@ -478,14 +646,14 @@ export default function OnboardingPage() {
                 <div />
               )}
 
-              {step < 5 ? (
+              {step < 6 ? (
                 <Button 
                   onClick={() => setStep(step + 1)} 
                   className="gap-2" 
                   size="lg"
                   disabled={!canProceed()}
                 >
-                  Continue
+                  {step === 5 && formData.skipStripeSetup ? 'Skip & Continue' : 'Continue'}
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               ) : (

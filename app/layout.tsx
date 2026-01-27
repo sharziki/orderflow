@@ -17,19 +17,19 @@ const openSans = Open_Sans({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://blubentonville.com'),
-  title: 'Blu Fish House - Fresh Seafood & Sushi | Bentonville, AR',
-  description: 'Order fresh seafood, premium sushi, and coastal cuisine online for pickup or delivery. The closest thing to eating by the ocean in Arkansas.',
-  keywords: ['seafood', 'sushi', 'fresh fish', 'Bentonville', 'Arkansas', 'restaurant', 'food delivery'],
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://orderflow.io'),
+  title: 'OrderFlow - Online Ordering for Restaurants | Launch in 5 Minutes',
+  description: 'Give your restaurant a beautiful online ordering system. No coding required. Set up in minutes, start taking orders today.',
+  keywords: ['restaurant ordering', 'online ordering', 'food ordering system', 'restaurant software', 'menu management', 'Stripe payments'],
   icons: {
-    icon: '/bluefishlogo.png',
-    apple: '/bluefishlogo.png',
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
   },
   openGraph: {
-    title: 'Blu Fish House - Fresh Seafood & Sushi',
-    description: 'The closest thing to eating by the ocean in Arkansas',
+    title: 'OrderFlow - Online Ordering Made Simple',
+    description: 'Give your restaurant a beautiful online ordering system. No coding required.',
     type: 'website',
-    images: ['/bluefishlogo.png'],
+    images: ['/og-image.png'],
   }
 }
 

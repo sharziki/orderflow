@@ -1,59 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
 import Stripe from 'stripe'
 
-const getStripe = () => {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('STRIPE_SECRET_KEY environment variable is not set')
-  }
-  return new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-09-30.clover' as any,
-  })
-}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
-export async function POST(request: NextRequest) {
+// Platform fee percentage (our cut)
+const PLATFORM_FEE_PERCENT = 2.9
+
+export async function POST(req: NextRequest) {
   try {
-    const stripe = getStripe()
-    const body = await request.json()
-    const { amount, subtotal, tax, deliveryFee, tip = 0 } = body
-
-    if (!amount || amount <= 0) {
+    const { orderId, tenantSlug } = await req.json()
+    
+    // Find order and tenant
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { tenant: true },
+    })
+    
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+    
+    const tenant = order.tenant
+    
+    // Check if tenant has Stripe connected
+    if (!tenant.stripeAccountId || !tenant.stripeOnboardingComplete) {
       return NextResponse.json(
-        { error: 'Invalid amount' },
+        { error: 'This restaurant is not set up to accept payments yet.' },
         { status: 400 }
       )
     }
-
-    // Convert to cents
-    const amountInCents = Math.round(amount * 100)
-
-    // Create payment intent
+    
+    // Calculate amounts in cents
+    const totalCents = Math.round(order.total * 100)
+    const platformFeeCents = Math.round(totalCents * (tenant.platformFeePercent / 100))
+    
+    // Create payment intent with transfer to connected account
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountInCents,
+      amount: totalCents,
       currency: 'usd',
-      automatic_payment_methods: {
-        enabled: true,
+      automatic_payment_methods: { enabled: true },
+      application_fee_amount: platformFeeCents,
+      transfer_data: {
+        destination: tenant.stripeAccountId,
       },
       metadata: {
-        subtotal: subtotal?.toString() || '0',
-        tax: tax?.toString() || '0',
-        deliveryFee: deliveryFee?.toString() || '0',
-        tip: tip?.toString() || '0',
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        tenantId: tenant.id,
+        tenantSlug: tenant.slug,
       },
     })
-
+    
+    // Update order with payment intent ID
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { paymentIntentId: paymentIntent.id },
+    })
+    
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
-      platformFee: 0,
-      restaurantPayout: amount,
-      breakdown: {
-        platformFee: 0,
-        restaurantPayout: amount,
-      }
+      paymentIntentId: paymentIntent.id,
     })
   } catch (error: any) {
-    console.error('Payment intent error:', error)
+    console.error('Error creating payment intent:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to create payment intent' },
+      { error: error.message || 'Failed to create payment' },
       { status: 500 }
     )
   }

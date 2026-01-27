@@ -1,42 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/db'
+import { getSession } from '@/lib/auth'
 import Stripe from 'stripe'
 
-const getStripe = () => {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('STRIPE_SECRET_KEY not configured')
-  }
-  return new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2025-09-30.clover' as any,
-  })
-}
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
-export async function GET(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const stripe = getStripe()
-    const { searchParams } = new URL(request.url)
-    const accountId = searchParams.get('accountId')
-
-    if (!accountId) {
-      return NextResponse.json(
-        { error: 'accountId required' },
-        { status: 400 }
-      )
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
-
-    const account = await stripe.accounts.retrieve(accountId)
-
+    
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: session.tenantId },
+    })
+    
+    if (!tenant) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+    }
+    
+    if (!tenant.stripeAccountId) {
+      return NextResponse.json({
+        connected: false,
+        onboardingComplete: false,
+        accountId: null,
+      })
+    }
+    
+    // Get account details from Stripe
+    const account = await stripe.accounts.retrieve(tenant.stripeAccountId)
+    
+    const onboardingComplete = account.details_submitted && 
+                              account.charges_enabled && 
+                              account.payouts_enabled
+    
+    // Update tenant if onboarding status changed
+    if (onboardingComplete !== tenant.stripeOnboardingComplete) {
+      await prisma.tenant.update({
+        where: { id: tenant.id },
+        data: { stripeOnboardingComplete: onboardingComplete },
+      })
+    }
+    
     return NextResponse.json({
-      success: true,
-      accountId: account.id,
-      onboardingComplete: account.details_submitted,
+      connected: true,
+      onboardingComplete,
+      accountId: tenant.stripeAccountId,
       chargesEnabled: account.charges_enabled,
       payoutsEnabled: account.payouts_enabled,
       detailsSubmitted: account.details_submitted,
     })
   } catch (error: any) {
-    console.error('Stripe Connect status error:', error)
+    console.error('Error checking Stripe status:', error)
     return NextResponse.json(
-      { error: error.message || 'Failed to get account status' },
+      { error: error.message || 'Failed to check Stripe status' },
       { status: 500 }
     )
   }

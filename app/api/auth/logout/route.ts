@@ -1,28 +1,25 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { SESSION_COOKIE_NAME } from '@/lib/auth'
+import { prisma } from '@/lib/db'
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
     const cookieStore = await cookies()
-    cookieStore.delete(SESSION_COOKIE_NAME)
-
-    return NextResponse.json(
-      { success: true },
-      {
-        headers: {
-          // Security headers
-          'X-Content-Type-Options': 'nosniff',
-          'X-Frame-Options': 'DENY',
-          'X-XSS-Protection': '1; mode=block',
-        },
-      }
-    )
+    const token = cookieStore.get('auth-token')?.value
+    
+    if (token) {
+      // Delete session from DB
+      await prisma.session.deleteMany({
+        where: { token },
+      })
+      
+      // Clear cookie
+      cookieStore.delete('auth-token')
+    }
+    
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Logout error:', error)
-    return NextResponse.json(
-      { error: 'An error occurred' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: true }) // Still logout even if error
   }
 }

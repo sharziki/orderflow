@@ -1,335 +1,295 @@
 import { Resend } from 'resend'
 
-// Initialize Resend with API key
-const resend = process.env.RESEND_API_KEY 
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null
+// Lazy-load Resend to avoid build-time errors
+let resendInstance: Resend | null = null
 
-// Email sender configuration
-const FROM_EMAIL = process.env.FROM_EMAIL || 'Blu Fish House <noreply@blufishhouse.com>'
-const RESTAURANT_NAME = 'Blu Fish House'
-const WEBSITE_URL = process.env.NEXT_PUBLIC_WEBSITE_URL || 'https://blufishhouse.com'
-
-interface GiftCardEmailData {
-  code: string
-  amount: number
-  purchaserName: string
-  purchaserEmail: string
-  recipientName?: string
-  recipientEmail?: string
-  message?: string
+function getResend(): Resend | null {
+  if (!process.env.RESEND_API_KEY) return null
+  if (!resendInstance) {
+    resendInstance = new Resend(process.env.RESEND_API_KEY)
+  }
+  return resendInstance
 }
 
-// Generate beautiful HTML email for gift card
-function generateGiftCardEmailHTML(data: GiftCardEmailData, isRecipient: boolean): string {
-  const greeting = isRecipient 
-    ? `${data.recipientName ? `Hi ${data.recipientName}` : 'Hello'}!`
-    : `Hi ${data.purchaserName}!`
-  
-  const introText = isRecipient
-    ? `${data.purchaserName} has sent you a gift card to ${RESTAURANT_NAME}!`
-    : `Thank you for purchasing a ${RESTAURANT_NAME} gift card!`
+const FROM_EMAIL = process.env.FROM_EMAIL || 'OrderFlow <noreply@orderflow.io>'
+const APP_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 
-  return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${RESTAURANT_NAME} Gift Card</title>
-</head>
-<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f8fafc;">
-  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+// ============================================
+// EMAIL TEMPLATES
+// ============================================
+
+export async function sendWelcomeEmail(to: string, restaurantName: string) {
+  const resend = getResend()
+  if (!resend) {
+    console.log('[Email] Skipping welcome email (no API key):', to)
+    return
+  }
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: `Welcome to OrderFlow, ${restaurantName}!`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #2563eb;">Welcome to OrderFlow! 🎉</h1>
+          <p>Hi there,</p>
+          <p>Thanks for signing up <strong>${restaurantName}</strong> with OrderFlow. You're just a few steps away from accepting online orders!</p>
+          
+          <h2 style="color: #1e40af;">Next Steps:</h2>
+          <ol>
+            <li><strong>Add your menu</strong> - Import or create your menu items</li>
+            <li><strong>Connect Stripe</strong> - Set up payments to get paid</li>
+            <li><strong>Configure settings</strong> - Set your hours and fees</li>
+            <li><strong>Go live!</strong> - Share your ordering link</li>
+          </ol>
+          
+          <a href="${APP_URL}/dashboard" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px;">
+            Go to Dashboard →
+          </a>
+          
+          <p style="margin-top: 32px; color: #64748b; font-size: 14px;">
+            Need help? Reply to this email or check our <a href="${APP_URL}/docs">documentation</a>.
+          </p>
+        </div>
+      `,
+    })
+    console.log('[Email] Welcome email sent to:', to)
+  } catch (error) {
+    console.error('[Email] Failed to send welcome email:', error)
+  }
+}
+
+export async function sendOrderConfirmation(
+  to: string,
+  order: {
+    orderNumber: string
+    customerName: string
+    items: { name: string; quantity: number; price: number }[]
+    subtotal: number
+    tax: number
+    deliveryFee?: number
+    tip?: number
+    total: number
+    type: 'pickup' | 'delivery'
+    restaurantName: string
+    restaurantPhone?: string
+    restaurantAddress?: string
+    estimatedTime?: string
+  }
+) {
+  const resend = getResend()
+  if (!resend) {
+    console.log('[Email] Skipping order confirmation (no API key):', to)
+    return
+  }
+
+  const itemsHtml = order.items.map(item => `
     <tr>
-      <td align="center" style="padding: 40px 20px;">
-        <table role="presentation" style="width: 100%; max-width: 600px; border-collapse: collapse;">
-          
-          <!-- Header -->
-          <tr>
-            <td style="background: linear-gradient(135deg, #0B3755 0%, #1e3a5f 100%); border-radius: 16px 16px 0 0; padding: 40px; text-align: center;">
-              <h1 style="margin: 0 0 8px 0; font-size: 28px; font-weight: 700; color: #ffffff;">
-                🎁 ${RESTAURANT_NAME}
-              </h1>
-              <p style="margin: 0; font-size: 16px; color: rgba(255,255,255,0.8);">
-                Gift Card
-              </p>
-            </td>
-          </tr>
-          
-          <!-- Main Content -->
-          <tr>
-            <td style="background-color: #ffffff; padding: 40px;">
-              <!-- Greeting -->
-              <h2 style="margin: 0 0 8px 0; font-size: 24px; font-weight: 600; color: #1e293b;">
-                ${greeting}
-              </h2>
-              <p style="margin: 0 0 30px 0; font-size: 16px; color: #64748b; line-height: 1.6;">
-                ${introText}
-              </p>
-              
-              ${data.message ? `
-              <!-- Gift Message -->
-              <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin-bottom: 30px; border-radius: 0 8px 8px 0;">
-                <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px;">
-                  Personal Message
-                </p>
-                <p style="margin: 0; font-size: 16px; color: #78350f; font-style: italic; line-height: 1.6;">
-                  "${data.message}"
-                </p>
-                <p style="margin: 12px 0 0 0; font-size: 14px; color: #92400e;">
-                  — ${data.purchaserName}
-                </p>
-              </div>
-              ` : ''}
-              
-              <!-- Gift Card Display -->
-              <div style="background: linear-gradient(135deg, #0B3755 0%, #1e3a5f 100%); border-radius: 16px; padding: 32px; text-align: center; margin-bottom: 30px;">
-                <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 1px;">
-                  Gift Card Value
-                </p>
-                <p style="margin: 0 0 24px 0; font-size: 48px; font-weight: 700; color: #ffffff;">
-                  $${data.amount.toFixed(2)}
-                </p>
-                
-                <div style="background-color: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                  <p style="margin: 0 0 8px 0; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px;">
-                    Your Gift Card Code
-                  </p>
-                  <p style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff; font-family: 'Courier New', monospace; letter-spacing: 2px;">
-                    ${data.code}
-                  </p>
-                </div>
-                
-                <div style="display: inline-block; background-color: #10b981; color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600;">
-                  ✓ Active
-                </div>
-              </div>
-              
-              <!-- How to Use -->
-              <div style="background-color: #f1f5f9; border-radius: 12px; padding: 24px; margin-bottom: 30px;">
-                <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600; color: #1e293b;">
-                  How to Use Your Gift Card
-                </h3>
-                <table role="presentation" style="width: 100%; border-collapse: collapse;">
-                  <tr>
-                    <td style="padding: 8px 0; vertical-align: top; width: 30px;">
-                      <span style="display: inline-block; width: 24px; height: 24px; background-color: #0B3755; color: white; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">1</span>
-                    </td>
-                    <td style="padding: 8px 0; padding-left: 12px; color: #475569; font-size: 15px;">
-                      Visit us in-store or order online at our website
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; vertical-align: top; width: 30px;">
-                      <span style="display: inline-block; width: 24px; height: 24px; background-color: #0B3755; color: white; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">2</span>
-                    </td>
-                    <td style="padding: 8px 0; padding-left: 12px; color: #475569; font-size: 15px;">
-                      Enter your gift card code at checkout or show it to the cashier
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style="padding: 8px 0; vertical-align: top; width: 30px;">
-                      <span style="display: inline-block; width: 24px; height: 24px; background-color: #0B3755; color: white; border-radius: 50%; text-align: center; line-height: 24px; font-size: 12px; font-weight: 600;">3</span>
-                    </td>
-                    <td style="padding: 8px 0; padding-left: 12px; color: #475569; font-size: 15px;">
-                      Enjoy delicious fresh seafood! 🐟
-                    </td>
-                  </tr>
-                </table>
-              </div>
-              
-              <!-- Check Balance Button -->
-              <div style="text-align: center; margin-bottom: 30px;">
-                <a href="${WEBSITE_URL}/gift-cards/balance" style="display: inline-block; background-color: #0B3755; color: #ffffff; padding: 14px 32px; border-radius: 8px; font-size: 16px; font-weight: 600; text-decoration: none;">
-                  Check Your Balance
-                </a>
-              </div>
-              
-              <!-- Important Notes -->
-              <div style="border-top: 1px solid #e2e8f0; padding-top: 24px;">
-                <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">
-                  Important Information
-                </p>
-                <ul style="margin: 0; padding: 0 0 0 20px; color: #64748b; font-size: 14px; line-height: 1.8;">
-                  <li>This gift card never expires</li>
-                  <li>Redeemable in-store and online</li>
-                  <li>Cannot be exchanged for cash</li>
-                  <li>Treat this code like cash — keep it safe!</li>
-                </ul>
-              </div>
-            </td>
-          </tr>
-          
-          <!-- Footer -->
-          <tr>
-            <td style="background-color: #1e293b; border-radius: 0 0 16px 16px; padding: 30px; text-align: center;">
-              <p style="margin: 0 0 8px 0; font-size: 16px; font-weight: 600; color: #ffffff;">
-                ${RESTAURANT_NAME}
-              </p>
-              <p style="margin: 0 0 20px 0; font-size: 14px; color: rgba(255,255,255,0.6);">
-                Fresh Seafood & More
-              </p>
-              <p style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.4);">
-                Questions? Contact us at support@blufishhouse.com
-              </p>
-            </td>
-          </tr>
-          
-        </table>
-      </td>
+      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0;">${item.quantity}x ${item.name}</td>
+      <td style="padding: 8px 0; border-bottom: 1px solid #e2e8f0; text-align: right;">$${(item.price * item.quantity).toFixed(2)}</td>
     </tr>
-  </table>
-</body>
-</html>
-`
+  `).join('')
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: `Order Confirmed - ${order.orderNumber}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #16a34a;">Order Confirmed! ✓</h1>
+          <p>Hi ${order.customerName},</p>
+          <p>Your order <strong>#${order.orderNumber}</strong> has been confirmed.</p>
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin-top: 0;">${order.type === 'pickup' ? '🏪 Pickup' : '🚗 Delivery'}</h3>
+            <p style="margin: 0;"><strong>${order.restaurantName}</strong></p>
+            ${order.restaurantAddress ? `<p style="margin: 4px 0; color: #64748b;">${order.restaurantAddress}</p>` : ''}
+            ${order.restaurantPhone ? `<p style="margin: 4px 0; color: #64748b;">${order.restaurantPhone}</p>` : ''}
+            ${order.estimatedTime ? `<p style="margin-top: 12px;"><strong>Estimated ${order.type === 'pickup' ? 'ready' : 'delivery'} time:</strong> ${order.estimatedTime}</p>` : ''}
+          </div>
+          
+          <h3>Order Details</h3>
+          <table style="width: 100%; border-collapse: collapse;">
+            ${itemsHtml}
+            <tr>
+              <td style="padding: 8px 0;">Subtotal</td>
+              <td style="padding: 8px 0; text-align: right;">$${order.subtotal.toFixed(2)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0;">Tax</td>
+              <td style="padding: 8px 0; text-align: right;">$${order.tax.toFixed(2)}</td>
+            </tr>
+            ${order.deliveryFee ? `
+            <tr>
+              <td style="padding: 8px 0;">Delivery Fee</td>
+              <td style="padding: 8px 0; text-align: right;">$${order.deliveryFee.toFixed(2)}</td>
+            </tr>
+            ` : ''}
+            ${order.tip ? `
+            <tr>
+              <td style="padding: 8px 0;">Tip</td>
+              <td style="padding: 8px 0; text-align: right;">$${order.tip.toFixed(2)}</td>
+            </tr>
+            ` : ''}
+            <tr style="font-weight: bold; font-size: 18px;">
+              <td style="padding: 12px 0; border-top: 2px solid #e2e8f0;">Total</td>
+              <td style="padding: 12px 0; border-top: 2px solid #e2e8f0; text-align: right;">$${order.total.toFixed(2)}</td>
+            </tr>
+          </table>
+          
+          <a href="${APP_URL}/track/${order.orderNumber}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 20px;">
+            Track Your Order →
+          </a>
+          
+          <p style="margin-top: 32px; color: #64748b; font-size: 14px;">
+            Questions about your order? Contact the restaurant directly.
+          </p>
+        </div>
+      `,
+    })
+    console.log('[Email] Order confirmation sent to:', to)
+  } catch (error) {
+    console.error('[Email] Failed to send order confirmation:', error)
+  }
 }
 
-// Generate plain text version
-function generateGiftCardEmailText(data: GiftCardEmailData, isRecipient: boolean): string {
-  const greeting = isRecipient 
-    ? `${data.recipientName ? `Hi ${data.recipientName}` : 'Hello'}!`
-    : `Hi ${data.purchaserName}!`
-  
-  const introText = isRecipient
-    ? `${data.purchaserName} has sent you a gift card to ${RESTAURANT_NAME}!`
-    : `Thank you for purchasing a ${RESTAURANT_NAME} gift card!`
-
-  let text = `
-${greeting}
-
-${introText}
-`
-
-  if (data.message) {
-    text += `
-Personal Message from ${data.purchaserName}:
-"${data.message}"
-`
+export async function sendOrderStatusUpdate(
+  to: string,
+  order: {
+    orderNumber: string
+    customerName: string
+    status: string
+    restaurantName: string
+  }
+) {
+  const resend = getResend()
+  if (!resend) {
+    console.log('[Email] Skipping status update (no API key):', to)
+    return
   }
 
-  text += `
-===============================
-🎁 YOUR GIFT CARD
-===============================
+  const statusMessages: Record<string, { emoji: string; message: string }> = {
+    preparing: { emoji: '👨‍🍳', message: 'Your order is being prepared!' },
+    ready: { emoji: '✅', message: 'Your order is ready for pickup!' },
+    out_for_delivery: { emoji: '🚗', message: 'Your order is out for delivery!' },
+    completed: { emoji: '🎉', message: 'Your order has been completed!' },
+    cancelled: { emoji: '❌', message: 'Your order has been cancelled.' },
+  }
 
-Value: $${data.amount.toFixed(2)}
-Code: ${data.code}
-Status: Active
+  const statusInfo = statusMessages[order.status] || { emoji: '📦', message: 'Your order status has been updated.' }
 
-===============================
-
-HOW TO USE YOUR GIFT CARD:
-1. Visit us in-store or order online
-2. Enter your gift card code at checkout
-3. Enjoy delicious fresh seafood! 🐟
-
-Check your balance anytime: ${WEBSITE_URL}/gift-cards/balance
-
-IMPORTANT:
-• This gift card never expires
-• Redeemable in-store and online
-• Cannot be exchanged for cash
-• Treat this code like cash — keep it safe!
-
----
-${RESTAURANT_NAME}
-Fresh Seafood & More
-Questions? Contact us at support@blufishhouse.com
-`
-
-  return text.trim()
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: `${statusInfo.emoji} Order Update - ${order.orderNumber}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1>${statusInfo.emoji} ${statusInfo.message}</h1>
+          <p>Hi ${order.customerName},</p>
+          <p>Your order <strong>#${order.orderNumber}</strong> from <strong>${order.restaurantName}</strong> has been updated.</p>
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <p style="font-size: 24px; margin: 0;">${statusInfo.emoji}</p>
+            <p style="font-size: 18px; font-weight: bold; margin: 8px 0;">${statusInfo.message}</p>
+          </div>
+          
+          <a href="${APP_URL}/track/${order.orderNumber}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px;">
+            Track Your Order →
+          </a>
+        </div>
+      `,
+    })
+    console.log('[Email] Status update sent to:', to)
+  } catch (error) {
+    console.error('[Email] Failed to send status update:', error)
+  }
 }
 
-// Send gift card email to purchaser
-export async function sendGiftCardPurchaseEmail(data: GiftCardEmailData): Promise<{ success: boolean; error?: string }> {
+export async function sendPasswordResetEmail(to: string, resetToken: string) {
+  const resend = getResend()
   if (!resend) {
-    console.warn('[Email] Resend not configured. RESEND_API_KEY is missing.')
-    return { success: false, error: 'Email service not configured' }
+    console.log('[Email] Skipping password reset (no API key):', to)
+    return
+  }
+
+  const resetUrl = `${APP_URL}/reset-password?token=${resetToken}`
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: 'Reset Your Password - OrderFlow',
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #2563eb;">Reset Your Password</h1>
+          <p>You requested to reset your password. Click the button below to create a new password:</p>
+          
+          <a href="${resetUrl}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin: 20px 0;">
+            Reset Password →
+          </a>
+          
+          <p style="color: #64748b; font-size: 14px;">
+            This link expires in 1 hour. If you didn't request this, you can safely ignore this email.
+          </p>
+          
+          <p style="color: #94a3b8; font-size: 12px; margin-top: 32px;">
+            If the button doesn't work, copy this link:<br>
+            ${resetUrl}
+          </p>
+        </div>
+      `,
+    })
+    console.log('[Email] Password reset sent to:', to)
+  } catch (error) {
+    console.error('[Email] Failed to send password reset:', error)
+  }
+}
+
+export async function sendNewOrderNotification(
+  to: string,
+  order: {
+    orderNumber: string
+    customerName: string
+    total: number
+    itemCount: number
+    type: 'pickup' | 'delivery'
+  }
+) {
+  const resend = getResend()
+  if (!resend) {
+    console.log('[Email] Skipping new order notification (no API key):', to)
+    return
   }
 
   try {
-    const { error } = await resend.emails.send({
+    await resend.emails.send({
       from: FROM_EMAIL,
-      to: data.purchaserEmail,
-      subject: `🎁 Your ${RESTAURANT_NAME} Gift Card - $${data.amount.toFixed(2)}`,
-      html: generateGiftCardEmailHTML(data, false),
-      text: generateGiftCardEmailText(data, false),
+      to,
+      subject: `🔔 New Order #${order.orderNumber} - $${order.total.toFixed(2)}`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #16a34a;">🔔 New Order!</h1>
+          
+          <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; font-size: 24px; font-weight: bold;">#${order.orderNumber}</p>
+            <p style="margin: 8px 0;">Customer: ${order.customerName}</p>
+            <p style="margin: 8px 0;">${order.itemCount} items • $${order.total.toFixed(2)}</p>
+            <p style="margin: 8px 0; padding: 4px 12px; background: ${order.type === 'delivery' ? '#fed7aa' : '#ddd6fe'}; display: inline-block; border-radius: 4px;">
+              ${order.type === 'delivery' ? '🚗 Delivery' : '🏪 Pickup'}
+            </p>
+          </div>
+          
+          <a href="${APP_URL}/dashboard/orders" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px;">
+            View Order →
+          </a>
+        </div>
+      `,
     })
-
-    if (error) {
-      console.error('[Email] Failed to send purchaser email:', error)
-      return { success: false, error: error.message }
-    }
-
-    console.log('[Email] Gift card email sent to purchaser:', data.purchaserEmail)
-    return { success: true }
-  } catch (err) {
-    console.error('[Email] Error sending purchaser email:', err)
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to send email' }
+    console.log('[Email] New order notification sent to:', to)
+  } catch (error) {
+    console.error('[Email] Failed to send new order notification:', error)
   }
 }
-
-// Send gift card email to recipient
-export async function sendGiftCardRecipientEmail(data: GiftCardEmailData): Promise<{ success: boolean; error?: string }> {
-  if (!resend) {
-    console.warn('[Email] Resend not configured. RESEND_API_KEY is missing.')
-    return { success: false, error: 'Email service not configured' }
-  }
-
-  if (!data.recipientEmail) {
-    return { success: false, error: 'No recipient email provided' }
-  }
-
-  try {
-    const { error } = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: data.recipientEmail,
-      subject: `🎁 ${data.purchaserName} sent you a ${RESTAURANT_NAME} Gift Card!`,
-      html: generateGiftCardEmailHTML(data, true),
-      text: generateGiftCardEmailText(data, true),
-    })
-
-    if (error) {
-      console.error('[Email] Failed to send recipient email:', error)
-      return { success: false, error: error.message }
-    }
-
-    console.log('[Email] Gift card email sent to recipient:', data.recipientEmail)
-    return { success: true }
-  } catch (err) {
-    console.error('[Email] Error sending recipient email:', err)
-    return { success: false, error: err instanceof Error ? err.message : 'Failed to send email' }
-  }
-}
-
-// Send both emails (purchaser confirmation + recipient gift)
-export async function sendGiftCardEmails(data: GiftCardEmailData): Promise<{ 
-  purchaserSent: boolean
-  recipientSent: boolean
-  errors: string[]
-}> {
-  const errors: string[] = []
-
-  // Send to purchaser
-  const purchaserResult = await sendGiftCardPurchaseEmail(data)
-  if (!purchaserResult.success && purchaserResult.error) {
-    errors.push(`Purchaser email: ${purchaserResult.error}`)
-  }
-
-  // Send to recipient if different from purchaser
-  let recipientSent = false
-  if (data.recipientEmail && data.recipientEmail !== data.purchaserEmail) {
-    const recipientResult = await sendGiftCardRecipientEmail(data)
-    recipientSent = recipientResult.success
-    if (!recipientResult.success && recipientResult.error) {
-      errors.push(`Recipient email: ${recipientResult.error}`)
-    }
-  }
-
-  return {
-    purchaserSent: purchaserResult.success,
-    recipientSent,
-    errors
-  }
-}
-

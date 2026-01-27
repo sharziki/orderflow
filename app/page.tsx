@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
+import { storeTemplates } from '@/components/ui/templates'
 import { 
   Utensils, 
   Rocket, 
@@ -16,7 +17,8 @@ import {
   Shield,
   Clock,
   Play,
-  Star
+  Star,
+  Sparkles
 } from 'lucide-react'
 
 const fadeIn = {
@@ -252,27 +254,41 @@ export default function LandingPage() {
             <p className="text-xl text-slate-600">Pick a style that matches your brand</p>
           </motion.div>
 
-          <div className="grid md:grid-cols-4 gap-6">
-            {[
-              { name: 'Modern', desc: 'Clean & minimal', color: 'from-blue-500 to-indigo-600' },
-              { name: 'Classic', desc: 'Traditional elegance', color: 'from-amber-500 to-orange-600' },
-              { name: 'Bold', desc: 'Dark & dramatic', color: 'from-slate-700 to-slate-900' },
-              { name: 'Compact', desc: 'Mobile-first', color: 'from-green-500 to-emerald-600' },
-            ].map((template, i) => (
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {storeTemplates.map((template, i) => (
               <motion.div 
-                key={i}
+                key={template.id}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                whileHover={{ scale: 1.05 }}
-                className="group cursor-pointer"
+                whileHover={{ scale: 1.03, y: -5 }}
+                className="group cursor-pointer bg-white rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all"
               >
-                <div className={`aspect-[3/4] rounded-2xl bg-gradient-to-br ${template.color} p-4 mb-4 shadow-lg`}>
-                  <div className="h-full bg-white/10 rounded-xl backdrop-blur-sm" />
+                {/* Template Preview */}
+                <div className="mb-4">
+                  {template.preview}
                 </div>
-                <h3 className="font-semibold text-slate-900">{template.name}</h3>
-                <p className="text-sm text-slate-500">{template.desc}</p>
+                
+                <h3 className="font-semibold text-slate-900 text-lg">{template.name}</h3>
+                <p className="text-sm text-slate-500 mb-3">{template.description}</p>
+                
+                {/* Features */}
+                <div className="flex flex-wrap gap-1.5">
+                  {template.features.slice(0, 2).map(feature => (
+                    <span 
+                      key={feature}
+                      className="text-xs px-2 py-1 bg-slate-100 text-slate-600 rounded-full"
+                    >
+                      {feature}
+                    </span>
+                  ))}
+                  {template.features.length > 2 && (
+                    <span className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-full">
+                      +{template.features.length - 2} more
+                    </span>
+                  )}
+                </div>
               </motion.div>
             ))}
           </div>
@@ -317,6 +333,61 @@ export default function LandingPage() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section id="setup" className="py-24 px-4 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700">
+        <div className="max-w-4xl mx-auto">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-full text-sm font-medium mb-6">
+              <Sparkles className="w-4 h-4" />
+              Get Started Today
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              Launch your store in minutes
+            </h2>
+            <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto">
+              Set up your restaurant details, pick a template, connect Stripe, and go live. 
+              No coding required.
+            </p>
+
+            <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-xl mx-auto">
+              {/* Benefits */}
+              <div className="grid sm:grid-cols-2 gap-3 mb-6">
+                {[
+                  'Custom branded ordering page',
+                  'Secure Stripe payments',
+                  'Real-time order notifications',
+                  'Pickup & delivery support',
+                ].map((benefit, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-slate-600">
+                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                    {benefit}
+                  </div>
+                ))}
+              </div>
+
+              <Link href="/dashboard/onboarding" className="block">
+                <Button 
+                  size="lg" 
+                  className="w-full gap-2 text-lg py-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                >
+                  <Rocket className="w-5 h-5" />
+                  Start Free Trial
+                </Button>
+              </Link>
+
+              <p className="text-center text-xs text-slate-500 mt-4">
+                No credit card required • Free 14-day trial • Cancel anytime
+              </p>
+            </div>
+          </motion.div>
         </div>
       </section>
 
