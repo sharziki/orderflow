@@ -1,0 +1,14 @@
+node_modules
+.next
+.DS_Store
+*.log
+prisma/*.db
+coverage
+
+# Environment variables (contain sensitive credentials)
+.env
+.env.local
+.env.*.local
+.env.vercel
+.vercel
+.env*.local
