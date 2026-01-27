@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if slug is taken
-    const { data: existing } = await supabase
-      .from('tenants')
+    const { data: existing } = await (supabase
+      .from('tenants') as any)
       .select('id')
       .eq('slug', slug)
       .single()
@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
 
     // Create tenant
     const tenantId = createId()
-    const { data: tenant, error: tenantError } = await supabase
-      .from('tenants')
+    const { data: tenant, error: tenantError } = await (supabase
+      .from('tenants') as any)
       .insert({
         id: tenantId,
         name: restaurantName,
@@ -86,8 +86,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Create owner user
-    const { error: userError } = await supabase
-      .from('tenant_users')
+    const { error: userError } = await (supabase
+      .from('tenant_users') as any)
       .insert({
         id: createId(),
         tenant_id: tenantId,
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     if (userError) {
       console.error('User creation error:', userError)
       // Rollback tenant creation
-      await supabase.from('tenants').delete().eq('id', tenantId)
+      await (supabase.from('tenants') as any).delete().eq('id', tenantId)
       return NextResponse.json(
         { error: 'Failed to create user account' },
         { status: 500 }
@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       { name: 'Drinks', sort_order: 5 },
     ]
 
-    await supabase.from('categories').insert(
+    await (supabase.from('categories') as any).insert(
       defaultCategories.map(cat => ({
         id: createId(),
         tenant_id: tenantId,
@@ -156,14 +156,12 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  const query = supabase
-    .from('tenants')
-    .select('*')
+  let query = (supabase.from('tenants') as any).select('*')
   
   if (slug) {
-    query.eq('slug', slug)
+    query = query.eq('slug', slug)
   } else if (domain) {
-    query.eq('custom_domain', domain)
+    query = query.eq('custom_domain', domain)
   }
 
   const { data: tenant, error } = await query.single()
