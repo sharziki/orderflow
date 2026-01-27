@@ -1,594 +1,744 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
-import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Progress } from '@/components/ui/progress'
-import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Card } from '@/components/ui/card'
 import {
   Utensils,
   ShoppingBag,
-  DollarSign,
-  Clock,
-  Palette,
   Settings,
   ExternalLink,
-  TrendingUp,
-  Check,
+  Plus,
+  Trash2,
+  GripVertical,
+  ChevronDown,
   ChevronRight,
-  Bell,
-  CreditCard,
-  Printer,
-  Menu,
-  Users,
-  BarChart3,
-  Store,
-  Truck,
-  ArrowUpRight,
-  ArrowDownRight,
-  Rocket,
   Loader2,
-  PartyPopper
+  Rocket,
+  Check,
+  X,
+  Eye,
+  EyeOff,
+  Smartphone,
+  Monitor,
+  Clock,
+  DollarSign,
+  AlertCircle
 } from 'lucide-react'
 
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
+// Theme definitions
+const THEMES = {
+  modern: { name: 'Modern', font: 'font-sans', radius: 'rounded-xl', button: 'rounded-lg' },
+  classic: { name: 'Classic', font: 'font-serif', radius: 'rounded-md', button: 'rounded-md' },
+  bold: { name: 'Bold', font: 'font-sans', radius: 'rounded-2xl', button: 'rounded-full' },
+  minimal: { name: 'Minimal', font: 'font-sans', radius: 'rounded-none', button: 'rounded-sm' },
 }
 
-const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 }
+interface Category {
+  id: string
+  name: string
+  sortOrder: number
+  collapsed?: boolean
 }
 
-interface LaunchStatus {
-  hasMenuItems: boolean
-  menuItemCount: number
-  stripeConnected: boolean
+interface MenuItem {
+  id: string
+  name: string
+  description: string | null
+  price: number
+  categoryId: string
+  isAvailable: boolean
+}
+
+interface Order {
+  id: string
+  orderNumber: string
+  customerName: string
+  type: 'pickup' | 'delivery'
+  status: string
+  total: number
+  items: any[]
+  createdAt: string
+}
+
+interface StoreSettings {
+  name: string
+  slug: string
+  primaryColor: string
+  template: string
   stripeOnboardingComplete: boolean
-  doordashConfigured: boolean
-  storeSlug: string
-  storeName: string
   isLive: boolean
 }
 
 export default function DashboardPage() {
-  const searchParams = useSearchParams()
-  const isWelcome = searchParams.get('welcome') === 'true'
-  
-  const [tenant, setTenant] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState<'menu' | 'orders'>('menu')
   const [loading, setLoading] = useState(true)
-  const [launchStatus, setLaunchStatus] = useState<LaunchStatus | null>(null)
-  const [stats, setStats] = useState({
-    todayOrders: 0,
-    todayRevenue: 0,
-    pendingOrders: 0,
-    menuItems: 0,
-    pickupOrders: 0,
-    deliveryOrders: 0,
-    weekOrders: 0,
-    weekRevenue: 0,
-    avgOrderValue: 0,
-  })
+  const [settings, setSettings] = useState<StoreSettings | null>(null)
+  
+  // Menu state
+  const [categories, setCategories] = useState<Category[]>([])
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [selectedTheme, setSelectedTheme] = useState<keyof typeof THEMES>('modern')
+  const [previewMode, setPreviewMode] = useState<'mobile' | 'desktop'>('mobile')
+  
+  // Orders state
+  const [orders, setOrders] = useState<Order[]>([])
+  const [orderFilter, setOrderFilter] = useState<'new' | 'preparing' | 'ready' | 'completed'>('new')
+  
+  // Edit state
+  const [editingItem, setEditingItem] = useState<MenuItem | null>(null)
+  const [addingToCategory, setAddingToCategory] = useState<string | null>(null)
+  const [newItemForm, setNewItemForm] = useState({ name: '', description: '', price: '' })
 
-  // Calculate setup progress based on real data
-  const setupSteps = [
-    { id: 'account', label: 'Create account', complete: true },
-    { id: 'details', label: 'Add restaurant details', complete: true },
-    { id: 'menu', label: 'Add menu items', complete: launchStatus?.hasMenuItems || false },
-    { id: 'stripe', label: 'Connect Stripe', complete: launchStatus?.stripeOnboardingComplete || false },
-  ]
-
-  const completedSteps = setupSteps.filter(s => s.complete).length
-  const setupProgress = (completedSteps / setupSteps.length) * 100
+  // Launch modal
+  const [showLaunchModal, setShowLaunchModal] = useState(false)
 
   useEffect(() => {
-    loadDashboardData()
+    loadData()
   }, [])
 
-  const loadDashboardData = async () => {
+  const loadData = async () => {
     try {
-      // Load launch status
-      const statusRes = await fetch('/api/dashboard/launch-status')
+      const [catRes, itemsRes, statusRes] = await Promise.all([
+        fetch('/api/menu/categories'),
+        fetch('/api/menu/items'),
+        fetch('/api/dashboard/launch-status')
+      ])
+      
+      if (catRes.ok) {
+        const data = await catRes.json()
+        setCategories(data.categories || [])
+      }
+      if (itemsRes.ok) {
+        const data = await itemsRes.json()
+        setMenuItems(data.items || [])
+      }
       if (statusRes.ok) {
-        const statusData = await statusRes.json()
-        setLaunchStatus(statusData)
-        setStats(prev => ({ ...prev, menuItems: statusData.menuItemCount }))
+        const data = await statusRes.json()
+        setSettings({
+          name: data.storeName,
+          slug: data.storeSlug,
+          primaryColor: '#2563eb',
+          template: 'modern',
+          stripeOnboardingComplete: data.stripeOnboardingComplete,
+          isLive: data.isLive,
+        })
+        setSelectedTheme('modern')
       }
     } catch (err) {
-      console.error('Error loading dashboard:', err)
+      console.error('Error loading data:', err)
     } finally {
       setLoading(false)
     }
   }
 
+  const loadOrders = async () => {
+    try {
+      const res = await fetch('/api/orders')
+      if (res.ok) {
+        const data = await res.json()
+        setOrders(data.orders || [])
+      }
+    } catch (err) {
+      console.error('Error loading orders:', err)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'orders') {
+      loadOrders()
+      const interval = setInterval(loadOrders, 30000)
+      return () => clearInterval(interval)
+    }
+  }, [activeTab])
+
+  const getItemsInCategory = (categoryId: string) => {
+    return menuItems.filter(item => item.categoryId === categoryId)
+  }
+
+  const handleAddCategory = async () => {
+    const name = prompt('Category name (e.g., "🍕 Pizza"):')
+    if (!name) return
+    
+    try {
+      const res = await fetch('/api/menu/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      })
+      if (res.ok) {
+        const { category } = await res.json()
+        setCategories([...categories, category])
+      }
+    } catch (err) {
+      console.error('Error adding category:', err)
+    }
+  }
+
+  const handleAddItem = async (categoryId: string) => {
+    if (!newItemForm.name || !newItemForm.price) return
+    
+    try {
+      const res = await fetch('/api/menu/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          categoryId,
+          name: newItemForm.name,
+          description: newItemForm.description || null,
+          price: parseFloat(newItemForm.price),
+          isAvailable: true,
+        })
+      })
+      if (res.ok) {
+        const { item } = await res.json()
+        setMenuItems([...menuItems, item])
+        setNewItemForm({ name: '', description: '', price: '' })
+        setAddingToCategory(null)
+      }
+    } catch (err) {
+      console.error('Error adding item:', err)
+    }
+  }
+
+  const handleDeleteItem = async (id: string) => {
+    if (!confirm('Delete this item?')) return
+    try {
+      await fetch(`/api/menu/items/${id}`, { method: 'DELETE' })
+      setMenuItems(menuItems.filter(i => i.id !== id))
+    } catch (err) {
+      console.error('Error deleting item:', err)
+    }
+  }
+
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      })
+      setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o))
+    } catch (err) {
+      console.error('Error updating order:', err)
+    }
+  }
+
+  const filteredOrders = orders.filter(o => {
+    if (orderFilter === 'new') return o.status === 'pending' || o.status === 'confirmed'
+    if (orderFilter === 'preparing') return o.status === 'preparing'
+    if (orderFilter === 'ready') return o.status === 'ready'
+    return o.status === 'completed'
+  })
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-slate-500">Loading dashboard...</p>
-        </div>
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-100 flex flex-col">
       {/* Top Nav */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                <Utensils className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-bold text-xl text-slate-900">OrderFlow</span>
+      <header className="bg-white border-b border-slate-200 h-14 flex items-center px-4 justify-between flex-shrink-0">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+              <Utensils className="w-4 h-4 text-white" />
             </div>
-            
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                  3
+            <span className="font-bold text-slate-900">OrderFlow</span>
+          </div>
+          
+          {/* Tabs */}
+          <div className="flex items-center bg-slate-100 rounded-lg p-1 ml-4">
+            <button
+              onClick={() => setActiveTab('menu')}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'menu' 
+                  ? 'bg-white text-slate-900 shadow-sm' 
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Menu Builder
+            </button>
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+                activeTab === 'orders' 
+                  ? 'bg-white text-slate-900 shadow-sm' 
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Orders
+              {orders.filter(o => o.status === 'pending').length > 0 && (
+                <span className="bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                  {orders.filter(o => o.status === 'pending').length}
                 </span>
-              </Button>
-              <Button variant="outline" className="gap-2">
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {settings?.isLive ? (
+            <a href={`/store/${settings.slug}`} target="_blank">
+              <Button variant="outline" size="sm" className="gap-2">
                 <ExternalLink className="w-4 h-4" />
                 View Store
               </Button>
-            </div>
-          </div>
+            </a>
+          ) : (
+            <Button 
+              size="sm" 
+              className="gap-2 bg-green-600 hover:bg-green-700"
+              onClick={() => setShowLaunchModal(true)}
+            >
+              <Rocket className="w-4 h-4" />
+              Launch Store
+            </Button>
+          )}
+          <Link href="/dashboard/settings">
+            <Button variant="ghost" size="icon">
+              <Settings className="w-5 h-5" />
+            </Button>
+          </Link>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Banner - Show setup progress or live status */}
-        {isWelcome && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-3"
-          >
-            <PartyPopper className="w-6 h-6 text-green-600" />
-            <p className="text-green-800">
-              <span className="font-semibold">Welcome to OrderFlow!</span> Start by adding your menu items, then go live.
-            </p>
-          </motion.div>
-        )}
-
-        {launchStatus && !launchStatus.isLive ? (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 mb-8 text-white overflow-hidden relative"
-          >
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-            
-            <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold mb-2">
-                  Let's get you live! 🚀
-                </h1>
-                <p className="text-blue-100 mb-4">
-                  Complete these steps to start accepting orders
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  {setupSteps.map((step) => (
-                    <div 
-                      key={step.id}
-                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
-                        step.complete 
-                          ? 'bg-white/20 text-white' 
-                          : 'bg-white/10 text-blue-200'
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden">
+        {activeTab === 'menu' ? (
+          <>
+            {/* Left Panel - Editor */}
+            <div className="w-[400px] bg-white border-r border-slate-200 flex flex-col overflow-hidden">
+              {/* Theme Picker */}
+              <div className="p-4 border-b border-slate-200">
+                <Label className="text-xs text-slate-500 uppercase tracking-wide mb-2 block">Theme</Label>
+                <div className="grid grid-cols-4 gap-2">
+                  {(Object.keys(THEMES) as Array<keyof typeof THEMES>).map((theme) => (
+                    <button
+                      key={theme}
+                      onClick={() => setSelectedTheme(theme)}
+                      className={`p-2 rounded-lg border-2 text-xs font-medium transition-all ${
+                        selectedTheme === theme 
+                          ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                          : 'border-slate-200 hover:border-slate-300 text-slate-600'
                       }`}
                     >
-                      {step.complete ? (
-                        <Check className="w-4 h-4" />
-                      ) : (
-                        <div className="w-4 h-4 rounded-full border-2 border-current" />
-                      )}
-                      {step.label}
-                    </div>
+                      {THEMES[theme].name}
+                    </button>
                   ))}
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-3">
-                <div className="text-right">
-                  <p className="text-blue-100 text-sm">Setup Progress</p>
-                  <p className="text-2xl font-bold">{Math.round(setupProgress)}%</p>
-                </div>
-                <Link href="/dashboard/go-live">
-                  <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 gap-2">
-                    <Rocket className="w-5 h-5" />
-                    Go Live
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </motion.div>
-        ) : launchStatus?.isLive ? (
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 mb-8 text-white"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Store className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold">Your store is live!</h2>
-                  <p className="text-green-100">Accepting orders at orderflow.io/store/{launchStatus.storeSlug}</p>
-                </div>
-              </div>
-              <a href={`/store/${launchStatus.storeSlug}`} target="_blank">
-                <Button variant="secondary" className="gap-2">
-                  <ExternalLink className="w-4 h-4" />
-                  View Store
-                </Button>
-              </a>
-            </div>
-          </motion.div>
-        ) : null}
 
-        {/* Stats Grid */}
-        <motion.div 
-          variants={container}
-          initial="hidden"
-          animate="show"
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
-        >
-          <motion.div variants={item}>
-            <Card className="hover:shadow-lg transition-shadow duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500 mb-1">Today's Orders</p>
-                    <p className="text-3xl font-bold text-slate-900">{stats.todayOrders}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-                    <ShoppingBag className="w-6 h-6 text-blue-600" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 mt-3 text-sm text-green-600">
-                  <ArrowUpRight className="w-4 h-4" />
-                  +12% from yesterday
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div variants={item}>
-            <Card className="hover:shadow-lg transition-shadow duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500 mb-1">Revenue</p>
-                    <p className="text-3xl font-bold text-slate-900">${stats.todayRevenue.toFixed(0)}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                    <DollarSign className="w-6 h-6 text-green-600" />
-                  </div>
-                </div>
-              <div className="flex items-center gap-1 mt-3 text-sm text-green-600">
-                <ArrowUpRight className="w-4 h-4" />
-                +8% from yesterday
-              </div>
-            </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div variants={item}>
-            <Card className={`hover:shadow-lg transition-all duration-300 ${stats.pendingOrders > 0 ? 'ring-2 ring-orange-400 animate-pulse' : ''}`}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500 mb-1">Pending</p>
-                    <p className="text-3xl font-bold text-orange-600">{stats.pendingOrders}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
-                    <Clock className="w-6 h-6 text-orange-600" />
-                  </div>
-                </div>
-                <Link href="/dashboard/orders" className="mt-3 text-sm text-orange-600 hover:text-orange-700 flex items-center gap-1">
-                  View orders <ChevronRight className="w-4 h-4" />
-                </Link>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          <motion.div variants={item}>
-            <Card className="hover:shadow-lg transition-shadow duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-500 mb-1">Menu Items</p>
-                    <p className="text-3xl font-bold text-slate-900">{stats.menuItems}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                    <Menu className="w-6 h-6 text-purple-600" />
-                  </div>
-                </div>
-                <Link href="/dashboard/menu" className="mt-3 text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1">
-                  Manage menu <ChevronRight className="w-4 h-4" />
-                </Link>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </motion.div>
-
-        {/* Order Type Breakdown & Analytics */}
-        {/* Order Type Breakdown & Analytics */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="grid md:grid-cols-2 gap-6 mb-8"
-        >
-          {/* Pickup vs Delivery */}
-          <Card className="hover:shadow-lg transition-shadow duration-300">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-blue-600" />
-                Today's Order Types
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-8">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <Store className="w-5 h-5 text-purple-600" />
+              {/* Categories & Items */}
+              <div className="flex-1 overflow-y-auto p-4">
+                {categories.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Utensils className="w-8 h-8 text-slate-400" />
                     </div>
-                    <div>
-                      <p className="text-2xl font-bold text-slate-900">{stats.pickupOrders}</p>
-                      <p className="text-sm text-slate-500">Pickup</p>
-                    </div>
+                    <h3 className="font-semibold text-slate-900 mb-2">No menu items yet</h3>
+                    <p className="text-sm text-slate-500 mb-4">Start by adding a category</p>
+                    <Button onClick={handleAddCategory} className="gap-2">
+                      <Plus className="w-4 h-4" />
+                      Add Category
+                    </Button>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <Truck className="w-5 h-5 text-orange-600" />
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-slate-900">{stats.deliveryOrders}</p>
-                      <p className="text-sm text-slate-500">Delivery</p>
-                    </div>
-                  </div>
-                </div>
-                {/* Visual bar */}
-                <div className="w-32">
-                  <div className="h-32 bg-slate-100 rounded-lg overflow-hidden flex flex-col-reverse">
-                    <div 
-                      className="bg-purple-500 transition-all duration-500"
-                      style={{ height: `${(stats.pickupOrders / stats.todayOrders) * 100}%` }}
-                    />
-                    <div 
-                      className="bg-orange-500 transition-all duration-500"
-                      style={{ height: `${(stats.deliveryOrders / stats.todayOrders) * 100}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between mt-2 text-xs text-slate-500">
-                    <span>{Math.round((stats.pickupOrders / stats.todayOrders) * 100)}%</span>
-                    <span>{Math.round((stats.deliveryOrders / stats.todayOrders) * 100)}%</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Weekly Summary */}
-          <Card className="hover:shadow-lg transition-shadow duration-300">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-                This Week
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                <motion.div 
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.6 }}
-                  className="text-center p-4 bg-slate-50 rounded-xl"
-                >
-                  <p className="text-2xl font-bold text-slate-900">{stats.weekOrders}</p>
-                  <p className="text-sm text-slate-500">Orders</p>
-                </motion.div>
-                <motion.div 
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.7 }}
-                  className="text-center p-4 bg-green-50 rounded-xl"
-                >
-                  <p className="text-2xl font-bold text-green-600">${stats.weekRevenue.toFixed(0)}</p>
-                  <p className="text-sm text-slate-500">Revenue</p>
-                </motion.div>
-                <motion.div 
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.8 }}
-                  className="text-center p-4 bg-blue-50 rounded-xl"
-                >
-                  <p className="text-2xl font-bold text-blue-600">${stats.avgOrderValue.toFixed(0)}</p>
-                  <p className="text-sm text-slate-500">Avg Order</p>
-                </motion.div>
-              </div>
-              <div className="mt-4 pt-4 border-t flex items-center justify-between text-sm">
-                <span className="text-slate-500">vs. last week</span>
-                <Badge variant="secondary" className="bg-green-100 text-green-700">
-                  <ArrowUpRight className="w-3 h-3 mr-1" />
-                  +15% orders, +18% revenue
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="grid md:grid-cols-3 gap-8"
-        >
-          {/* Quick Actions */}
-          <div className="md:col-span-2 space-y-6">
-            <h2 className="text-lg font-semibold text-slate-900">Quick Actions</h2>
-            <motion.div 
-              variants={container}
-              initial="hidden"
-              animate="show"
-              className="grid sm:grid-cols-2 gap-4"
-            >
-              {[
-                { href: '/dashboard/menu', icon: Menu, title: 'Manage Menu', desc: 'Add, edit, or remove items', color: 'blue' },
-                { href: '/dashboard/orders', icon: ShoppingBag, title: 'View Orders', desc: 'Manage incoming orders', color: 'green' },
-                { href: '/dashboard/branding', icon: Palette, title: 'Branding', desc: 'Logo, colors, and style', color: 'purple' },
-                { href: '/dashboard/settings', icon: Settings, title: 'Settings', desc: 'Hours, fees, and more', color: 'slate' },
-              ].map((action, i) => {
-                const Icon = action.icon
-                const colors = {
-                  blue: 'bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white',
-                  green: 'bg-green-100 text-green-600 group-hover:bg-green-600 group-hover:text-white',
-                  purple: 'bg-purple-100 text-purple-600 group-hover:bg-purple-600 group-hover:text-white',
-                  slate: 'bg-slate-100 text-slate-600 group-hover:bg-slate-600 group-hover:text-white',
-                }
-                return (
-                  <motion.div key={action.href} variants={item} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Link href={action.href}>
-                      <Card className="group hover:shadow-lg transition-all duration-300 cursor-pointer border-2 hover:border-blue-200 h-full">
-                        <CardContent className="p-6">
-                          <div className="flex items-center gap-4">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors duration-300 ${colors[action.color as keyof typeof colors]}`}>
-                              <Icon className="w-6 h-6" />
-                            </div>
-                            <div className="flex-1">
-                              <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
-                                {action.title}
-                              </h3>
-                              <p className="text-sm text-slate-500">{action.desc}</p>
-                            </div>
-                            <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-blue-500 group-hover:translate-x-1 transition-all" />
+                ) : (
+                  <div className="space-y-4">
+                    {categories.map((category) => (
+                      <div key={category.id} className="border border-slate-200 rounded-lg overflow-hidden">
+                        <div 
+                          className="flex items-center justify-between p-3 bg-slate-50 cursor-pointer"
+                          onClick={() => setCategories(categories.map(c => 
+                            c.id === category.id ? { ...c, collapsed: !c.collapsed } : c
+                          ))}
+                        >
+                          <div className="flex items-center gap-2">
+                            <GripVertical className="w-4 h-4 text-slate-400" />
+                            {category.collapsed ? (
+                              <ChevronRight className="w-4 h-4 text-slate-400" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-slate-400" />
+                            )}
+                            <span className="font-medium text-slate-900">{category.name}</span>
+                            <span className="text-xs text-slate-400">
+                              ({getItemsInCategory(category.id).length})
+                            </span>
                           </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  </motion.div>
-                )
-              })}
-            </motion.div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setAddingToCategory(category.id)
+                            }}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
 
-            {/* Integrations */}
-            <div className="mt-8">
-              <h2 className="text-lg font-semibold text-slate-900 mb-4">Integrations</h2>
-              <div className="grid sm:grid-cols-3 gap-4">
-                <Card className="border-2 border-dashed border-slate-200 hover:border-blue-300 transition-colors cursor-pointer">
-                  <CardContent className="p-6 text-center">
-                    <CreditCard className="w-8 h-8 text-slate-400 mx-auto mb-3" />
-                    <p className="font-medium text-slate-700">Connect Stripe</p>
-                    <p className="text-xs text-slate-500 mt-1">Accept payments</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-2 border-dashed border-slate-200 hover:border-blue-300 transition-colors cursor-pointer">
-                  <CardContent className="p-6 text-center">
-                    <Printer className="w-8 h-8 text-slate-400 mx-auto mb-3" />
-                    <p className="font-medium text-slate-700">Setup Printer</p>
-                    <p className="text-xs text-slate-500 mt-1">Print receipts</p>
-                  </CardContent>
-                </Card>
-                <Card className="border-2 border-dashed border-slate-200 hover:border-blue-300 transition-colors cursor-pointer">
-                  <CardContent className="p-6 text-center">
-                    <BarChart3 className="w-8 h-8 text-slate-400 mx-auto mb-3" />
-                    <p className="font-medium text-slate-700">Analytics</p>
-                    <p className="text-xs text-slate-500 mt-1">Track performance</p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </div>
+                        {!category.collapsed && (
+                          <div className="divide-y divide-slate-100">
+                            {getItemsInCategory(category.id).map((item) => (
+                              <div key={item.id} className="p-3 flex items-center justify-between hover:bg-slate-50">
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  <GripVertical className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                                  <div className="min-w-0">
+                                    <p className={`font-medium text-sm truncate ${!item.isAvailable ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
+                                      {item.name}
+                                    </p>
+                                    {item.description && (
+                                      <p className="text-xs text-slate-500 truncate">{item.description}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-slate-700">${item.price.toFixed(2)}</span>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDeleteItem(item.id)}>
+                                    <Trash2 className="w-4 h-4 text-slate-400 hover:text-red-500" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
 
-          {/* Setup Checklist */}
-          <div>
-            <Card className="overflow-hidden">
-              <CardHeader>
-                <CardTitle className="text-lg">Setup Checklist</CardTitle>
-                <CardDescription>Complete these steps to launch</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {setupSteps.map((step, i) => (
-                    <motion.div 
-                      key={step.id}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.7 + i * 0.1 }}
-                      whileHover={{ x: step.complete ? 0 : 4 }}
-                      className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                        step.complete ? 'bg-green-50' : 'bg-slate-50 hover:bg-slate-100 cursor-pointer'
-                      }`}
-                    >
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
-                        step.complete 
-                          ? 'bg-green-500 text-white' 
-                          : 'bg-white border-2 border-slate-300 text-slate-400'
-                      }`}>
-                        {step.complete ? (
-                          <Check className="w-4 h-4" />
-                        ) : (
-                          <span className="text-xs font-medium">{i + 1}</span>
+                            {/* Add item form */}
+                            {addingToCategory === category.id && (
+                              <div className="p-3 bg-blue-50 space-y-2">
+                                <Input
+                                  placeholder="Item name"
+                                  value={newItemForm.name}
+                                  onChange={(e) => setNewItemForm({ ...newItemForm, name: e.target.value })}
+                                  className="h-9"
+                                />
+                                <Input
+                                  placeholder="Description (optional)"
+                                  value={newItemForm.description}
+                                  onChange={(e) => setNewItemForm({ ...newItemForm, description: e.target.value })}
+                                  className="h-9"
+                                />
+                                <div className="flex gap-2">
+                                  <div className="relative flex-1">
+                                    <DollarSign className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      placeholder="0.00"
+                                      value={newItemForm.price}
+                                      onChange={(e) => setNewItemForm({ ...newItemForm, price: e.target.value })}
+                                      className="h-9 pl-7"
+                                    />
+                                  </div>
+                                  <Button size="sm" onClick={() => handleAddItem(category.id)}>Add</Button>
+                                  <Button size="sm" variant="ghost" onClick={() => setAddingToCategory(null)}>
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+
+                            {getItemsInCategory(category.id).length === 0 && addingToCategory !== category.id && (
+                              <div className="p-4 text-center text-sm text-slate-500">
+                                No items yet
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
-                      <span className={`text-sm ${step.complete ? 'text-green-700 line-through' : 'text-slate-700'}`}>
-                        {step.label}
-                      </span>
-                    </motion.div>
-                  ))}
-                </div>
+                    ))}
 
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.2 }}
+                    <Button variant="outline" className="w-full gap-2" onClick={handleAddCategory}>
+                      <Plus className="w-4 h-4" />
+                      Add Category
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Panel - Live Preview */}
+            <div className="flex-1 bg-slate-200 flex flex-col items-center justify-center p-8">
+              {/* Preview Controls */}
+              <div className="flex items-center gap-2 mb-4">
+                <Button
+                  variant={previewMode === 'mobile' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setPreviewMode('mobile')}
                 >
-                  <Button className="w-full mt-6 gap-2" size="lg">
-                    Continue Setup
-                    <ChevronRight className="w-4 h-4" />
-                  </Button>
-                </motion.div>
-              </CardContent>
-            </Card>
+                  <Smartphone className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={previewMode === 'desktop' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setPreviewMode('desktop')}
+                >
+                  <Monitor className="w-4 h-4" />
+                </Button>
+              </div>
 
-            {/* Need Help? */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.3 }}
-            >
-              <Card className="mt-4 bg-gradient-to-br from-slate-800 to-slate-900 text-white overflow-hidden relative">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-                <CardContent className="p-6 relative">
-                  <h3 className="font-semibold mb-2">Need Help?</h3>
-                  <p className="text-sm text-slate-300 mb-4">
-                    Our team is here to help you get started.
-                  </p>
-                  <Button variant="secondary" size="sm" className="w-full">
-                    Contact Support
-                  </Button>
-                </CardContent>
-              </Card>
-            </motion.div>
+              {/* Phone/Desktop Frame */}
+              <div className={`bg-white shadow-2xl overflow-hidden ${
+                previewMode === 'mobile' 
+                  ? 'w-[375px] rounded-[2.5rem] p-3' 
+                  : 'w-full max-w-4xl rounded-lg'
+              }`}>
+                <div className={`bg-slate-50 overflow-y-auto ${
+                  previewMode === 'mobile' 
+                    ? 'rounded-[2rem] h-[700px]' 
+                    : 'h-[600px]'
+                }`}>
+                  {/* Preview Header */}
+                  <div 
+                    className="p-4 text-white"
+                    style={{ backgroundColor: settings?.primaryColor || '#2563eb' }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center text-xl font-bold">
+                        {settings?.name?.charAt(0) || 'R'}
+                      </div>
+                      <div>
+                        <h2 className={`font-bold ${THEMES[selectedTheme].font}`}>
+                          {settings?.name || 'Your Restaurant'}
+                        </h2>
+                        <p className="text-white/70 text-sm">Open until 10pm</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order Type Toggle */}
+                  <div className="p-4">
+                    <div className="flex gap-2">
+                      <div className={`flex-1 bg-white border-2 border-slate-300 ${THEMES[selectedTheme].radius} p-3 text-center`}>
+                        <p className="font-semibold text-slate-900">Pickup</p>
+                        <p className="text-xs text-slate-500">15 min</p>
+                      </div>
+                      <div className={`flex-1 bg-slate-50 border border-slate-200 ${THEMES[selectedTheme].radius} p-3 text-center`}>
+                        <p className="font-semibold text-slate-400">Delivery</p>
+                        <p className="text-xs text-slate-400">30-45 min</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Category Nav */}
+                  <div className="px-4 pb-2 flex gap-2 overflow-x-auto">
+                    {categories.map((cat, i) => (
+                      <div 
+                        key={cat.id}
+                        className={`px-3 py-1.5 text-xs font-medium whitespace-nowrap ${THEMES[selectedTheme].button} ${
+                          i === 0 
+                            ? 'text-white' 
+                            : 'bg-slate-100 text-slate-600'
+                        }`}
+                        style={i === 0 ? { backgroundColor: settings?.primaryColor || '#2563eb' } : {}}
+                      >
+                        {cat.name}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Menu Items */}
+                  <div className="p-4 space-y-4">
+                    {categories.map((category) => (
+                      <div key={category.id}>
+                        <h3 className={`font-bold text-slate-900 mb-3 ${THEMES[selectedTheme].font}`}>
+                          {category.name}
+                        </h3>
+                        <div className="space-y-2">
+                          {getItemsInCategory(category.id).filter(i => i.isAvailable).map((item) => (
+                            <div 
+                              key={item.id} 
+                              className={`bg-white border border-slate-200 ${THEMES[selectedTheme].radius} p-3 flex justify-between`}
+                            >
+                              <div>
+                                <p className={`font-medium text-slate-900 ${THEMES[selectedTheme].font}`}>{item.name}</p>
+                                {item.description && (
+                                  <p className="text-xs text-slate-500 mt-0.5">{item.description}</p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <p className="font-semibold" style={{ color: settings?.primaryColor || '#2563eb' }}>
+                                  ${item.price.toFixed(2)}
+                                </p>
+                                <button 
+                                  className={`text-xs text-white px-3 py-1 ${THEMES[selectedTheme].button} mt-1`}
+                                  style={{ backgroundColor: settings?.primaryColor || '#2563eb' }}
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                          {getItemsInCategory(category.id).length === 0 && (
+                            <p className="text-sm text-slate-400 italic">No items in this category</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {categories.length === 0 && (
+                      <div className="text-center py-12 text-slate-400">
+                        <p>Add categories and items to see your menu here</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-sm text-slate-500 mt-4">
+                Live preview — changes update instantly
+              </p>
+            </div>
+          </>
+        ) : (
+          /* Orders Tab */
+          <div className="flex-1 p-6">
+            {/* Order Filters */}
+            <div className="flex gap-2 mb-6">
+              {(['new', 'preparing', 'ready', 'completed'] as const).map((filter) => (
+                <button
+                  key={filter}
+                  onClick={() => setOrderFilter(filter)}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                    orderFilter === filter 
+                      ? 'bg-blue-600 text-white' 
+                      : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                  }`}
+                >
+                  {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                  {filter === 'new' && orders.filter(o => o.status === 'pending' || o.status === 'confirmed').length > 0 && (
+                    <span className="ml-2 bg-white/20 px-1.5 py-0.5 rounded text-xs">
+                      {orders.filter(o => o.status === 'pending' || o.status === 'confirmed').length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Orders Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredOrders.map((order) => (
+                <Card key={order.id} className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="font-bold text-slate-900">#{order.orderNumber}</p>
+                      <p className="text-sm text-slate-600">{order.customerName}</p>
+                    </div>
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      order.type === 'pickup' ? 'bg-purple-100 text-purple-700' : 'bg-orange-100 text-orange-700'
+                    }`}>
+                      {order.type}
+                    </span>
+                  </div>
+                  
+                  <div className="text-sm text-slate-600 mb-3">
+                    {order.items?.length || 0} items • ${order.total?.toFixed(2)}
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-xs text-slate-500 mb-4">
+                    <Clock className="w-3 h-3" />
+                    {new Date(order.createdAt).toLocaleTimeString()}
+                  </div>
+
+                  <div className="flex gap-2">
+                    {order.status === 'pending' && (
+                      <Button size="sm" className="flex-1" onClick={() => handleUpdateOrderStatus(order.id, 'preparing')}>
+                        Accept
+                      </Button>
+                    )}
+                    {order.status === 'preparing' && (
+                      <Button size="sm" className="flex-1" onClick={() => handleUpdateOrderStatus(order.id, 'ready')}>
+                        Mark Ready
+                      </Button>
+                    )}
+                    {order.status === 'ready' && (
+                      <Button size="sm" className="flex-1" onClick={() => handleUpdateOrderStatus(order.id, 'completed')}>
+                        Complete
+                      </Button>
+                    )}
+                  </div>
+                </Card>
+              ))}
+
+              {filteredOrders.length === 0 && (
+                <div className="col-span-full text-center py-12">
+                  <ShoppingBag className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500">No {orderFilter} orders</p>
+                </div>
+              )}
+            </div>
           </div>
-        </motion.div>
+        )}
       </div>
+
+      {/* Launch Modal */}
+      {showLaunchModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md p-6">
+            <h2 className="text-xl font-bold text-slate-900 mb-4">Ready to launch?</h2>
+            
+            <div className="space-y-3 mb-6">
+              <div className="flex items-center gap-3">
+                {menuItems.length > 0 ? (
+                  <Check className="w-5 h-5 text-green-600" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-amber-500" />
+                )}
+                <span className="text-slate-700">
+                  Menu has items ({menuItems.length} items in {categories.length} categories)
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                {settings?.stripeOnboardingComplete ? (
+                  <Check className="w-5 h-5 text-green-600" />
+                ) : (
+                  <div className="w-5 h-5 rounded-full border-2 border-slate-300" />
+                )}
+                <span className="text-slate-700">
+                  Stripe connected
+                  {!settings?.stripeOnboardingComplete && (
+                    <span className="text-slate-400 ml-1">(required)</span>
+                  )}
+                </span>
+                {!settings?.stripeOnboardingComplete && (
+                  <Link href="/dashboard/go-live">
+                    <Button size="sm" variant="outline">Connect →</Button>
+                  </Link>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-slate-50 rounded-lg p-3 mb-6">
+              <p className="text-sm text-slate-500">Your store URL:</p>
+              <p className="font-medium text-slate-900">orderflow.co/{settings?.slug}</p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setShowLaunchModal(false)}>
+                Cancel
+              </Button>
+              <Button 
+                className="flex-1 gap-2"
+                disabled={menuItems.length === 0 || !settings?.stripeOnboardingComplete}
+                onClick={async () => {
+                  await fetch('/api/dashboard/launch', { method: 'POST' })
+                  setSettings(s => s ? { ...s, isLive: true } : null)
+                  setShowLaunchModal(false)
+                }}
+              >
+                <Rocket className="w-4 h-4" />
+                Launch Store
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
