@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -28,7 +29,9 @@ import {
   Truck,
   ArrowUpRight,
   ArrowDownRight,
-  Rocket
+  Rocket,
+  Loader2,
+  PartyPopper
 } from 'lucide-react'
 
 const container = {
@@ -44,38 +47,66 @@ const item = {
   show: { opacity: 1, y: 0 }
 }
 
+interface LaunchStatus {
+  hasMenuItems: boolean
+  menuItemCount: number
+  stripeConnected: boolean
+  stripeOnboardingComplete: boolean
+  doordashConfigured: boolean
+  storeSlug: string
+  storeName: string
+  isLive: boolean
+}
+
 export default function DashboardPage() {
+  const searchParams = useSearchParams()
+  const isWelcome = searchParams.get('welcome') === 'true'
+  
   const [tenant, setTenant] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [isDeployed, setIsDeployed] = useState(false)
+  const [launchStatus, setLaunchStatus] = useState<LaunchStatus | null>(null)
   const [stats, setStats] = useState({
-    todayOrders: 12,
-    todayRevenue: 487.50,
-    pendingOrders: 3,
-    menuItems: 45,
-    pickupOrders: 8,
-    deliveryOrders: 4,
-    weekOrders: 67,
-    weekRevenue: 2847.25,
-    avgOrderValue: 42.35,
+    todayOrders: 0,
+    todayRevenue: 0,
+    pendingOrders: 0,
+    menuItems: 0,
+    pickupOrders: 0,
+    deliveryOrders: 0,
+    weekOrders: 0,
+    weekRevenue: 0,
+    avgOrderValue: 0,
   })
 
+  // Calculate setup progress based on real data
   const setupSteps = [
     { id: 'account', label: 'Create account', complete: true },
     { id: 'details', label: 'Add restaurant details', complete: true },
-    { id: 'branding', label: 'Upload logo & set colors', complete: false },
-    { id: 'menu', label: 'Add menu items', complete: false },
-    { id: 'stripe', label: 'Connect Stripe', complete: false },
-    { id: 'deploy', label: 'Deploy store', complete: false },
+    { id: 'menu', label: 'Add menu items', complete: launchStatus?.hasMenuItems || false },
+    { id: 'stripe', label: 'Connect Stripe', complete: launchStatus?.stripeOnboardingComplete || false },
   ]
 
   const completedSteps = setupSteps.filter(s => s.complete).length
   const setupProgress = (completedSteps / setupSteps.length) * 100
 
   useEffect(() => {
-    // Simulate loading
-    setTimeout(() => setLoading(false), 500)
+    loadDashboardData()
   }, [])
+
+  const loadDashboardData = async () => {
+    try {
+      // Load launch status
+      const statusRes = await fetch('/api/dashboard/launch-status')
+      if (statusRes.ok) {
+        const statusData = await statusRes.json()
+        setLaunchStatus(statusData)
+        setStats(prev => ({ ...prev, menuItems: statusData.menuItemCount }))
+      }
+    } catch (err) {
+      console.error('Error loading dashboard:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -118,52 +149,96 @@ export default function DashboardPage() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Banner */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 mb-8 text-white overflow-hidden relative"
-        >
-          {/* Decorative elements */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-          
-          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div>
-              <motion.h1 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
-                className="text-2xl md:text-3xl font-bold mb-2"
-              >
-                Welcome back! 👋
-              </motion.h1>
-              <motion.p 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="text-blue-100"
-              >
-                Your store is almost ready. Complete the setup to go live.
-              </motion.p>
+        {/* Welcome Banner - Show setup progress or live status */}
+        {isWelcome && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-3"
+          >
+            <PartyPopper className="w-6 h-6 text-green-600" />
+            <p className="text-green-800">
+              <span className="font-semibold">Welcome to OrderFlow!</span> Start by adding your menu items, then go live.
+            </p>
+          </motion.div>
+        )}
+
+        {launchStatus && !launchStatus.isLive ? (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-8 mb-8 text-white overflow-hidden relative"
+          >
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+            
+            <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold mb-2">
+                  Let's get you live! 🚀
+                </h1>
+                <p className="text-blue-100 mb-4">
+                  Complete these steps to start accepting orders
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {setupSteps.map((step) => (
+                    <div 
+                      key={step.id}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${
+                        step.complete 
+                          ? 'bg-white/20 text-white' 
+                          : 'bg-white/10 text-blue-200'
+                      }`}
+                    >
+                      {step.complete ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border-2 border-current" />
+                      )}
+                      {step.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-3">
+                <div className="text-right">
+                  <p className="text-blue-100 text-sm">Setup Progress</p>
+                  <p className="text-2xl font-bold">{Math.round(setupProgress)}%</p>
+                </div>
+                <Link href="/dashboard/go-live">
+                  <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 gap-2">
+                    <Rocket className="w-5 h-5" />
+                    Go Live
+                  </Button>
+                </Link>
+              </div>
             </div>
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.4 }}
-              className="flex items-center gap-4"
-            >
-              <div className="text-right">
-                <p className="text-blue-100 text-sm">Setup Progress</p>
-                <p className="text-2xl font-bold">{Math.round(setupProgress)}%</p>
+          </motion.div>
+        ) : launchStatus?.isLive ? (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-r from-green-600 to-emerald-600 rounded-2xl p-6 mb-8 text-white"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Store className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold">Your store is live!</h2>
+                  <p className="text-green-100">Accepting orders at orderflow.io/store/{launchStatus.storeSlug}</p>
+                </div>
               </div>
-              <div className="w-24">
-                <Progress value={setupProgress} className="h-3 bg-white/20" />
-              </div>
-            </motion.div>
-          </div>
-        </motion.div>
+              <a href={`/store/${launchStatus.storeSlug}`} target="_blank">
+                <Button variant="secondary" className="gap-2">
+                  <ExternalLink className="w-4 h-4" />
+                  View Store
+                </Button>
+              </a>
+            </div>
+          </motion.div>
+        ) : null}
 
         {/* Stats Grid */}
         <motion.div 
