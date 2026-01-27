@@ -57,6 +57,7 @@ export default function SettingsPage() {
     doordashKeyId: '',
     doordashSigningSecret: '',
     doordashConnected: false,
+    pickupInstructions: '',
     
     // Features
     pickupEnabled: true,
@@ -181,6 +182,96 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Restaurant Info & Address */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Store className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Restaurant Information</CardTitle>
+                <CardDescription>Your business details and pickup address</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Restaurant Name</Label>
+                <Input
+                  value={settings.name}
+                  onChange={(e) => updateSettings('name', e.target.value)}
+                  placeholder="Your Restaurant Name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone Number</Label>
+                <Input
+                  value={settings.phone}
+                  onChange={(e) => updateSettings('phone', e.target.value)}
+                  placeholder="(555) 123-4567"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={settings.email}
+                onChange={(e) => updateSettings('email', e.target.value)}
+                placeholder="contact@restaurant.com"
+              />
+            </div>
+
+            <div className="border-t pt-4 mt-4">
+              <h4 className="font-medium text-slate-900 mb-3">Pickup Address</h4>
+              <p className="text-sm text-slate-500 mb-4">
+                This address is used for customer pickups and as the origin for DoorDash deliveries.
+              </p>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Street Address</Label>
+                  <Input
+                    value={settings.address}
+                    onChange={(e) => updateSettings('address', e.target.value)}
+                    placeholder="123 Main Street"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>City</Label>
+                    <Input
+                      value={settings.city}
+                      onChange={(e) => updateSettings('city', e.target.value)}
+                      placeholder="New York"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>State</Label>
+                    <Input
+                      value={settings.state}
+                      onChange={(e) => updateSettings('state', e.target.value)}
+                      placeholder="NY"
+                      maxLength={2}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>ZIP Code</Label>
+                    <Input
+                      value={settings.zip}
+                      onChange={(e) => updateSettings('zip', e.target.value)}
+                      placeholder="10001"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* DoorDash Integration */}
         <Card>
           <CardHeader>
@@ -261,6 +352,18 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </div>
+              
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-slate-700 mb-3">Pickup Instructions for Drivers</h4>
+                <Input
+                  value={settings.pickupInstructions || ''}
+                  onChange={(e) => updateSettings('pickupInstructions', e.target.value)}
+                  placeholder="e.g., Enter through side door, orders on counter"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  These instructions help DoorDash drivers find and pick up orders.
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -340,7 +443,7 @@ export default function SettingsPage() {
           <CardHeader>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <Store className="w-5 h-5 text-green-600" />
+                <CreditCard className="w-5 h-5 text-green-600" />
               </div>
               <div>
                 <CardTitle className="text-lg">Fees & Minimums</CardTitle>
