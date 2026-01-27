@@ -44,7 +44,26 @@ export async function PUT(
     
     const { id } = await params
     const body = await req.json()
-    const { categoryId, name, description, price, image, options, isAvailable, sortOrder } = body
+    const { 
+      categoryId, 
+      name, 
+      description, 
+      price, 
+      image, 
+      options,
+      variants,
+      modifierGroupIds,
+      isSoldOut,
+      soldOutAutoReset,
+      allergens,
+      calories,
+      prepTimeMinutes,
+      availableFrom,
+      availableTo,
+      availableDays,
+      isAvailable, 
+      sortOrder 
+    } = body
     
     // Verify ownership
     const existing = await prisma.menuItem.findFirst({
@@ -65,6 +84,31 @@ export async function PUT(
       }
     }
     
+    // Validate variants if provided
+    if (variants !== undefined && variants !== null) {
+      if (!Array.isArray(variants)) {
+        return NextResponse.json({ error: 'variants must be an array' }, { status: 400 })
+      }
+      for (const v of variants) {
+        if (!v.name || typeof v.price !== 'number') {
+          return NextResponse.json({ error: 'Each variant must have name and price' }, { status: 400 })
+        }
+      }
+    }
+    
+    // Verify modifier groups belong to tenant if provided
+    if (modifierGroupIds !== undefined && modifierGroupIds.length > 0) {
+      const validGroups = await prisma.modifierGroup.count({
+        where: { 
+          id: { in: modifierGroupIds },
+          tenantId: session.tenantId,
+        },
+      })
+      if (validGroups !== modifierGroupIds.length) {
+        return NextResponse.json({ error: 'One or more modifier groups not found' }, { status: 404 })
+      }
+    }
+    
     const item = await prisma.menuItem.update({
       where: { id },
       data: {
@@ -74,6 +118,16 @@ export async function PUT(
         ...(price !== undefined && { price: parseFloat(price) }),
         ...(image !== undefined && { image }),
         ...(options !== undefined && { options }),
+        ...(variants !== undefined && { variants }),
+        ...(modifierGroupIds !== undefined && { modifierGroupIds }),
+        ...(isSoldOut !== undefined && { isSoldOut }),
+        ...(soldOutAutoReset !== undefined && { soldOutAutoReset }),
+        ...(allergens !== undefined && { allergens }),
+        ...(calories !== undefined && { calories }),
+        ...(prepTimeMinutes !== undefined && { prepTimeMinutes }),
+        ...(availableFrom !== undefined && { availableFrom }),
+        ...(availableTo !== undefined && { availableTo }),
+        ...(availableDays !== undefined && { availableDays }),
         ...(isAvailable !== undefined && { isAvailable }),
         ...(sortOrder !== undefined && { sortOrder }),
       },

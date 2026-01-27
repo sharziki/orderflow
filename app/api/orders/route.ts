@@ -4,6 +4,72 @@ import { getSession, generateOrderNumber } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { sanitizeField, sanitizeEmail, sanitizePhone } from '@/lib/sanitize'
 import { sendOrderConfirmation, sendNewOrderNotification } from '@/lib/email'
+import { checkOrderThrottle, formatThrottleMessage } from '@/lib/order-throttle'
+import { calculatePrepTimeFromMenuItems } from '@/lib/prep-time'
+
+// Validate promo code and return discount info
+async function validatePromoCode(
+  tenantId: string,
+  code: string,
+  subtotal: number,
+  customerId?: string
+): Promise<{ valid: boolean; discount: number; promoCodeId?: string; reason?: string }> {
+  const normalizedCode = code.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  
+  const promoCode = await prisma.promoCode.findUnique({
+    where: {
+      tenantId_code: { tenantId, code: normalizedCode },
+    },
+  })
+  
+  if (!promoCode || !promoCode.isActive) {
+    return { valid: false, discount: 0, reason: 'Invalid or inactive promo code' }
+  }
+  
+  if (promoCode.startsAt && promoCode.startsAt > new Date()) {
+    return { valid: false, discount: 0, reason: 'Promo code not yet active' }
+  }
+  
+  if (promoCode.expiresAt && promoCode.expiresAt < new Date()) {
+    return { valid: false, discount: 0, reason: 'Promo code expired' }
+  }
+  
+  if (promoCode.maxUsageCount !== null && promoCode.usageCount >= promoCode.maxUsageCount) {
+    return { valid: false, discount: 0, reason: 'Promo code maximum usage reached' }
+  }
+  
+  if (promoCode.minOrderAmount !== null && subtotal < promoCode.minOrderAmount) {
+    return { valid: false, discount: 0, reason: `Minimum order $${promoCode.minOrderAmount.toFixed(2)} required` }
+  }
+  
+  if (promoCode.firstTimeOnly && customerId) {
+    const customer = await prisma.customer.findUnique({ where: { id: customerId } })
+    if (customer && customer.orderCount > 0) {
+      return { valid: false, discount: 0, reason: 'First-time customers only' }
+    }
+  }
+  
+  if (promoCode.singleUse && customerId) {
+    const previousUse = await prisma.order.findFirst({
+      where: { customerId, promoCodeId: promoCode.id },
+    })
+    if (previousUse) {
+      return { valid: false, discount: 0, reason: 'Already used this promo code' }
+    }
+  }
+  
+  let discount: number
+  if (promoCode.discountType === 'percent') {
+    discount = subtotal * (promoCode.discountValue / 100)
+    if (promoCode.maxDiscountAmount !== null) {
+      discount = Math.min(discount, promoCode.maxDiscountAmount)
+    }
+  } else {
+    discount = Math.min(promoCode.discountValue, subtotal)
+  }
+  
+  return { valid: true, discount: Math.round(discount * 100) / 100, promoCodeId: promoCode.id }
+}
 
 // GET /api/orders - List orders for current tenant
 export async function GET(req: NextRequest) {
@@ -83,9 +149,13 @@ export async function POST(req: NextRequest) {
     const deliveryLat = body.deliveryLat
     const deliveryLng = body.deliveryLng
     const scheduledFor = body.scheduledFor
+    const scheduledDate = body.scheduledDate // "2024-01-15" format for future date orders
     const notes = sanitizeField(body.notes)
     const tip = body.tip
     const giftCardCode = body.giftCardCode
+    const promoCode = body.promoCode // NEW: promo code
+    const loyaltyPointsToRedeem = body.loyaltyPointsToRedeem // NEW: loyalty points redemption
+    const customerId = body.customerId // NEW: link order to customer
     
     // Find tenant
     const tenant = await prisma.tenant.findFirst({
@@ -100,6 +170,45 @@ export async function POST(req: NextRequest) {
     
     if (!tenant.isActive) {
       return NextResponse.json({ error: 'Restaurant is not accepting orders' }, { status: 400 })
+    }
+    
+    // Check order throttling
+    const throttleResult = await checkOrderThrottle(tenant.id)
+    if (!throttleResult.allowed) {
+      return NextResponse.json(
+        { 
+          error: formatThrottleMessage(throttleResult),
+          nextAvailableTime: throttleResult.nextAvailableTime?.toISOString(),
+          retryAfterSeconds: throttleResult.retryAfterSeconds,
+        },
+        { 
+          status: 429,
+          headers: {
+            'Retry-After': String(throttleResult.retryAfterSeconds || 60),
+          },
+        }
+      )
+    }
+    
+    // Validate future date orders
+    if (scheduledDate) {
+      const scheduledDateObj = new Date(scheduledDate)
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      if (isNaN(scheduledDateObj.getTime())) {
+        return NextResponse.json(
+          { error: 'Invalid scheduled date format. Use YYYY-MM-DD format.' },
+          { status: 400 }
+        )
+      }
+      
+      if (scheduledDateObj < today) {
+        return NextResponse.json(
+          { error: 'Scheduled date must be today or in the future' },
+          { status: 400 }
+        )
+      }
     }
     
     // Validate required fields
@@ -176,6 +285,44 @@ export async function POST(req: NextRequest) {
     const deliveryFee = type === 'delivery' ? tenant.deliveryFee : 0
     const tipAmount = tip || 0
     
+    // Promo code handling
+    let promoCodeDiscount = 0
+    let validatedPromoCodeId: string | undefined
+    
+    if (promoCode) {
+      const promoResult = await validatePromoCode(tenant.id, promoCode, subtotal, customerId)
+      if (!promoResult.valid) {
+        return NextResponse.json(
+          { error: promoResult.reason || 'Invalid promo code' },
+          { status: 400 }
+        )
+      }
+      promoCodeDiscount = promoResult.discount
+      validatedPromoCodeId = promoResult.promoCodeId
+    }
+    
+    // Loyalty points redemption
+    let loyaltyDiscount = 0
+    let loyaltyPointsRedeemed = 0
+    
+    if (loyaltyPointsToRedeem && customerId && tenant.loyaltyEnabled) {
+      const customer = await prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { loyaltyPoints: true },
+      })
+      
+      if (customer && customer.loyaltyPoints >= loyaltyPointsToRedeem) {
+        // Points must be in increments of redemption rate
+        const redemptionRate = tenant.loyaltyPointsRedemptionRate
+        const redemptionValue = tenant.loyaltyRedemptionValue
+        
+        if (loyaltyPointsToRedeem % redemptionRate === 0) {
+          loyaltyPointsRedeemed = loyaltyPointsToRedeem
+          loyaltyDiscount = (loyaltyPointsToRedeem / redemptionRate) * redemptionValue
+        }
+      }
+    }
+    
     // Gift card handling
     let giftCardAmount = 0
     let giftCard = null
@@ -191,21 +338,47 @@ export async function POST(req: NextRequest) {
       })
       
       if (giftCard) {
-        const orderTotal = subtotal + tax + deliveryFee + tipAmount
+        const orderTotal = subtotal + tax + deliveryFee + tipAmount - promoCodeDiscount - loyaltyDiscount
         giftCardAmount = Math.min(giftCard.currentBalance, orderTotal)
       }
     }
     
-    const total = subtotal + tax + deliveryFee + tipAmount - giftCardAmount
+    // Calculate loyalty points to earn (based on subtotal after discounts)
+    let loyaltyPointsEarned = 0
+    if (tenant.loyaltyEnabled && customerId) {
+      const earnableAmount = subtotal - promoCodeDiscount
+      loyaltyPointsEarned = Math.floor(earnableAmount * tenant.loyaltyPointsPerDollar)
+    }
+    
+    const totalDiscount = promoCodeDiscount + loyaltyDiscount
+    const total = subtotal + tax + deliveryFee + tipAmount - totalDiscount - giftCardAmount
     
     // Generate order number
     const orderNumber = await generateOrderNumber(tenant.id)
+    
+    // Calculate prep time from menu items
+    const menuItemsForPrepTime = await prisma.menuItem.findMany({
+      where: {
+        id: { in: orderItems.map(item => item.menuItemId) },
+        tenantId: tenant.id,
+      },
+      select: {
+        id: true,
+        prepTimeMinutes: true,
+      },
+    })
+    
+    const estimatedPrepMinutes = calculatePrepTimeFromMenuItems(
+      orderItems.map(item => ({ menuItemId: item.menuItemId, quantity: item.quantity })),
+      menuItemsForPrepTime
+    )
     
     // Create order
     const order = await prisma.$transaction(async (tx) => {
       const newOrder = await tx.order.create({
         data: {
           tenantId: tenant.id,
+          customerId: customerId || null,
           orderNumber,
           status: 'pending',
           type,
@@ -220,11 +393,17 @@ export async function POST(req: NextRequest) {
           tax,
           tip: tipAmount,
           deliveryFee,
-          discount: 0,
+          discount: totalDiscount,
+          promoCodeId: validatedPromoCodeId || null,
+          promoCodeDiscount,
           giftCardId: giftCard?.id,
           giftCardAmount,
+          loyaltyPointsEarned,
+          loyaltyPointsRedeemed,
           total,
           scheduledFor: scheduledFor ? new Date(scheduledFor) : null,
+          scheduledDate: scheduledDate || null,
+          estimatedPrepMinutes,
           notes,
         },
       })
@@ -234,6 +413,28 @@ export async function POST(req: NextRequest) {
         await tx.giftCard.update({
           where: { id: giftCard.id },
           data: { currentBalance: giftCard.currentBalance - giftCardAmount },
+        })
+      }
+      
+      // Increment promo code usage
+      if (validatedPromoCodeId) {
+        await tx.promoCode.update({
+          where: { id: validatedPromoCodeId },
+          data: { usageCount: { increment: 1 } },
+        })
+      }
+      
+      // Update customer loyalty and stats
+      if (customerId) {
+        await tx.customer.update({
+          where: { id: customerId },
+          data: {
+            loyaltyPoints: {
+              increment: loyaltyPointsEarned - loyaltyPointsRedeemed,
+            },
+            totalSpent: { increment: total },
+            orderCount: { increment: 1 },
+          },
         })
       }
       

@@ -3,6 +3,9 @@ import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { sendOrderStatusUpdate } from '@/lib/email'
 
+// Editable statuses - only these can have items modified
+const EDITABLE_STATUSES = ['pending', 'confirmed']
+
 // GET /api/orders/[orderId] - Get single order (for tracking or dashboard)
 export async function GET(
   req: NextRequest,
@@ -44,7 +47,7 @@ export async function GET(
   }
 }
 
-// PUT /api/orders/[orderId] - Update order (status, etc.)
+// PUT /api/orders/[orderId] - Update order (status, items, kitchen notes)
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ orderId: string }> }
@@ -57,11 +60,14 @@ export async function PUT(
     
     const { orderId } = await params
     const body = await req.json()
-    const { status, estimatedReady, notes } = body
+    const { status, estimatedReady, notes, items, kitchenNotes } = body
     
     // Verify ownership
     const existing = await prisma.order.findFirst({
       where: { id: orderId, tenantId: session.tenantId },
+      include: {
+        tenant: { select: { taxRate: true } },
+      },
     })
     
     if (!existing) {
@@ -101,6 +107,76 @@ export async function PUT(
     
     if (notes !== undefined) {
       updateData.notes = notes
+    }
+    
+    // Handle kitchen notes (internal staff notes)
+    if (kitchenNotes !== undefined) {
+      updateData.kitchenNotes = kitchenNotes
+    }
+    
+    // Handle order item editing
+    if (items !== undefined) {
+      // Only allow editing for pending/confirmed orders
+      if (!EDITABLE_STATUSES.includes(existing.status)) {
+        return NextResponse.json(
+          { error: `Cannot edit items for order in ${existing.status} status. Only pending and confirmed orders can be edited.` },
+          { status: 400 }
+        )
+      }
+      
+      // Validate and recalculate totals
+      let subtotal = 0
+      const orderItems: {
+        menuItemId: string
+        name: string
+        quantity: number
+        price: number
+        options: any[]
+        specialRequests: string
+      }[] = []
+      
+      for (const item of items) {
+        const menuItem = await prisma.menuItem.findFirst({
+          where: { id: item.menuItemId, tenantId: session.tenantId },
+        })
+        
+        if (!menuItem) {
+          return NextResponse.json(
+            { error: `Item not found: ${item.menuItemId}` },
+            { status: 400 }
+          )
+        }
+        
+        let itemPrice = item.price ?? menuItem.price
+        const lineTotal = itemPrice * item.quantity
+        subtotal += lineTotal
+        
+        orderItems.push({
+          menuItemId: menuItem.id,
+          name: item.name ?? menuItem.name,
+          quantity: item.quantity,
+          price: itemPrice,
+          options: item.options || [],
+          specialRequests: item.specialRequests || '',
+        })
+      }
+      
+      // Recalculate tax and total
+      const tax = subtotal * (existing.tenant.taxRate / 100)
+      const total = subtotal + tax + (existing.tip || 0) + existing.deliveryFee - existing.discount - existing.giftCardAmount
+      
+      updateData.items = orderItems
+      updateData.subtotal = subtotal
+      updateData.tax = tax
+      updateData.total = total
+      
+      // Track edit history in kitchenNotes
+      const timestamp = new Date().toISOString()
+      const editNote = `[${timestamp}] Order items modified by staff`
+      const existingKitchenNotes = updateData.kitchenNotes ?? existing.kitchenNotes ?? ''
+      updateData.kitchenNotes = existingKitchenNotes 
+        ? `${existingKitchenNotes}\n${editNote}`
+        : editNote
     }
     
     const order = await prisma.order.update({

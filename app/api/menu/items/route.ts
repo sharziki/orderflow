@@ -41,13 +41,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    const { categoryId, name, description, price, image, options, isAvailable } = await req.json()
+    const body = await req.json()
+    const { 
+      categoryId, 
+      name, 
+      description, 
+      price, 
+      image, 
+      options, 
+      variants,
+      modifierGroupIds,
+      allergens,
+      calories,
+      prepTimeMinutes,
+      availableFrom,
+      availableTo,
+      availableDays,
+      isAvailable 
+    } = body
     
     if (!categoryId || !name || price === undefined) {
       return NextResponse.json(
         { error: 'categoryId, name, and price are required' },
         { status: 400 }
       )
+    }
+    
+    // Validate variants if provided
+    if (variants !== undefined && variants !== null) {
+      if (!Array.isArray(variants)) {
+        return NextResponse.json({ error: 'variants must be an array' }, { status: 400 })
+      }
+      for (const v of variants) {
+        if (!v.name || typeof v.price !== 'number') {
+          return NextResponse.json({ error: 'Each variant must have name and price' }, { status: 400 })
+        }
+      }
     }
     
     // Verify category belongs to tenant
@@ -57,6 +86,19 @@ export async function POST(req: NextRequest) {
     
     if (!category) {
       return NextResponse.json({ error: 'Category not found' }, { status: 404 })
+    }
+    
+    // Verify modifier groups belong to tenant if provided
+    if (modifierGroupIds && modifierGroupIds.length > 0) {
+      const validGroups = await prisma.modifierGroup.count({
+        where: { 
+          id: { in: modifierGroupIds },
+          tenantId: session.tenantId,
+        },
+      })
+      if (validGroups !== modifierGroupIds.length) {
+        return NextResponse.json({ error: 'One or more modifier groups not found' }, { status: 404 })
+      }
     }
     
     // Get max sort order in category
@@ -73,7 +115,14 @@ export async function POST(req: NextRequest) {
         description,
         price: parseFloat(price),
         image,
-        options: options || null,
+        variants: variants || null,
+        modifierGroupIds: modifierGroupIds || [],
+        allergens: allergens || [],
+        calories: calories || null,
+        prepTimeMinutes: prepTimeMinutes || null,
+        availableFrom: availableFrom || null,
+        availableTo: availableTo || null,
+        availableDays: availableDays || [],
         isAvailable: isAvailable ?? true,
         sortOrder: (maxOrder._max.sortOrder || 0) + 1,
       },

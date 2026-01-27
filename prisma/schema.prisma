@@ -1,5 +1,5 @@
 // OrderFlow - Restaurant Online Ordering SaaS
-// Production Database Schema
+// Production Database Schema - Feature Parity Edition
 
 generator client {
   provider = "prisma-client-js"
@@ -11,53 +11,77 @@ datasource db {
 }
 
 // ============================================
-// TENANT (Restaurant)
+// TENANT (Restaurant/Location)
 // ============================================
 model Tenant {
   id                    String    @id @default(cuid())
-  slug                  String    @unique // URL slug: joes-pizza
-  name                  String    // Restaurant name
+  slug                  String    @unique
+  name                  String
   email                 String    @unique
   phone                 String?
+  
+  // Multi-location support
+  parentTenantId        String?   // If this is a child location
+  parentTenant          Tenant?   @relation("TenantLocations", fields: [parentTenantId], references: [id])
+  childLocations        Tenant[]  @relation("TenantLocations")
   
   // Location
   address               String?
   city                  String?
   state                 String?
   zip                   String?
+  latitude              Float?
+  longitude             Float?
   timezone              String    @default("America/New_York")
   
   // Branding
-  logo                  String?   // URL to logo image
-  template              String    @default("modern") // modern, classic, bold, compact
-  menuLayout            String    @default("blu-bentonville") // blu-bentonville, slice
+  logo                  String?
+  template              String    @default("modern")
+  menuLayout            String    @default("blu-bentonville")
   primaryColor          String    @default("#2563eb")
   secondaryColor        String    @default("#1e40af")
   
   // Stripe Connect
-  stripeAccountId       String?   // Connected Stripe account
+  stripeAccountId       String?
   stripeOnboardingComplete Boolean @default(false)
   
-  // Settings
+  // Core Settings
   pickupEnabled         Boolean   @default(true)
   deliveryEnabled       Boolean   @default(false)
   scheduledOrdersEnabled Boolean  @default(true)
   giftCardsEnabled      Boolean   @default(true)
+  loyaltyEnabled        Boolean   @default(false)
+  reviewsEnabled        Boolean   @default(true)
   
   // Fees
   taxRate               Float     @default(0)
   deliveryFee           Float     @default(0)
   minOrderAmount        Float     @default(0)
-  platformFeePercent    Float     @default(2.9) // Our cut
+  platformFeePercent    Float     @default(2.9)
   
-  // Hours (JSON: { monday: { open: "11:00", close: "21:00", closed: false }, ... })
+  // Order Throttling
+  maxOrdersPerWindow    Int?      // e.g., 10
+  orderWindowMinutes    Int?      // e.g., 15 (so 10 orders per 15 min)
+  
+  // Hours
   businessHours         Json?
   
-  // DoorDash integration
+  // DoorDash
   doordashDeveloperId   String?
   doordashKeyId         String?
   doordashSigningSecret String?
   pickupInstructions    String?
+  
+  // Twilio (SMS)
+  twilioAccountSid      String?
+  twilioAuthToken       String?
+  twilioPhoneNumber     String?
+  smsNotificationsEnabled Boolean @default(false)
+  
+  // Loyalty Settings
+  loyaltyPointsPerDollar Int      @default(1)
+  loyaltyPointsRedemptionRate Int @default(100) // 100 points = $5
+  loyaltyRedemptionValue Float   @default(5)
   
   // Status
   isActive              Boolean   @default(true)
@@ -69,15 +93,21 @@ model Tenant {
   users                 User[]
   categories            Category[]
   menuItems             MenuItem[]
+  modifierGroups        ModifierGroup[]
   orders                Order[]
   giftCards             GiftCard[]
+  promoCodes            PromoCode[]
+  customers             Customer[]
+  reviews               Review[]
+  abandonedCarts        AbandonedCart[]
   
   @@index([slug])
   @@index([email])
+  @@index([parentTenantId])
 }
 
 // ============================================
-// USER (Restaurant Owner/Staff)
+// USER (Restaurant Staff)
 // ============================================
 model User {
   id            String    @id @default(cuid())
@@ -88,6 +118,14 @@ model User {
   passwordHash  String
   name          String?
   role          String    @default("owner") // owner, manager, staff
+  
+  // Permissions (for staff role)
+  canViewOrders     Boolean @default(true)
+  canEditOrders     Boolean @default(false)
+  canEditMenu       Boolean @default(false)
+  canEditSettings   Boolean @default(false)
+  canViewAnalytics  Boolean @default(false)
+  canManageStaff    Boolean @default(false)
   
   // Password reset
   resetToken        String?
@@ -107,6 +145,45 @@ model User {
 }
 
 // ============================================
+// CUSTOMER (End User Account)
+// ============================================
+model Customer {
+  id            String    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  phone         String    // Primary identifier
+  email         String?
+  name          String?
+  
+  // Loyalty
+  loyaltyPoints Int       @default(0)
+  totalSpent    Float     @default(0)
+  orderCount    Int       @default(0)
+  
+  // Phone verification
+  phoneVerified Boolean   @default(false)
+  verifyCode    String?
+  verifyCodeExpiry DateTime?
+  
+  // Favorites (item IDs)
+  favoriteItems String[]  @default([])
+  
+  // Allergens to filter
+  allergenFilters String[] @default([])
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  orders        Order[]
+  reviews       Review[]
+  
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+  @@index([phone])
+}
+
+// ============================================
 // MENU CATEGORY
 // ============================================
 model Category {
@@ -114,11 +191,16 @@ model Category {
   tenantId    String
   tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   
-  name        String    // e.g., "Appetizers", "Main Course"
+  name        String
   description String?
-  image       String?   // Category header image
+  image       String?
   sortOrder   Int       @default(0)
   isActive    Boolean   @default(true)
+  
+  // Scheduling (null = always show)
+  availableFrom String?  // "06:00" 
+  availableTo   String?  // "11:00"
+  availableDays String[] @default([]) // ["monday", "tuesday", ...] empty = all days
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -126,7 +208,7 @@ model Category {
   menuItems   MenuItem[]
   
   @@index([tenantId])
-  @@index([sortOrder])
+  @@index([tenantId, sortOrder])
 }
 
 // ============================================
@@ -141,18 +223,44 @@ model MenuItem {
   
   name        String
   description String?
-  price       Float     // Base price in dollars
-  image       String?   // URL to item image
+  price       Float
+  image       String?
   
-  // Options/modifiers as JSON: [{ name: "Size", required: true, options: [{ name: "Small", price: 0 }, ...] }]
-  options     Json?
+  // Variants (e.g., Small/Medium/Large as primary selector)
+  variants    Json?     // [{ name: "Small", price: 12.99 }, { name: "Large", price: 16.99 }]
+  
+  // Linked modifier groups
+  modifierGroupIds String[] @default([])
+  
+  // 86'd / Sold Out
+  isSoldOut   Boolean   @default(false)
+  soldOutAutoReset Boolean @default(true) // Reset at midnight
+  
+  // Prep time in minutes
+  prepTimeMinutes Int?
   
   // Availability
   isAvailable Boolean   @default(true)
   sortOrder   Int       @default(0)
   
-  // Nutrition info (optional)
+  // Scheduling
+  availableFrom String?
+  availableTo   String?
+  availableDays String[] @default([])
+  
+  // Allergens
+  allergens   String[]  @default([]) // ["nuts", "dairy", "gluten", "shellfish", "eggs", "soy"]
+  
+  // Nutrition
   calories    Int?
+  
+  // Upsell prompt
+  upsellItemId String?   // "Add fries for $2?"
+  upsellPrice  Float?
+  
+  // Bundle/Combo
+  isCombo         Boolean @default(false)
+  comboComponents Json?   // [{ categoryId, itemCount, label: "Choose your side" }]
   
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -163,6 +271,34 @@ model MenuItem {
 }
 
 // ============================================
+// MODIFIER GROUP
+// ============================================
+model ModifierGroup {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  name        String    // "Toppings", "Sides", "Sauce"
+  description String?
+  
+  // Selection rules
+  isRequired  Boolean   @default(false)
+  minSelections Int     @default(0)  // "Choose at least 2"
+  maxSelections Int?    // "Choose up to 3" (null = unlimited)
+  
+  // Modifiers
+  modifiers   Json      // [{ name: "Pepperoni", price: 1.50 }, ...]
+  
+  sortOrder   Int       @default(0)
+  isActive    Boolean   @default(true)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([tenantId])
+}
+
+// ============================================
 // ORDER
 // ============================================
 model Order {
@@ -170,8 +306,12 @@ model Order {
   tenantId        String
   tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   
-  orderNumber     String    // Human-readable: ORD-001
-  status          String    @default("pending") // pending, confirmed, preparing, ready, out_for_delivery, completed, cancelled
+  // Customer (optional link)
+  customerId      String?
+  customer        Customer? @relation(fields: [customerId], references: [id])
+  
+  orderNumber     String
+  status          String    @default("pending")
   type            String    // pickup, delivery
   
   // Customer info
@@ -179,12 +319,12 @@ model Order {
   customerEmail   String
   customerPhone   String
   
-  // Delivery address (if delivery)
+  // Delivery
   deliveryAddress String?
   deliveryLat     Float?
   deliveryLng     Float?
   
-  // Items as JSON: [{ menuItemId, name, quantity, price, options: [...], specialRequests }]
+  // Items
   items           Json
   
   // Pricing
@@ -195,22 +335,40 @@ model Order {
   discount        Float     @default(0)
   total           Float
   
-  // Payment
-  paymentIntentId String?   // Stripe payment intent
-  paymentStatus   String    @default("pending") // pending, paid, refunded
+  // Promo code used
+  promoCodeId     String?
+  promoCodeDiscount Float   @default(0)
   
-  // Gift card used
+  // Payment
+  paymentIntentId String?
+  paymentStatus   String    @default("pending")
+  
+  // Refund
+  refundedAmount  Float     @default(0)
+  refundReason    String?
+  refundedAt      DateTime?
+  
+  // Gift card
   giftCardId      String?
   giftCardAmount  Float     @default(0)
   
+  // Loyalty points earned/redeemed
+  loyaltyPointsEarned   Int @default(0)
+  loyaltyPointsRedeemed Int @default(0)
+  
   // Scheduling
-  scheduledFor    DateTime? // null = ASAP
+  scheduledFor    DateTime?
+  scheduledDate   String?   // "2024-01-15" for future date orders
   estimatedReady  DateTime?
   
-  // Notes
-  notes           String?
+  // Prep time (calculated from items)
+  estimatedPrepMinutes Int?
   
-  // DoorDash delivery
+  // Notes
+  notes           String?   // Customer notes
+  kitchenNotes    String?   // Internal staff notes
+  
+  // DoorDash
   doordashDeliveryId String?
   
   createdAt       DateTime  @default(now())
@@ -221,7 +379,103 @@ model Order {
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
   @@index([orderNumber])
+  @@index([customerId])
   @@index([paymentIntentId])
+}
+
+// ============================================
+// PROMO CODE
+// ============================================
+model PromoCode {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  code        String    // "FIRST10", "SUMMER20"
+  description String?
+  
+  // Discount type
+  discountType    String  // "percent" | "fixed"
+  discountValue   Float   // 10 (for 10%) or 5.00 (for $5 off)
+  
+  // Rules
+  minOrderAmount  Float?
+  maxDiscountAmount Float? // Cap for percent discounts
+  firstTimeOnly   Boolean @default(false)
+  singleUse       Boolean @default(false)
+  
+  // Usage tracking
+  usageCount      Int     @default(0)
+  maxUsageCount   Int?    // null = unlimited
+  
+  // Validity
+  startsAt        DateTime?
+  expiresAt       DateTime?
+  isActive        Boolean @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([code])
+}
+
+// ============================================
+// REVIEW
+// ============================================
+model Review {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  customerId  String?
+  customer    Customer? @relation(fields: [customerId], references: [id])
+  
+  orderId     String?
+  rating      Int       // 1-5
+  comment     String?
+  
+  // Restaurant response
+  response    String?
+  respondedAt DateTime?
+  
+  isPublic    Boolean   @default(true)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([tenantId])
+  @@index([tenantId, rating])
+}
+
+// ============================================
+// ABANDONED CART
+// ============================================
+model AbandonedCart {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Customer info (captured early)
+  email       String?
+  phone       String?
+  
+  // Cart contents
+  items       Json
+  subtotal    Float
+  
+  // Recovery status
+  recoveryEmailSent Boolean   @default(false)
+  recoverySmsSent   Boolean   @default(false)
+  recovered         Boolean   @default(false)
+  recoveredOrderId  String?
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
 }
 
 // ============================================
@@ -229,9 +483,9 @@ model Order {
 // ============================================
 model ProcessedWebhook {
   id          String    @id @default(cuid())
-  eventId     String    @unique  // Stripe event ID or DoorDash delivery ID + status
-  source      String    // 'stripe' | 'doordash'
-  eventType   String    // Event type for debugging
+  eventId     String    @unique
+  source      String
+  eventType   String
   processedAt DateTime  @default(now())
   
   @@index([eventId])
@@ -246,15 +500,12 @@ model GiftCard {
   tenantId        String
   tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   
-  code            String    @unique // Redemption code
+  code            String    @unique
   initialBalance  Float
   currentBalance  Float
   
-  // Purchaser info
   purchaserName   String?
   purchaserEmail  String?
-  
-  // Recipient info
   recipientName   String?
   recipientEmail  String?
   message         String?
@@ -270,7 +521,7 @@ model GiftCard {
 }
 
 // ============================================
-// SESSION (for auth)
+// SESSION
 // ============================================
 model Session {
   id          String    @id @default(cuid())
