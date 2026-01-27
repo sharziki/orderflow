@@ -159,6 +159,20 @@ export default function StorePage() {
   const cartTotal = cart.reduce((sum, c) => sum + c.menuItem.price * c.quantity, 0)
   const cartCount = cart.reduce((sum, c) => sum + c.quantity, 0)
 
+  // Save cart to localStorage whenever it changes
+  useEffect(() => {
+    if (cart.length > 0) {
+      localStorage.setItem(`cart_${slug}`, JSON.stringify(cart))
+      localStorage.setItem(`orderType_${slug}`, orderType)
+    }
+  }, [cart, orderType, slug])
+
+  const goToCheckout = () => {
+    localStorage.setItem(`cart_${slug}`, JSON.stringify(cart))
+    localStorage.setItem(`orderType_${slug}`, orderType)
+    window.location.href = `/store/${slug}/checkout`
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -445,6 +459,7 @@ export default function StorePage() {
 
                 {/* Checkout Button */}
                 <button
+                  onClick={goToCheckout}
                   className={`w-full py-4 text-white font-semibold ${theme.radius} hover:opacity-90 transition-opacity`}
                   style={{ backgroundColor: primaryColor }}
                 >

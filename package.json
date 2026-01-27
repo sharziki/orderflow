@@ -54,6 +54,7 @@
     "nodemailer": "^7.0.13",
     "postcss": "^8.4.32",
     "react": "^18",
+    "react-confetti": "^6.4.0",
     "react-dom": "^18",
     "react-hot-toast": "^2.6.0",
     "resend": "^2.1.0",
