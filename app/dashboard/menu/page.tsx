@@ -11,7 +11,6 @@ import {
   ArrowLeft,
   Plus,
   Search,
-  MoreVertical,
   Edit,
   Trash2,
   Eye,
@@ -24,7 +23,12 @@ import {
   Save,
   Upload,
   Monitor,
-  Smartphone
+  ChevronDown,
+  ChevronRight,
+  FolderPlus,
+  MoreHorizontal,
+  Copy,
+  Layers
 } from 'lucide-react'
 
 interface MenuItem {
@@ -32,23 +36,27 @@ interface MenuItem {
   name: string
   description: string
   price: number
-  category: string
+  sectionId: string
   imageUrl?: string
   available: boolean
 }
 
-interface Category {
+interface Section {
   id: string
   name: string
-  itemCount: number
+  description?: string
+  collapsed?: boolean
+  sortOrder: number
 }
 
 export default function MenuPage() {
   const [search, setSearch] = useState('')
-  const [activeCategory, setActiveCategory] = useState('all')
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showAddSectionModal, setShowAddSectionModal] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null)
+  const [editingSection, setEditingSection] = useState<Section | null>(null)
+  const [selectedSection, setSelectedSection] = useState<string | null>(null)
   
   // Restaurant settings (would come from API)
   const restaurantSettings = {
@@ -58,34 +66,54 @@ export default function MenuPage() {
     secondaryColor: '#1e40af',
   }
 
-  // Sample data
-  const [categories] = useState<Category[]>([
-    { id: 'appetizers', name: 'Appetizers', itemCount: 8 },
-    { id: 'mains', name: 'Main Courses', itemCount: 12 },
-    { id: 'sides', name: 'Sides', itemCount: 6 },
-    { id: 'desserts', name: 'Desserts', itemCount: 4 },
-    { id: 'drinks', name: 'Drinks', itemCount: 10 },
+  const [sections, setSections] = useState<Section[]>([
+    { id: 'appetizers', name: 'Appetizers', description: 'Start your meal right', sortOrder: 1 },
+    { id: 'mains', name: 'Main Courses', description: 'Hearty entrees', sortOrder: 2 },
+    { id: 'sides', name: 'Sides', description: 'Perfect additions', sortOrder: 3 },
+    { id: 'desserts', name: 'Desserts', description: 'Sweet endings', sortOrder: 4 },
+    { id: 'drinks', name: 'Beverages', description: 'Refreshing drinks', sortOrder: 5 },
   ])
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([
-    { id: '1', name: 'Caesar Salad', description: 'Crisp romaine, parmesan, croutons', price: 12.99, category: 'appetizers', available: true },
-    { id: '2', name: 'Garlic Bread', description: 'Toasted with butter and herbs', price: 6.99, category: 'appetizers', available: true },
-    { id: '3', name: 'Grilled Salmon', description: 'Atlantic salmon with lemon butter', price: 24.99, category: 'mains', available: true },
-    { id: '4', name: 'Ribeye Steak', description: '12oz prime cut, grilled to perfection', price: 34.99, category: 'mains', available: false },
-    { id: '5', name: 'Chocolate Lava Cake', description: 'Warm cake with molten center', price: 9.99, category: 'desserts', available: true },
+    { id: '1', name: 'Caesar Salad', description: 'Crisp romaine, parmesan, croutons, house-made dressing', price: 12.99, sectionId: 'appetizers', available: true },
+    { id: '2', name: 'Garlic Bread', description: 'Toasted with butter and herbs', price: 6.99, sectionId: 'appetizers', available: true },
+    { id: '3', name: 'Bruschetta', description: 'Tomatoes, basil, garlic on toasted bread', price: 9.99, sectionId: 'appetizers', available: true },
+    { id: '4', name: 'Grilled Salmon', description: 'Atlantic salmon with lemon butter sauce', price: 24.99, sectionId: 'mains', available: true },
+    { id: '5', name: 'Ribeye Steak', description: '12oz prime cut, grilled to perfection', price: 34.99, sectionId: 'mains', available: false },
+    { id: '6', name: 'Chicken Parmesan', description: 'Breaded chicken with marinara and mozzarella', price: 19.99, sectionId: 'mains', available: true },
+    { id: '7', name: 'Mashed Potatoes', description: 'Creamy with butter and chives', price: 5.99, sectionId: 'sides', available: true },
+    { id: '8', name: 'Grilled Vegetables', description: 'Seasonal vegetables with herbs', price: 6.99, sectionId: 'sides', available: true },
+    { id: '9', name: 'Chocolate Lava Cake', description: 'Warm cake with molten chocolate center', price: 9.99, sectionId: 'desserts', available: true },
+    { id: '10', name: 'Tiramisu', description: 'Classic Italian dessert', price: 8.99, sectionId: 'desserts', available: true },
   ])
 
   const [newItem, setNewItem] = useState({
     name: '',
     description: '',
     price: '',
-    category: 'appetizers',
+    sectionId: sections[0]?.id || '',
   })
 
-  const filteredItems = menuItems.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(search.toLowerCase())
-    const matchesCategory = activeCategory === 'all' || item.category === activeCategory
-    return matchesSearch && matchesCategory
+  const [newSection, setNewSection] = useState({
+    name: '',
+    description: '',
+  })
+
+  const toggleSectionCollapse = (sectionId: string) => {
+    setSections(sections.map(s => 
+      s.id === sectionId ? { ...s, collapsed: !s.collapsed } : s
+    ))
+  }
+
+  const getItemsInSection = (sectionId: string) => {
+    return menuItems.filter(item => item.sectionId === sectionId)
+  }
+
+  const filteredSections = sections.filter(section => {
+    if (!search) return true
+    const items = getItemsInSection(section.id)
+    return section.name.toLowerCase().includes(search.toLowerCase()) ||
+           items.some(item => item.name.toLowerCase().includes(search.toLowerCase()))
   })
 
   const toggleAvailability = (id: string) => {
@@ -102,6 +130,17 @@ export default function MenuPage() {
     }
   }
 
+  const deleteSection = (id: string) => {
+    const itemCount = getItemsInSection(id).length
+    if (itemCount > 0) {
+      alert(`Cannot delete section with ${itemCount} items. Move or delete items first.`)
+      return
+    }
+    if (confirm('Are you sure you want to delete this section?')) {
+      setSections(sections.filter(s => s.id !== id))
+    }
+  }
+
   const handleAddItem = () => {
     if (!newItem.name || !newItem.price) return
     
@@ -110,20 +149,40 @@ export default function MenuPage() {
       name: newItem.name,
       description: newItem.description,
       price: parseFloat(newItem.price),
-      category: newItem.category,
+      sectionId: selectedSection || newItem.sectionId,
       available: true,
     }
     
     setMenuItems(prev => [...prev, item])
-    setNewItem({ name: '', description: '', price: '', category: 'appetizers' })
+    setNewItem({ name: '', description: '', price: '', sectionId: sections[0]?.id || '' })
     setShowAddModal(false)
+    setSelectedSection(null)
   }
+
+  const handleAddSection = () => {
+    if (!newSection.name) return
+    
+    const section: Section = {
+      id: Date.now().toString(),
+      name: newSection.name,
+      description: newSection.description,
+      sortOrder: sections.length + 1,
+    }
+    
+    setSections(prev => [...prev, section])
+    setNewSection({ name: '', description: '' })
+    setShowAddSectionModal(false)
+  }
+
+  // For preview compatibility
+  const categoriesForPreview = sections.map(s => ({ id: s.id, name: s.name }))
+  const itemsForPreview = menuItems.map(i => ({ ...i, category: i.sectionId }))
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <Link href="/dashboard">
@@ -133,7 +192,7 @@ export default function MenuPage() {
               </Link>
               <div>
                 <h1 className="text-xl font-bold text-slate-900">Menu Management</h1>
-                <p className="text-sm text-slate-500">{menuItems.length} items</p>
+                <p className="text-sm text-slate-500">{sections.length} sections • {menuItems.length} items</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -145,6 +204,10 @@ export default function MenuPage() {
                 <Monitor className="w-4 h-4" />
                 Preview
               </Button>
+              <Button onClick={() => setShowAddSectionModal(true)} variant="outline" className="gap-2">
+                <FolderPlus className="w-4 h-4" />
+                Add Section
+              </Button>
               <Button onClick={() => setShowAddModal(true)} className="gap-2">
                 <Plus className="w-4 h-4" />
                 Add Item
@@ -154,87 +217,140 @@ export default function MenuPage() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar - Categories */}
-          <div className="lg:w-64 flex-shrink-0">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Categories</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <button
-                  onClick={() => setActiveCategory('all')}
-                  className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-slate-50 transition-colors ${
-                    activeCategory === 'all' ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : ''
-                  }`}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search */}
+        <div className="relative mb-6">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search sections or items..."
+            className="pl-10 h-12"
+          />
+        </div>
+
+        {/* Sections */}
+        <div className="space-y-4">
+          {filteredSections.map((section, index) => {
+            const items = getItemsInSection(section.id).filter(item => 
+              !search || item.name.toLowerCase().includes(search.toLowerCase())
+            )
+            
+            return (
+              <Card key={section.id} className="overflow-hidden">
+                {/* Section Header */}
+                <div 
+                  className="px-4 py-3 bg-slate-50 border-b flex items-center gap-3 cursor-pointer hover:bg-slate-100 transition-colors"
+                  onClick={() => toggleSectionCollapse(section.id)}
                 >
-                  <span className="font-medium">All Items</span>
-                  <span className="text-sm text-slate-500">{menuItems.length}</span>
-                </button>
-                {categories.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setActiveCategory(cat.id)}
-                    className={`w-full px-4 py-3 text-left flex items-center justify-between hover:bg-slate-50 transition-colors ${
-                      activeCategory === cat.id ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : ''
-                    }`}
-                  >
-                    <span className="font-medium">{cat.name}</span>
-                    <span className="text-sm text-slate-500">
-                      {menuItems.filter(i => i.category === cat.id).length}
-                    </span>
+                  <GripVertical className="w-5 h-5 text-slate-300 cursor-grab" />
+                  <button className="p-1">
+                    {section.collapsed ? (
+                      <ChevronRight className="w-5 h-5 text-slate-400" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-slate-400" />
+                    )}
                   </button>
-                ))}
-              </CardContent>
-            </Card>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-slate-900">{section.name}</h3>
+                      <span className="text-xs px-2 py-0.5 bg-slate-200 text-slate-600 rounded-full">
+                        {items.length} items
+                      </span>
+                    </div>
+                    {section.description && (
+                      <p className="text-sm text-slate-500">{section.description}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedSection(section.id)
+                        setNewItem(prev => ({ ...prev, sectionId: section.id }))
+                        setShowAddModal(true)
+                      }}
+                      className="gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Item
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditingSection(section)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteSection(section.id)}
+                      className="text-slate-400 hover:text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
 
-            <Button variant="outline" className="w-full mt-4 gap-2">
-              <Plus className="w-4 h-4" />
-              Add Category
-            </Button>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex-1">
-            {/* Search */}
-            <div className="relative mb-6">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search menu items..."
-                className="pl-10 h-12"
-              />
-            </div>
-
-            {/* Items Grid */}
-            <div className="grid gap-4">
-              {filteredItems.map(item => (
-                <Card key={item.id} className={`transition-all ${!item.available ? 'opacity-60' : ''}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-4">
-                      <div className="w-6 flex-shrink-0 pt-2 cursor-grab">
-                        <GripVertical className="w-5 h-5 text-slate-300" />
+                {/* Section Items */}
+                {!section.collapsed && (
+                  <div className="divide-y">
+                    {items.length === 0 ? (
+                      <div className="p-8 text-center">
+                        <Layers className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+                        <p className="text-slate-500 mb-3">No items in this section</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedSection(section.id)
+                            setNewItem(prev => ({ ...prev, sectionId: section.id }))
+                            setShowAddModal(true)
+                          }}
+                          className="gap-2"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add First Item
+                        </Button>
                       </div>
-                      
-                      <div className="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                        {item.imageUrl ? (
-                          <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover rounded-lg" />
-                        ) : (
-                          <ImageIcon className="w-8 h-8 text-slate-300" />
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <h3 className="font-semibold text-slate-900">{item.name}</h3>
-                            <p className="text-sm text-slate-500 mt-1">{item.description}</p>
-                            <p className="text-lg font-bold text-slate-900 mt-2">${item.price.toFixed(2)}</p>
-                          </div>
+                    ) : (
+                      items.map(item => (
+                        <div 
+                          key={item.id} 
+                          className={`p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors ${
+                            !item.available ? 'opacity-50' : ''
+                          }`}
+                        >
+                          <GripVertical className="w-5 h-5 text-slate-300 cursor-grab flex-shrink-0" />
                           
-                          <div className="flex items-center gap-2">
+                          <div className="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                            {item.imageUrl ? (
+                              <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover rounded-lg" />
+                            ) : (
+                              <ImageIcon className="w-6 h-6 text-slate-300" />
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-slate-900">{item.name}</h4>
+                            <p className="text-sm text-slate-500 line-clamp-1">{item.description}</p>
+                          </div>
+
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-semibold text-slate-900">${item.price.toFixed(2)}</p>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              item.available 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {item.available ? 'Available' : 'Hidden'}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1 flex-shrink-0">
                             <Button
                               variant="ghost"
                               size="icon"
@@ -244,50 +360,34 @@ export default function MenuPage() {
                               {item.available ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                             </Button>
                             <Button variant="ghost" size="icon" onClick={() => setEditingItem(item)}>
-                              <Edit className="w-5 h-5" />
+                              <Edit className="w-5 h-5 text-slate-400" />
                             </Button>
                             <Button 
                               variant="ghost" 
                               size="icon" 
                               onClick={() => deleteItem(item.id)}
-                              className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                              className="text-slate-400 hover:text-red-600 hover:bg-red-50"
                             >
                               <Trash2 className="w-5 h-5" />
                             </Button>
                           </div>
                         </div>
-                        
-                        <div className="flex items-center gap-2 mt-2">
-                          <span className={`text-xs px-2 py-1 rounded-full ${
-                            item.available 
-                              ? 'bg-green-100 text-green-700' 
-                              : 'bg-red-100 text-red-700'
-                          }`}>
-                            {item.available ? 'Available' : 'Unavailable'}
-                          </span>
-                          <span className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-600">
-                            {categories.find(c => c.id === item.category)?.name}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      ))
+                    )}
+                  </div>
+                )}
+              </Card>
+            )
+          })}
 
-              {filteredItems.length === 0 && (
-                <div className="text-center py-12">
-                  <Utensils className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-900">No items found</h3>
-                  <p className="text-slate-500 mt-1">Try a different search or add a new item</p>
-                  <Button onClick={() => setShowAddModal(true)} className="mt-4 gap-2">
-                    <Plus className="w-4 h-4" />
-                    Add First Item
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* Add Section Card */}
+          <button
+            onClick={() => setShowAddSectionModal(true)}
+            className="w-full p-6 border-2 border-dashed border-slate-200 rounded-xl text-slate-500 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50/50 transition-all flex items-center justify-center gap-2"
+          >
+            <FolderPlus className="w-5 h-5" />
+            Add New Section
+          </button>
         </div>
       </div>
 
@@ -298,10 +398,53 @@ export default function MenuPage() {
           restaurantName={restaurantSettings.name}
           primaryColor={restaurantSettings.primaryColor}
           secondaryColor={restaurantSettings.secondaryColor}
-          menuItems={menuItems}
-          categories={categories}
+          menuItems={itemsForPreview}
+          categories={categoriesForPreview}
           onClose={() => setShowPreview(false)}
         />
+      )}
+
+      {/* Add Section Modal */}
+      {showAddSectionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Add Section</CardTitle>
+              <Button variant="ghost" size="icon" onClick={() => setShowAddSectionModal(false)}>
+                <X className="w-5 h-5" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Section Name</Label>
+                <Input
+                  value={newSection.name}
+                  onChange={(e) => setNewSection(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g., Lunch Specials"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Description (optional)</Label>
+                <Input
+                  value={newSection.description}
+                  onChange={(e) => setNewSection(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="e.g., Available 11am-3pm"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="outline" onClick={() => setShowAddSectionModal(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleAddSection} className="gap-2">
+                  <FolderPlus className="w-4 h-4" />
+                  Add Section
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Add Item Modal */}
@@ -309,8 +452,15 @@ export default function MenuPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-lg">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Add Menu Item</CardTitle>
-              <Button variant="ghost" size="icon" onClick={() => setShowAddModal(false)}>
+              <div>
+                <CardTitle>Add Menu Item</CardTitle>
+                {selectedSection && (
+                  <p className="text-sm text-slate-500 mt-1">
+                    Adding to: {sections.find(s => s.id === selectedSection)?.name}
+                  </p>
+                )}
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => { setShowAddModal(false); setSelectedSection(null); }}>
                 <X className="w-5 h-5" />
               </Button>
             </CardHeader>
@@ -349,23 +499,25 @@ export default function MenuPage() {
                   </div>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label>Category</Label>
-                  <select
-                    value={newItem.category}
-                    onChange={(e) => setNewItem(prev => ({ ...prev, category: e.target.value }))}
-                    className="w-full h-11 px-3 rounded-lg border border-input bg-background"
-                  >
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>{cat.name}</option>
-                    ))}
-                  </select>
-                </div>
+                {!selectedSection && (
+                  <div className="space-y-2">
+                    <Label>Section</Label>
+                    <select
+                      value={newItem.sectionId}
+                      onChange={(e) => setNewItem(prev => ({ ...prev, sectionId: e.target.value }))}
+                      className="w-full h-11 px-3 rounded-lg border border-input bg-background"
+                    >
+                      {sections.map(section => (
+                        <option key={section.id} value={section.id}>{section.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
               
               <div className="space-y-2">
                 <Label>Image</Label>
-                <div className="border-2 border-dashed border-slate-200 rounded-lg p-8 text-center cursor-pointer hover:border-blue-400 transition-colors">
+                <div className="border-2 border-dashed border-slate-200 rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors">
                   <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                   <p className="text-sm text-slate-600">Click to upload or drag and drop</p>
                   <p className="text-xs text-slate-400 mt-1">PNG, JPG up to 5MB</p>
@@ -373,7 +525,7 @@ export default function MenuPage() {
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
-                <Button variant="outline" onClick={() => setShowAddModal(false)}>
+                <Button variant="outline" onClick={() => { setShowAddModal(false); setSelectedSection(null); }}>
                   Cancel
                 </Button>
                 <Button onClick={handleAddItem} className="gap-2">
