@@ -414,7 +414,7 @@ export default function StripeConnectPage() {
             The platform will handle payment processing and automatically transfer funds to you minus a small platform fee.
           </p>
           <ul className="text-blue-800 text-sm space-y-1 list-disc list-inside">
-            <li>Platform fee: 3% of subtotal</li>
+            <li>Platform fee: $1.00 flat per order</li>
             <li>Stripe processing fee: 2.9% + $0.30 per transaction (deducted from your transfer)</li>
             <li>Automatic payouts to your bank account</li>
             <li>Full transaction history in your Stripe dashboard</li>

@@ -4,8 +4,8 @@ import Stripe from 'stripe'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 
-// Platform fee percentage (our cut)
-const PLATFORM_FEE_PERCENT = 2.9
+// Platform fee: flat $1 per order (100 cents)
+const PLATFORM_FEE_CENTS = parseInt(process.env.PLATFORM_FEE_CENTS || '100', 10)
 
 export async function POST(req: NextRequest) {
   try {
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     
     // Calculate amounts in cents
     const totalCents = Math.round(order.total * 100)
-    const platformFeeCents = Math.round(totalCents * (tenant.platformFeePercent / 100))
+    const platformFeeCents = PLATFORM_FEE_CENTS // Flat $1 platform fee
     
     // Create payment intent with transfer to connected account
     const paymentIntent = await stripe.paymentIntents.create({
