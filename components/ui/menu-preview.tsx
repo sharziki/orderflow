@@ -282,7 +282,7 @@ export function MenuPreview({
                           ? "ring-2 ring-offset-2 ring-offset-slate-900"
                           : "bg-white/5 hover:bg-white/10"
                       )}
-                      style={activeCategory === cat.id ? { backgroundColor: primaryColor, ringColor: primaryColor } : {}}
+                      style={activeCategory === cat.id ? { backgroundColor: primaryColor } : {}}
                     >
                       <span className="text-2xl mb-2 block">
                         {cat.name === 'Appetizers' ? '🥗' : cat.name === 'Main Courses' ? '🍝' : cat.name === 'Desserts' ? '🍰' : '🍹'}
