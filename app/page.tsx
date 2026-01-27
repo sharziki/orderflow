@@ -1,519 +1,471 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { Button } from '@/components/ui/button'
-import { storeTemplates } from '@/components/ui/templates'
 import { 
   Utensils, 
-  Rocket, 
+  ArrowRight, 
+  Check, 
+  Star, 
+  Zap, 
   CreditCard, 
   Truck, 
-  Palette, 
-  BarChart3,
-  Check,
-  ArrowRight,
-  Zap,
-  Shield,
   Clock,
+  ChevronDown,
   Play,
-  Star,
-  Sparkles
+  Menu,
+  X
 } from 'lucide-react'
 
-const fadeIn = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 }
-}
+const FEATURES = [
+  {
+    icon: Zap,
+    title: 'Live in 10 minutes',
+    description: 'No technical skills needed. Add your menu, connect payments, go live.'
+  },
+  {
+    icon: CreditCard,
+    title: 'Built-in payments',
+    description: 'Accept cards instantly with Stripe. Money goes directly to your bank.'
+  },
+  {
+    icon: Truck,
+    title: 'Delivery ready',
+    description: 'Optional DoorDash integration. Your customers get real-time tracking.'
+  },
+  {
+    icon: Clock,
+    title: 'Real-time orders',
+    description: 'Get notified instantly. Update order status. Keep customers informed.'
+  },
+]
 
-const stagger = {
-  visible: {
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-}
+const PRICING = [
+  {
+    name: 'Starter',
+    price: 'Free',
+    period: 'forever',
+    description: 'Perfect for getting started',
+    features: [
+      'Unlimited menu items',
+      'Up to 50 orders/month',
+      'Basic templates',
+      'Pickup orders',
+      'Email support',
+    ],
+    cta: 'Get Started',
+    highlighted: false,
+  },
+  {
+    name: 'Pro',
+    price: '$49',
+    period: '/month',
+    description: 'For growing restaurants',
+    features: [
+      'Everything in Starter',
+      'Unlimited orders',
+      'All premium templates',
+      'Delivery with DoorDash',
+      'Priority support',
+      'Custom domain',
+      'Remove OrderFlow branding',
+    ],
+    cta: 'Start Free Trial',
+    highlighted: true,
+  },
+  {
+    name: 'Enterprise',
+    price: 'Custom',
+    period: '',
+    description: 'For chains & franchises',
+    features: [
+      'Everything in Pro',
+      'Multi-location support',
+      'API access',
+      'Dedicated account manager',
+      'Custom integrations',
+      'SLA guarantee',
+    ],
+    cta: 'Contact Sales',
+    highlighted: false,
+  },
+]
+
+const FAQS = [
+  {
+    q: 'How long does it take to set up?',
+    a: 'Most restaurants are live within 10 minutes. Just add your menu items, connect Stripe, and you\'re ready to accept orders.'
+  },
+  {
+    q: 'What are the fees?',
+    a: 'We charge a flat $1 per order for payment processing. Stripe\'s standard 2.9% + $0.30 also applies. No hidden fees.'
+  },
+  {
+    q: 'Do I need my own delivery drivers?',
+    a: 'Nope! We integrate with DoorDash Drive. They handle the delivery, you focus on the food.'
+  },
+  {
+    q: 'Can I use my existing Stripe account?',
+    a: 'Yes! During setup, you\'ll connect your existing Stripe account or create a new one. Either way, payments go directly to you.'
+  },
+  {
+    q: 'What if I need help?',
+    a: 'We offer email support for all plans, and priority support for Pro users. Most questions are answered within a few hours.'
+  },
+]
+
+const TESTIMONIALS = [
+  {
+    quote: "We went from zero online orders to 200/week in the first month. Game changer.",
+    author: "Maria S.",
+    role: "Owner, Maria's Kitchen",
+    rating: 5,
+  },
+  {
+    quote: "Setup took 15 minutes. My other POS took 3 weeks. Never going back.",
+    author: "James T.",
+    role: "Owner, J's BBQ",
+    rating: 5,
+  },
+  {
+    quote: "The delivery integration is seamless. Customers love the real-time tracking.",
+    author: "Sarah L.",
+    role: "Manager, Fresh Bites",
+    rating: 5,
+  },
+]
 
 export default function LandingPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [openFaq, setOpenFaq] = useState<number | null>(null)
+
   return (
-    <div className="min-h-screen bg-white overflow-hidden">
-      {/* Navigation */}
-      <motion.nav 
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-lg border-b border-slate-100"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white">
+      {/* Nav */}
+      <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-lg z-50 border-b border-slate-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+              <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
                 <Utensils className="w-5 h-5 text-white" />
               </div>
               <span className="font-bold text-xl text-slate-900">OrderFlow</span>
             </div>
+
+            {/* Desktop Nav */}
             <div className="hidden md:flex items-center gap-8">
-              <a href="#features" className="text-slate-600 hover:text-slate-900 transition-colors">Features</a>
-              <a href="#templates" className="text-slate-600 hover:text-slate-900 transition-colors">Templates</a>
-              <a href="#pricing" className="text-slate-600 hover:text-slate-900 transition-colors">Pricing</a>
-            </div>
-            <div className="flex items-center gap-3">
-              <Link href="/dashboard">
-                <Button variant="ghost">Log In</Button>
-              </Link>
-              <Link href="/dashboard/onboarding">
-                <Button className="gap-2">
-                  Get Started <ArrowRight className="w-4 h-4" />
-                </Button>
+              <a href="#features" className="text-slate-600 hover:text-slate-900 text-sm font-medium">Features</a>
+              <a href="#pricing" className="text-slate-600 hover:text-slate-900 text-sm font-medium">Pricing</a>
+              <a href="#faq" className="text-slate-600 hover:text-slate-900 text-sm font-medium">FAQ</a>
+              <Link href="/login" className="text-slate-600 hover:text-slate-900 text-sm font-medium">Log in</Link>
+              <Link 
+                href="/dashboard/onboarding" 
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+              >
+                Get Started
               </Link>
             </div>
+
+            {/* Mobile menu button */}
+            <button 
+              className="md:hidden p-2"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
           </div>
         </div>
-      </motion.nav>
+
+        {/* Mobile Nav */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white border-t border-slate-200 py-4 px-4 space-y-4">
+            <a href="#features" className="block text-slate-600 hover:text-slate-900 font-medium">Features</a>
+            <a href="#pricing" className="block text-slate-600 hover:text-slate-900 font-medium">Pricing</a>
+            <a href="#faq" className="block text-slate-600 hover:text-slate-900 font-medium">FAQ</a>
+            <Link href="/login" className="block text-slate-600 hover:text-slate-900 font-medium">Log in</Link>
+            <Link 
+              href="/dashboard/onboarding" 
+              className="block bg-blue-600 text-white px-4 py-3 rounded-lg text-center font-semibold"
+            >
+              Get Started
+            </Link>
+          </div>
+        )}
+      </nav>
 
       {/* Hero */}
-      <section className="pt-32 pb-20 px-4">
-        <div className="max-w-7xl mx-auto">
-          <motion.div 
-            initial="hidden"
-            animate="visible"
-            variants={stagger}
-            className="text-center max-w-4xl mx-auto"
-          >
-            <motion.div 
-              variants={fadeIn}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-sm font-medium mb-8"
-            >
+      <section className="pt-32 pb-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
               <Zap className="w-4 h-4" />
-              Launch your online ordering in 5 minutes
-            </motion.div>
-            
-            <motion.h1 
-              variants={fadeIn}
-              className="text-5xl md:text-7xl font-bold text-slate-900 mb-6 leading-tight"
-            >
-              Online ordering
-              <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"> made simple</span>
-            </motion.h1>
-            
-            <motion.p 
-              variants={fadeIn}
-              className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto"
-            >
-              Give your restaurant a beautiful online ordering system. No coding required. 
-              Set up in minutes, start taking orders today.
-            </motion.p>
-            
-            <motion.div 
-              variants={fadeIn}
-              className="flex flex-col sm:flex-row items-center justify-center gap-4"
-            >
-              <Link href="/dashboard/onboarding">
-                <Button size="lg" className="gap-2 text-lg px-8 py-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
-                  <Rocket className="w-5 h-5" />
-                  Start Free Trial
-                </Button>
+              Launch your online ordering in 10 minutes
+            </div>
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-900 mb-6 leading-tight">
+              Online ordering for <span className="text-blue-600">restaurants</span> that just works
+            </h1>
+            <p className="text-xl text-slate-600 mb-8">
+              Build your menu, accept payments, offer delivery. No coding, no contracts, no headaches.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link 
+                href="/dashboard/onboarding"
+                className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-colors"
+              >
+                Start Free <ArrowRight className="w-5 h-5" />
               </Link>
-              <Button size="lg" variant="outline" className="gap-2 text-lg px-8 py-6">
-                <Play className="w-5 h-5" />
-                Watch Demo
-              </Button>
-            </motion.div>
-            
-            <motion.p 
-              variants={fadeIn}
-              className="text-sm text-slate-500 mt-6"
-            >
-              No credit card required • Free 14-day trial • Cancel anytime
-            </motion.p>
-          </motion.div>
+              <a 
+                href="#demo"
+                className="inline-flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-900 px-8 py-4 rounded-xl text-lg font-semibold transition-colors"
+              >
+                <Play className="w-5 h-5" /> Watch Demo
+              </a>
+            </div>
+            <p className="text-sm text-slate-500 mt-4">
+              No credit card required • Free plan available
+            </p>
+          </div>
 
-          {/* Hero Image */}
-          <motion.div 
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.3 }}
-            className="mt-16 relative"
-          >
-            <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent z-10 pointer-events-none" />
-            <div className="bg-gradient-to-br from-slate-100 to-slate-200 rounded-2xl p-4 shadow-2xl max-w-5xl mx-auto">
-              <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-                <div className="h-8 bg-slate-100 flex items-center gap-2 px-4">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-400" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-400" />
-                    <div className="w-3 h-3 rounded-full bg-green-400" />
+          {/* Hero Image / Demo */}
+          <div id="demo" className="relative max-w-5xl mx-auto">
+            <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 shadow-2xl">
+              <div className="bg-slate-800 rounded-xl overflow-hidden">
+                {/* Browser chrome */}
+                <div className="flex items-center gap-2 px-4 py-3 bg-slate-700">
+                  <div className="flex gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500" />
+                    <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                    <div className="w-3 h-3 rounded-full bg-green-500" />
                   </div>
-                  <div className="flex-1 flex justify-center">
-                    <div className="bg-white rounded-md px-4 py-1 text-xs text-slate-400">
-                      demo-restaurant.orderflow.io
+                  <div className="flex-1 mx-4">
+                    <div className="bg-slate-600 rounded-lg px-4 py-1.5 text-slate-400 text-sm text-center">
+                      orderflow.co/joes-pizza
                     </div>
                   </div>
                 </div>
-                <div className="p-6 bg-slate-50">
-                  <div className="grid grid-cols-4 gap-4 mb-4">
-                    {[
-                      { label: "Today's Orders", value: '47', trend: '+12%' },
-                      { label: 'Revenue', value: '$1,284', trend: '+8%' },
-                      { label: 'Pending', value: '5', trend: '' },
-                      { label: 'Menu Items', value: '86', trend: '' },
-                    ].map((stat, i) => (
-                      <motion.div 
-                        key={i} 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5 + i * 0.1 }}
-                        className="bg-white rounded-lg p-4 shadow-sm"
-                      >
-                        <p className="text-xs text-slate-500">{stat.label}</p>
-                        <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
-                        {stat.trend && <p className="text-xs text-green-600">{stat.trend}</p>}
-                      </motion.div>
-                    ))}
+                {/* Screenshot placeholder */}
+                <div className="aspect-[16/10] bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="w-20 h-20 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Utensils className="w-10 h-10 text-blue-600" />
+                    </div>
+                    <p className="text-slate-600 font-medium">Dashboard Preview</p>
+                    <p className="text-slate-400 text-sm">Split-panel menu builder with live preview</p>
                   </div>
                 </div>
               </div>
             </div>
-          </motion.div>
+            {/* Floating elements */}
+            <div className="absolute -top-4 -right-4 bg-white rounded-xl shadow-xl p-4 hidden lg:block">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                  <Check className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">New Order!</p>
+                  <p className="text-sm text-slate-500">#1042 • $24.50</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
       {/* Social Proof */}
-      <section className="py-12 border-y border-slate-100">
-        <div className="max-w-7xl mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            className="flex flex-col items-center"
-          >
-            <div className="flex items-center gap-1 mb-4">
-              {[1,2,3,4,5].map(i => (
-                <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-              ))}
-            </div>
-            <p className="text-slate-600 text-center">
-              Trusted by <span className="font-semibold text-slate-900">500+</span> restaurants
-            </p>
-          </motion.div>
+      <section className="py-12 bg-slate-50 border-y border-slate-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6">
+          <p className="text-center text-slate-500 text-sm mb-8">TRUSTED BY RESTAURANTS EVERYWHERE</p>
+          <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-16 opacity-60">
+            {['🍕 Pizza Palace', '🍔 Burger Barn', '🍣 Sushi Station', '🌮 Taco Town', '🥗 Salad Stop'].map((name) => (
+              <span key={name} className="text-xl font-bold text-slate-400">{name}</span>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Features */}
-      <section id="features" className="py-24 px-4">
-        <div className="max-w-7xl mx-auto">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">Everything you need</h2>
-            <p className="text-xl text-slate-600">Powerful features to run your online ordering</p>
-          </motion.div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { icon: Palette, title: 'Beautiful Templates', desc: 'Choose from 4 stunning designs. Customize colors and branding to match your restaurant.' },
-              { icon: CreditCard, title: 'Stripe Payments', desc: 'Accept credit cards securely. Get paid directly to your bank account.' },
-              { icon: Truck, title: 'DoorDash Delivery', desc: 'Offer delivery through DoorDash Drive. No need to hire drivers.' },
-              { icon: Clock, title: 'Scheduled Orders', desc: 'Let customers order ahead. Perfect for catering and busy periods.' },
-              { icon: BarChart3, title: 'Analytics', desc: 'Track orders, revenue, and popular items. Make data-driven decisions.' },
-              { icon: Shield, title: 'Secure & Reliable', desc: 'Enterprise-grade security. 99.9% uptime guarantee.' },
-            ].map((feature, i) => (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                whileHover={{ y: -5 }}
-                className="p-6 rounded-2xl border border-slate-200 hover:border-blue-200 hover:shadow-lg transition-all"
-              >
+      <section id="features" className="py-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+              Everything you need to sell online
+            </h2>
+            <p className="text-xl text-slate-600 max-w-2xl mx-auto">
+              From menu management to delivery tracking, we've got you covered.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {FEATURES.map((feature, i) => (
+              <div key={i} className="bg-white rounded-2xl p-6 border border-slate-200 hover:shadow-lg transition-shadow">
                 <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
                   <feature.icon className="w-6 h-6 text-blue-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">{feature.title}</h3>
-                <p className="text-slate-600">{feature.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Templates */}
-      <section id="templates" className="py-24 px-4 bg-slate-50">
-        <div className="max-w-7xl mx-auto">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">Beautiful templates</h2>
-            <p className="text-xl text-slate-600">Pick a style that matches your brand</p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {storeTemplates.map((template, i) => (
-              <motion.div 
-                key={template.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                whileHover={{ scale: 1.03, y: -5 }}
-                className="group cursor-pointer bg-white rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all"
-              >
-                {/* Template Preview */}
-                <div className="mb-4">
-                  {template.preview}
-                </div>
-                
-                <h3 className="font-semibold text-slate-900 text-lg">{template.name}</h3>
-                <p className="text-sm text-slate-500 mb-3">{template.description}</p>
-                
-                {/* Features */}
-                <div className="flex flex-wrap gap-1.5">
-                  {template.features.slice(0, 2).map(feature => (
-                    <span 
-                      key={feature}
-                      className="text-xs px-2 py-1 bg-slate-100 text-slate-600 rounded-full"
-                    >
-                      {feature}
-                    </span>
-                  ))}
-                  {template.features.length > 2 && (
-                    <span className="text-xs px-2 py-1 bg-blue-50 text-blue-600 rounded-full">
-                      +{template.features.length - 2} more
-                    </span>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section className="py-24 px-4">
-        <div className="max-w-7xl mx-auto">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">Live in 5 minutes</h2>
-            <p className="text-xl text-slate-600">Three simple steps to online ordering</p>
-          </motion.div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { step: '1', title: 'Sign Up', desc: 'Enter your restaurant details and choose your URL' },
-              { step: '2', title: 'Customize', desc: 'Pick a template, set your colors, add your menu' },
-              { step: '3', title: 'Launch', desc: 'Connect Stripe and start taking orders' },
-            ].map((item, i) => (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.15 }}
-                className="text-center"
-              >
-                <motion.div 
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  className="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-6"
-                >
-                  {item.step}
-                </motion.div>
-                <h3 className="text-xl font-semibold text-slate-900 mb-2">{item.title}</h3>
-                <p className="text-slate-600">{item.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section id="setup" className="py-24 px-4 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700">
-        <div className="max-w-4xl mx-auto">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center"
-          >
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 text-white rounded-full text-sm font-medium mb-6">
-              <Sparkles className="w-4 h-4" />
-              Get Started Today
-            </div>
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4">
-              Launch your store in minutes
-            </h2>
-            <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto">
-              Set up your restaurant details, pick a template, connect Stripe, and go live. 
-              No coding required.
-            </p>
-
-            <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-xl mx-auto">
-              {/* Benefits */}
-              <div className="grid sm:grid-cols-2 gap-3 mb-6">
-                {[
-                  'Custom branded ordering page',
-                  'Secure Stripe payments',
-                  'Real-time order notifications',
-                  'Pickup & delivery support',
-                ].map((benefit, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm text-slate-600">
-                    <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    {benefit}
-                  </div>
-                ))}
+                <h3 className="font-bold text-slate-900 mb-2">{feature.title}</h3>
+                <p className="text-slate-600 text-sm">{feature.description}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-              <Link href="/dashboard/onboarding" className="block">
-                <Button 
-                  size="lg" 
-                  className="w-full gap-2 text-lg py-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                >
-                  <Rocket className="w-5 h-5" />
-                  Start Free Trial
-                </Button>
-              </Link>
+      {/* Testimonials */}
+      <section className="py-20 px-4 sm:px-6 bg-slate-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+              Loved by restaurant owners
+            </h2>
+          </div>
 
-              <p className="text-center text-xs text-slate-500 mt-4">
-                No credit card required • Free 14-day trial • Cancel anytime
-              </p>
-            </div>
-          </motion.div>
+          <div className="grid sm:grid-cols-3 gap-8">
+            {TESTIMONIALS.map((t, i) => (
+              <div key={i} className="bg-white rounded-2xl p-6 border border-slate-200">
+                <div className="flex gap-1 mb-4">
+                  {[...Array(t.rating)].map((_, j) => (
+                    <Star key={j} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+                  ))}
+                </div>
+                <p className="text-slate-700 mb-4">"{t.quote}"</p>
+                <div>
+                  <p className="font-semibold text-slate-900">{t.author}</p>
+                  <p className="text-sm text-slate-500">{t.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Pricing */}
-      <section id="pricing" className="py-24 px-4 bg-slate-50">
-        <div className="max-w-7xl mx-auto">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl font-bold text-slate-900 mb-4">Simple pricing</h2>
-            <p className="text-xl text-slate-600">No hidden fees. Cancel anytime.</p>
-          </motion.div>
+      <section id="pricing" className="py-20 px-4 sm:px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+              Simple, transparent pricing
+            </h2>
+            <p className="text-xl text-slate-600">
+              Start free, upgrade when you're ready.
+            </p>
+          </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {[
-              { 
-                name: 'Starter', 
-                price: '$49', 
-                desc: 'Perfect for small restaurants',
-                features: ['Up to 50 menu items', 'Pickup orders', 'Basic analytics', 'Email support'],
-              },
-              { 
-                name: 'Pro', 
-                price: '$99', 
-                desc: 'For growing restaurants',
-                features: ['Unlimited menu items', 'Delivery integration', 'Advanced analytics', 'Priority support', 'Custom domain'],
-                popular: true
-              },
-              { 
-                name: 'Enterprise', 
-                price: 'Custom', 
-                desc: 'For restaurant groups',
-                features: ['Multiple locations', 'API access', 'Dedicated support', 'Custom integrations'],
-              },
-            ].map((plan, i) => (
-              <motion.div 
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                whileHover={{ y: -5 }}
-                className={`p-8 rounded-2xl ${
-                  plan.popular 
-                    ? 'bg-gradient-to-br from-blue-600 to-indigo-600 text-white scale-105' 
+          <div className="grid sm:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {PRICING.map((plan, i) => (
+              <div 
+                key={i} 
+                className={`rounded-2xl p-8 ${
+                  plan.highlighted 
+                    ? 'bg-blue-600 text-white ring-4 ring-blue-600 ring-offset-4' 
                     : 'bg-white border border-slate-200'
                 }`}
               >
-                {plan.popular && (
-                  <div className="text-sm font-medium bg-white/20 rounded-full px-3 py-1 inline-block mb-4">
-                    Most Popular
-                  </div>
-                )}
-                <h3 className={`text-xl font-semibold mb-2 ${plan.popular ? '' : 'text-slate-900'}`}>
+                <h3 className={`text-xl font-bold mb-2 ${plan.highlighted ? 'text-white' : 'text-slate-900'}`}>
                   {plan.name}
                 </h3>
-                <div className="mb-4">
-                  <span className={`text-4xl font-bold ${plan.popular ? '' : 'text-slate-900'}`}>
+                <p className={`text-sm mb-4 ${plan.highlighted ? 'text-blue-100' : 'text-slate-500'}`}>
+                  {plan.description}
+                </p>
+                <div className="mb-6">
+                  <span className={`text-4xl font-bold ${plan.highlighted ? 'text-white' : 'text-slate-900'}`}>
                     {plan.price}
                   </span>
-                  {plan.price !== 'Custom' && <span className={plan.popular ? 'text-white/70' : 'text-slate-500'}>/month</span>}
+                  <span className={plan.highlighted ? 'text-blue-100' : 'text-slate-500'}>
+                    {plan.period}
+                  </span>
                 </div>
-                <p className={`mb-6 ${plan.popular ? 'text-white/80' : 'text-slate-600'}`}>{plan.desc}</p>
                 <ul className="space-y-3 mb-8">
                   {plan.features.map((feature, j) => (
-                    <li key={j} className="flex items-center gap-2">
-                      <Check className={`w-5 h-5 ${plan.popular ? '' : 'text-green-500'}`} />
-                      <span className={plan.popular ? 'text-white/90' : 'text-slate-600'}>{feature}</span>
+                    <li key={j} className="flex items-start gap-3">
+                      <Check className={`w-5 h-5 flex-shrink-0 mt-0.5 ${plan.highlighted ? 'text-blue-200' : 'text-green-600'}`} />
+                      <span className={`text-sm ${plan.highlighted ? 'text-blue-100' : 'text-slate-600'}`}>
+                        {feature}
+                      </span>
                     </li>
                   ))}
                 </ul>
-                <Button 
-                  className={`w-full ${plan.popular ? 'bg-white text-blue-600 hover:bg-white/90' : ''}`}
-                  variant={plan.popular ? 'secondary' : 'default'}
+                <Link
+                  href="/dashboard/onboarding"
+                  className={`block w-full py-3 rounded-xl text-center font-semibold transition-colors ${
+                    plan.highlighted
+                      ? 'bg-white text-blue-600 hover:bg-blue-50'
+                      : 'bg-slate-900 text-white hover:bg-slate-800'
+                  }`}
                 >
-                  Start Free Trial
-                </Button>
-              </motion.div>
+                  {plan.cta}
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="py-20 px-4 sm:px-6 bg-slate-50">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
+              Frequently asked questions
+            </h2>
+          </div>
+
+          <div className="space-y-4">
+            {FAQS.map((faq, i) => (
+              <div key={i} className="bg-white rounded-xl border border-slate-200">
+                <button
+                  onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                  className="w-full flex items-center justify-between p-6 text-left"
+                >
+                  <span className="font-semibold text-slate-900">{faq.q}</span>
+                  <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${openFaq === i ? 'rotate-180' : ''}`} />
+                </button>
+                {openFaq === i && (
+                  <div className="px-6 pb-6">
+                    <p className="text-slate-600">{faq.a}</p>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="py-24 px-4">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="max-w-4xl mx-auto text-center"
-        >
-          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
+      <section className="py-20 px-4 sm:px-6">
+        <div className="max-w-4xl mx-auto text-center">
+          <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4">
             Ready to grow your restaurant?
           </h2>
-          <p className="text-xl text-slate-600 mb-10">
-            Join 500+ restaurants already using OrderFlow.
+          <p className="text-xl text-slate-600 mb-8">
+            Join thousands of restaurants already using OrderFlow.
           </p>
-          <Link href="/dashboard/onboarding">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button size="lg" className="gap-2 text-lg px-8 py-6 bg-gradient-to-r from-blue-600 to-indigo-600">
-                <Rocket className="w-5 h-5" />
-                Start Your Free Trial
-              </Button>
-            </motion.div>
+          <Link 
+            href="/dashboard/onboarding"
+            className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl text-lg font-semibold transition-colors"
+          >
+            Get Started for Free <ArrowRight className="w-5 h-5" />
           </Link>
-        </motion.div>
+        </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-4 border-t border-slate-200">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-              <Utensils className="w-4 h-4 text-white" />
+      <footer className="py-12 px-4 sm:px-6 bg-slate-900 text-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 bg-white/10 rounded-xl flex items-center justify-center">
+                <Utensils className="w-5 h-5 text-white" />
+              </div>
+              <span className="font-bold text-xl">OrderFlow</span>
             </div>
-            <span className="font-semibold text-slate-900">OrderFlow</span>
+            <div className="flex gap-8 text-sm text-slate-400">
+              <a href="#" className="hover:text-white">Privacy</a>
+              <a href="#" className="hover:text-white">Terms</a>
+              <a href="#" className="hover:text-white">Contact</a>
+            </div>
+            <p className="text-sm text-slate-400">
+              © 2024 OrderFlow. All rights reserved.
+            </p>
           </div>
-          <div className="flex items-center gap-6 text-sm text-slate-500">
-            <a href="#" className="hover:text-slate-900">Privacy</a>
-            <a href="#" className="hover:text-slate-900">Terms</a>
-            <a href="#" className="hover:text-slate-900">Contact</a>
-          </div>
-          <p className="text-sm text-slate-500">© 2026 OrderFlow. All rights reserved.</p>
         </div>
       </footer>
     </div>

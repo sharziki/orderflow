@@ -7,172 +7,158 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Switch } from '@/components/ui/switch'
-import { Badge } from '@/components/ui/badge'
 import {
   ArrowLeft,
   Save,
-  CreditCard,
-  Truck,
   Store,
   Clock,
-  Eye,
-  EyeOff,
-  CheckCircle,
-  AlertCircle,
+  Bell,
+  CreditCard,
+  Trash2,
+  Pause,
   ExternalLink,
   Loader2,
-  RefreshCw
+  Check,
+  AlertTriangle,
+  MapPin,
+  Phone,
+  Mail
 } from 'lucide-react'
+import toast, { Toaster } from 'react-hot-toast'
 
-const DEFAULT_HOURS = {
-  monday: { open: '11:00', close: '21:00', closed: false },
-  tuesday: { open: '11:00', close: '21:00', closed: false },
-  wednesday: { open: '11:00', close: '21:00', closed: false },
-  thursday: { open: '11:00', close: '21:00', closed: false },
-  friday: { open: '11:00', close: '22:00', closed: false },
-  saturday: { open: '11:00', close: '22:00', closed: false },
-  sunday: { open: '12:00', close: '20:00', closed: false },
+const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+const DAY_LABELS: Record<string, string> = {
+  monday: 'Mon',
+  tuesday: 'Tue',
+  wednesday: 'Wed',
+  thursday: 'Thu',
+  friday: 'Fri',
+  saturday: 'Sat',
+  sunday: 'Sun',
+}
+
+interface Hours {
+  [day: string]: { open: string; close: string; closed: boolean }
+}
+
+interface Settings {
+  name: string
+  slug: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  state: string
+  zip: string
+  taxRate: number
+  primaryColor: string
+  businessHours: Hours
+  stripeOnboardingComplete: boolean
+  isActive: boolean
+  // Notifications
+  emailNotifications: boolean
+  smsNotifications: boolean
 }
 
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
-  const [showDoorDashKey, setShowDoorDashKey] = useState(false)
-  
-  const [settings, setSettings] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
-    hours: DEFAULT_HOURS,
-    stripeConfigured: false,
-    doordashDeveloperId: '',
-    doordashKeyId: '',
-    doordashSigningSecret: '',
-    doordashConfigured: false,
-    pickupInstructions: '',
-    pickupEnabled: true,
-    deliveryEnabled: false,
-    scheduledOrdersEnabled: true,
-    taxRate: 0,
-    deliveryFee: 0,
-    minOrderAmount: 0,
-  })
+  const [settings, setSettings] = useState<Settings | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [deleteInput, setDeleteInput] = useState('')
 
-  // Load settings on mount
   useEffect(() => {
-    async function loadSettings() {
-      try {
-        const res = await fetch('/api/settings')
-        if (!res.ok) throw new Error('Failed to load settings')
-        const data = await res.json()
-        
-        setSettings(prev => ({
-          ...prev,
-          name: data.settings.name || '',
-          phone: data.settings.phone || '',
-          email: data.settings.email || '',
-          address: data.settings.address || '',
-          city: data.settings.city || '',
-          state: data.settings.state || '',
-          zip: data.settings.zip || '',
-          hours: data.settings.businessHours || DEFAULT_HOURS,
-          stripeConfigured: data.settings.stripeConfigured,
-          doordashDeveloperId: data.settings.doordashDeveloperId || '',
-          doordashKeyId: data.settings.doordashKeyId || '',
-          doordashConfigured: data.settings.doordashConfigured,
-          pickupInstructions: data.settings.pickupInstructions || '',
-          pickupEnabled: data.settings.pickupEnabled,
-          deliveryEnabled: data.settings.deliveryEnabled,
-          scheduledOrdersEnabled: data.settings.scheduledOrdersEnabled,
-          taxRate: data.settings.taxRate || 0,
-          deliveryFee: data.settings.deliveryFee || 0,
-          minOrderAmount: data.settings.minOrderAmount || 0,
-        }))
-      } catch (err: any) {
-        setError(err.message)
-      } finally {
-        setLoading(false)
-      }
-    }
-    
     loadSettings()
   }, [])
 
-  const updateSettings = (field: string, value: any) => {
-    setSettings(prev => ({ ...prev, [field]: value }))
-    setSuccess(false)
+  const loadSettings = async () => {
+    try {
+      const res = await fetch('/api/settings')
+      if (res.ok) {
+        const data = await res.json()
+        setSettings(data.settings)
+      }
+    } catch (err) {
+      toast.error('Failed to load settings')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSave = async () => {
+    if (!settings) return
     setSaving(true)
-    setError(null)
-    setSuccess(false)
     
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: settings.name,
-          phone: settings.phone,
-          address: settings.address,
-          city: settings.city,
-          state: settings.state,
-          zip: settings.zip,
-          businessHours: settings.hours,
-          doordashDeveloperId: settings.doordashDeveloperId || undefined,
-          doordashKeyId: settings.doordashKeyId || undefined,
-          doordashSigningSecret: settings.doordashSigningSecret || undefined,
-          pickupInstructions: settings.pickupInstructions,
-          pickupEnabled: settings.pickupEnabled,
-          deliveryEnabled: settings.deliveryEnabled,
-          scheduledOrdersEnabled: settings.scheduledOrdersEnabled,
-          taxRate: settings.taxRate,
-          deliveryFee: settings.deliveryFee,
-          minOrderAmount: settings.minOrderAmount,
-        }),
+        body: JSON.stringify(settings)
       })
       
-      const data = await res.json()
-      
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to save settings')
+      if (res.ok) {
+        toast.success('Settings saved!')
+      } else {
+        toast.error('Failed to save settings')
       }
-      
-      setSuccess(true)
-      // Update configured status
-      if (data.settings?.doordashConfigured !== undefined) {
-        setSettings(prev => ({ ...prev, doordashConfigured: data.settings.doordashConfigured }))
-      }
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      toast.error('Failed to save settings')
     } finally {
       setSaving(false)
     }
   }
 
-  const handleStripeConnect = async () => {
+  const handlePauseStore = async () => {
+    if (!settings) return
+    
     try {
-      const res = await fetch('/api/stripe/connect/onboard', { method: 'POST' })
-      const data = await res.json()
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...settings, isActive: !settings.isActive })
+      })
       
-      if (data.url) {
-        window.location.href = data.url
-      } else {
-        setError(data.error || 'Failed to start Stripe onboarding')
+      if (res.ok) {
+        setSettings({ ...settings, isActive: !settings.isActive })
+        toast.success(settings.isActive ? 'Store paused' : 'Store is now live!')
       }
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      toast.error('Failed to update store status')
     }
   }
 
-  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+  const handleDeleteStore = async () => {
+    if (deleteInput !== settings?.name) {
+      toast.error('Please type the store name correctly')
+      return
+    }
+
+    try {
+      const res = await fetch('/api/settings', { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Store deleted. Redirecting...')
+        setTimeout(() => {
+          window.location.href = '/'
+        }, 2000)
+      }
+    } catch (err) {
+      toast.error('Failed to delete store')
+    }
+  }
+
+  const updateHours = (day: string, field: 'open' | 'close' | 'closed', value: string | boolean) => {
+    if (!settings) return
+    setSettings({
+      ...settings,
+      businessHours: {
+        ...settings.businessHours,
+        [day]: {
+          ...settings.businessHours[day],
+          [field]: value
+        }
+      }
+    })
+  }
 
   if (loading) {
     return (
@@ -182,275 +168,163 @@ export default function SettingsPage() {
     )
   }
 
+  if (!settings) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-slate-600">Failed to load settings</p>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
+      <Toaster position="top-right" />
+      
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Link href="/dashboard">
-                <Button variant="ghost" size="icon">
-                  <ArrowLeft className="w-5 h-5" />
-                </Button>
-              </Link>
-              <h1 className="text-xl font-bold text-slate-900">Settings</h1>
-            </div>
-            <div className="flex items-center gap-3">
-              {success && (
-                <Badge variant="default" className="bg-green-100 text-green-700">
-                  <CheckCircle className="w-3 h-3 mr-1" /> Saved
-                </Badge>
-              )}
-              <Button onClick={handleSave} disabled={saving} className="gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Save Changes
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link href="/dashboard">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="w-5 h-5" />
               </Button>
-            </div>
+            </Link>
+            <h1 className="text-xl font-bold text-slate-900">Settings</h1>
           </div>
+          <Button onClick={handleSave} disabled={saving} className="gap-2">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save Changes
+          </Button>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
-            {error}
-          </div>
-        )}
-        
-        {/* Stripe Integration */}
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        {/* Store Info */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <CreditCard className="w-5 h-5 text-purple-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Stripe Payments</CardTitle>
-                  <CardDescription>Accept credit card payments</CardDescription>
-                </div>
-              </div>
-              {settings.stripeConfigured ? (
-                <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-100">
-                  <CheckCircle className="w-3 h-3 mr-1" /> Connected
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                  <AlertCircle className="w-3 h-3 mr-1" /> Not connected
-                </Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {settings.stripeConfigured ? (
-              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-4">
-                <div>
-                  <p className="font-medium text-green-800">Stripe is connected!</p>
-                  <p className="text-sm text-green-700">You can accept credit card payments.</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleStripeConnect}>
-                  <RefreshCw className="w-4 h-4 mr-2" /> Update
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-slate-600">
-                  Connect your Stripe account to start accepting payments. We use Stripe Connect 
-                  so you maintain full control of your funds.
-                </p>
-                <Button onClick={handleStripeConnect} className="gap-2">
-                  <CreditCard className="w-4 h-4" />
-                  Connect with Stripe
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Restaurant Info */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Store className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Restaurant Information</CardTitle>
-                <CardDescription>Your business details and pickup address</CardDescription>
-              </div>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Store className="w-5 h-5 text-blue-600" />
+              Store Information
+            </CardTitle>
+            <CardDescription>Basic details about your restaurant</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
                 <Label>Restaurant Name</Label>
                 <Input
                   value={settings.name}
-                  onChange={(e) => updateSettings('name', e.target.value)}
-                  placeholder="Your Restaurant Name"
+                  onChange={(e) => setSettings({ ...settings, name: e.target.value })}
+                  className="mt-1"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Phone Number</Label>
-                <Input
-                  value={settings.phone}
-                  onChange={(e) => updateSettings('phone', e.target.value)}
-                  placeholder="(555) 123-4567"
-                />
-              </div>
-            </div>
-            
-            <div className="border-t pt-4 mt-4">
-              <h4 className="font-medium text-slate-900 mb-3">Pickup Address</h4>
-              <p className="text-sm text-slate-500 mb-4">
-                Used for customer pickups and as the origin for DoorDash deliveries.
-              </p>
-              
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Street Address</Label>
+              <div>
+                <Label>Store URL</Label>
+                <div className="flex mt-1">
+                  <span className="px-3 py-2 bg-slate-100 border border-r-0 border-slate-200 rounded-l-md text-slate-500 text-sm">
+                    orderflow.co/store/
+                  </span>
                   <Input
-                    value={settings.address}
-                    onChange={(e) => updateSettings('address', e.target.value)}
-                    placeholder="123 Main Street"
+                    value={settings.slug}
+                    onChange={(e) => setSettings({ ...settings, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                    className="rounded-l-none"
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>City</Label>
-                    <Input
-                      value={settings.city}
-                      onChange={(e) => updateSettings('city', e.target.value)}
-                      placeholder="New York"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>State</Label>
-                    <Input
-                      value={settings.state}
-                      onChange={(e) => updateSettings('state', e.target.value)}
-                      placeholder="NY"
-                      maxLength={2}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>ZIP Code</Label>
-                    <Input
-                      value={settings.zip}
-                      onChange={(e) => updateSettings('zip', e.target.value)}
-                      placeholder="10001"
-                    />
-                  </div>
-                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* DoorDash Integration */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                  <Truck className="w-5 h-5 text-red-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">DoorDash Drive</CardTitle>
-                  <CardDescription>Enable delivery with DoorDash drivers</CardDescription>
-                </div>
-              </div>
-              {settings.doordashConfigured ? (
-                <Badge variant="default" className="bg-green-100 text-green-700 hover:bg-green-100">
-                  <CheckCircle className="w-3 h-3 mr-1" /> Connected
-                </Badge>
-              ) : (
-                <Badge variant="outline">Optional</Badge>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm">
-              <p className="text-slate-700 mb-3">
-                DoorDash Drive lets you offer delivery using DoorDash's driver network. 
-                Apply for access at the DoorDash Developer Portal.
-              </p>
-              <a 
-                href="https://developer.doordash.com/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-red-600 hover:text-red-800 font-medium"
-              >
-                DoorDash Developer Portal <ExternalLink className="w-3 h-3" />
-              </a>
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Developer ID</Label>
-                <Input
-                  value={settings.doordashDeveloperId}
-                  onChange={(e) => updateSettings('doordashDeveloperId', e.target.value)}
-                  placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                  className="font-mono text-sm"
-                />
-              </div>
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Key ID</Label>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Email</Label>
+                <div className="relative mt-1">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <Input
-                    value={settings.doordashKeyId}
-                    onChange={(e) => updateSettings('doordashKeyId', e.target.value)}
-                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                    className="font-mono text-sm"
+                    type="email"
+                    value={settings.email}
+                    onChange={(e) => setSettings({ ...settings, email: e.target.value })}
+                    className="pl-10"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label>Signing Secret</Label>
-                  <div className="relative">
-                    <Input
-                      type={showDoorDashKey ? 'text' : 'password'}
-                      value={settings.doordashSigningSecret}
-                      onChange={(e) => updateSettings('doordashSigningSecret', e.target.value)}
-                      placeholder={settings.doordashConfigured ? '••••••••••••' : 'Your signing secret'}
-                      className="font-mono text-sm pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowDoorDashKey(!showDoorDashKey)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showDoorDashKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <div className="relative mt-1">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    value={settings.phone}
+                    onChange={(e) => setSettings({ ...settings, phone: e.target.value })}
+                    className="pl-10"
+                  />
                 </div>
               </div>
-              
-              <div className="border-t pt-4">
-                <h4 className="font-medium text-slate-700 mb-3">Pickup Instructions for Drivers</h4>
+            </div>
+
+            <div>
+              <Label>Address</Label>
+              <div className="relative mt-1">
+                <MapPin className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                 <Input
-                  value={settings.pickupInstructions}
-                  onChange={(e) => updateSettings('pickupInstructions', e.target.value)}
-                  placeholder="e.g., Enter through side door, orders on counter"
+                  value={settings.address}
+                  onChange={(e) => setSettings({ ...settings, address: e.target.value })}
+                  className="pl-10"
                 />
-                <p className="text-xs text-slate-500 mt-1">
-                  These instructions help DoorDash drivers find and pick up orders.
-                </p>
               </div>
-              
-              {/* Enable Delivery Toggle */}
-              <div className="border-t pt-4 flex items-center justify-between">
-                <div>
-                  <h4 className="font-medium text-slate-900">Enable Delivery</h4>
-                  <p className="text-sm text-slate-500">Allow customers to order delivery</p>
-                </div>
-                <Switch
-                  checked={settings.deliveryEnabled}
-                  onCheckedChange={(checked) => updateSettings('deliveryEnabled', checked)}
-                  disabled={!settings.doordashConfigured && !settings.doordashDeveloperId}
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>City</Label>
+                <Input
+                  value={settings.city}
+                  onChange={(e) => setSettings({ ...settings, city: e.target.value })}
+                  className="mt-1"
                 />
+              </div>
+              <div>
+                <Label>State</Label>
+                <Input
+                  value={settings.state}
+                  onChange={(e) => setSettings({ ...settings, state: e.target.value })}
+                  maxLength={2}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>ZIP</Label>
+                <Input
+                  value={settings.zip}
+                  onChange={(e) => setSettings({ ...settings, zip: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Tax Rate (%)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={settings.taxRate * 100}
+                  onChange={(e) => setSettings({ ...settings, taxRate: parseFloat(e.target.value) / 100 || 0 })}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Brand Color</Label>
+                <div className="flex gap-2 mt-1">
+                  <input
+                    type="color"
+                    value={settings.primaryColor}
+                    onChange={(e) => setSettings({ ...settings, primaryColor: e.target.value })}
+                    className="w-12 h-10 rounded border border-slate-200 cursor-pointer"
+                  />
+                  <Input
+                    value={settings.primaryColor}
+                    onChange={(e) => setSettings({ ...settings, primaryColor: e.target.value })}
+                    className="flex-1 font-mono"
+                  />
+                </div>
               </div>
             </div>
           </CardContent>
@@ -459,60 +333,41 @@ export default function SettingsPage() {
         {/* Business Hours */}
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Business Hours</CardTitle>
-                <CardDescription>Set when you're open for orders</CardDescription>
-              </div>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-blue-600" />
+              Business Hours
+            </CardTitle>
+            <CardDescription>When is your restaurant open?</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {days.map(day => {
-                const dayHours = settings.hours[day as keyof typeof settings.hours] || { open: '11:00', close: '21:00', closed: false }
+            <div className="space-y-3">
+              {DAYS.map((day) => {
+                const hours = settings.businessHours?.[day] || { open: '11:00', close: '21:00', closed: false }
                 return (
                   <div key={day} className="flex items-center gap-4">
-                    <div className="w-28">
-                      <span className="font-medium text-slate-700 capitalize">{day}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={!dayHours.closed}
-                        onCheckedChange={(checked) => {
-                          const newHours = { ...settings.hours }
-                          newHours[day as keyof typeof settings.hours] = { ...dayHours, closed: !checked }
-                          updateSettings('hours', newHours)
-                        }}
-                      />
-                      <span className="text-sm text-slate-500 w-12">{dayHours.closed ? 'Closed' : 'Open'}</span>
-                    </div>
-                    {!dayHours.closed && (
+                    <div className="w-12 font-medium text-slate-700">{DAY_LABELS[day]}</div>
+                    <Switch
+                      checked={!hours.closed}
+                      onCheckedChange={(checked) => updateHours(day, 'closed', !checked)}
+                    />
+                    {!hours.closed ? (
                       <>
                         <Input
                           type="time"
-                          value={dayHours.open}
-                          onChange={(e) => {
-                            const newHours = { ...settings.hours }
-                            newHours[day as keyof typeof settings.hours] = { ...dayHours, open: e.target.value }
-                            updateSettings('hours', newHours)
-                          }}
+                          value={hours.open}
+                          onChange={(e) => updateHours(day, 'open', e.target.value)}
                           className="w-32"
                         />
                         <span className="text-slate-400">to</span>
                         <Input
                           type="time"
-                          value={dayHours.close}
-                          onChange={(e) => {
-                            const newHours = { ...settings.hours }
-                            newHours[day as keyof typeof settings.hours] = { ...dayHours, close: e.target.value }
-                            updateSettings('hours', newHours)
-                          }}
+                          value={hours.close}
+                          onChange={(e) => updateHours(day, 'close', e.target.value)}
                           className="w-32"
                         />
                       </>
+                    ) : (
+                      <span className="text-slate-400 text-sm">Closed</span>
                     )}
                   </div>
                 )
@@ -521,82 +376,183 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Fees & Order Settings */}
+        {/* Notifications */}
         <Card>
           <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Fees & Order Settings</CardTitle>
-                <CardDescription>Configure tax, fees, and order options</CardDescription>
-              </div>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-blue-600" />
+              Notifications
+            </CardTitle>
+            <CardDescription>How do you want to be notified about new orders?</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Tax Rate (%)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={settings.taxRate}
-                  onChange={(e) => updateSettings('taxRate', parseFloat(e.target.value) || 0)}
-                  placeholder="9.25"
-                />
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-slate-900">Email notifications</p>
+                <p className="text-sm text-slate-500">Receive an email for each new order</p>
               </div>
-              <div className="space-y-2">
-                <Label>Delivery Fee ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={settings.deliveryFee}
-                  onChange={(e) => updateSettings('deliveryFee', parseFloat(e.target.value) || 0)}
-                  placeholder="0.00"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Minimum Order ($)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={settings.minOrderAmount}
-                  onChange={(e) => updateSettings('minOrderAmount', parseFloat(e.target.value) || 0)}
-                  placeholder="0.00"
-                />
-              </div>
+              <Switch
+                checked={settings.emailNotifications}
+                onCheckedChange={(checked) => setSettings({ ...settings, emailNotifications: checked })}
+              />
             </div>
-            
-            <div className="border-t pt-4 space-y-4">
-              <h4 className="font-medium text-slate-900">Order Options</h4>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-slate-700">Pickup Orders</p>
-                  <p className="text-sm text-slate-500">Allow customers to pick up orders</p>
-                </div>
-                <Switch
-                  checked={settings.pickupEnabled}
-                  onCheckedChange={(checked) => updateSettings('pickupEnabled', checked)}
-                />
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-slate-900">SMS notifications</p>
+                <p className="text-sm text-slate-500">Get a text message for new orders</p>
               </div>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-slate-700">Scheduled Orders</p>
-                  <p className="text-sm text-slate-500">Allow customers to schedule orders in advance</p>
-                </div>
-                <Switch
-                  checked={settings.scheduledOrdersEnabled}
-                  onCheckedChange={(checked) => updateSettings('scheduledOrdersEnabled', checked)}
-                />
-              </div>
+              <Switch
+                checked={settings.smsNotifications}
+                onCheckedChange={(checked) => setSettings({ ...settings, smsNotifications: checked })}
+              />
             </div>
           </CardContent>
         </Card>
 
+        {/* Payments */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-blue-600" />
+              Payments
+            </CardTitle>
+            <CardDescription>Manage your Stripe connection</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {settings.stripeOnboardingComplete ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <Check className="w-5 h-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-900">Stripe connected</p>
+                    <p className="text-sm text-slate-500">You're ready to accept payments</p>
+                  </div>
+                </div>
+                <a
+                  href="https://dashboard.stripe.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
+                >
+                  Stripe Dashboard <ExternalLink className="w-4 h-4" />
+                </a>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-900">Stripe not connected</p>
+                    <p className="text-sm text-slate-500">Connect Stripe to accept payments</p>
+                  </div>
+                </div>
+                <Link href="/dashboard/go-live">
+                  <Button>Connect Stripe</Button>
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Danger Zone */}
+        <Card className="border-red-200">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription>Irreversible and destructive actions</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Pause Store */}
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+              <div>
+                <p className="font-medium text-slate-900">
+                  {settings.isActive ? 'Pause Store' : 'Resume Store'}
+                </p>
+                <p className="text-sm text-slate-500">
+                  {settings.isActive 
+                    ? 'Temporarily stop accepting orders' 
+                    : 'Your store is currently paused'}
+                </p>
+              </div>
+              <Button 
+                variant={settings.isActive ? 'outline' : 'default'}
+                onClick={handlePauseStore}
+                className="gap-2"
+              >
+                <Pause className="w-4 h-4" />
+                {settings.isActive ? 'Pause' : 'Resume'}
+              </Button>
+            </div>
+
+            {/* Delete Store */}
+            <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg">
+              <div>
+                <p className="font-medium text-red-900">Delete Store</p>
+                <p className="text-sm text-red-700">Permanently delete your store and all data</p>
+              </div>
+              <Button 
+                variant="destructive"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-red-600">Delete Store</CardTitle>
+              <CardDescription>
+                This action cannot be undone. All your data will be permanently deleted.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Type "{settings.name}" to confirm</Label>
+                <Input
+                  value={deleteInput}
+                  onChange={(e) => setDeleteInput(e.target.value)}
+                  placeholder={settings.name}
+                  className="mt-1"
+                />
+              </div>
+              <div className="flex gap-3">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => {
+                    setShowDeleteConfirm(false)
+                    setDeleteInput('')
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="destructive" 
+                  className="flex-1"
+                  onClick={handleDeleteStore}
+                  disabled={deleteInput !== settings.name}
+                >
+                  Delete Forever
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

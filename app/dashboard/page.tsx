@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
+import toast, { Toaster } from 'react-hot-toast'
 import {
   Utensils,
   ShoppingBag,
@@ -26,7 +27,9 @@ import {
   Monitor,
   Clock,
   DollarSign,
-  AlertCircle
+  AlertCircle,
+  Sparkles,
+  ArrowRight
 } from 'lucide-react'
 
 // Theme definitions
@@ -172,14 +175,21 @@ export default function DashboardPage() {
       if (res.ok) {
         const { category } = await res.json()
         setCategories([...categories, category])
+        toast.success('Category added!')
+      } else {
+        toast.error('Failed to add category')
       }
     } catch (err) {
       console.error('Error adding category:', err)
+      toast.error('Failed to add category')
     }
   }
 
   const handleAddItem = async (categoryId: string) => {
-    if (!newItemForm.name || !newItemForm.price) return
+    if (!newItemForm.name || !newItemForm.price) {
+      toast.error('Name and price are required')
+      return
+    }
     
     try {
       const res = await fetch('/api/menu/items', {
@@ -198,9 +208,13 @@ export default function DashboardPage() {
         setMenuItems([...menuItems, item])
         setNewItemForm({ name: '', description: '', price: '' })
         setAddingToCategory(null)
+        toast.success('Item added!')
+      } else {
+        toast.error('Failed to add item')
       }
     } catch (err) {
       console.error('Error adding item:', err)
+      toast.error('Failed to add item')
     }
   }
 
@@ -244,6 +258,8 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
+      <Toaster position="top-right" />
+      
       {/* Top Nav */}
       <header className="bg-white border-b border-slate-200 h-14 flex items-center px-4 justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
@@ -311,11 +327,11 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {activeTab === 'menu' ? (
           <>
             {/* Left Panel - Editor */}
-            <div className="w-[400px] bg-white border-r border-slate-200 flex flex-col overflow-hidden">
+            <div className="w-full lg:w-[400px] bg-white border-b lg:border-b-0 lg:border-r border-slate-200 flex flex-col overflow-hidden max-h-[50vh] lg:max-h-none">
               {/* Theme Picker */}
               <div className="p-4 border-b border-slate-200">
                 <Label className="text-xs text-slate-500 uppercase tracking-wide mb-2 block">Theme</Label>
@@ -339,16 +355,24 @@ export default function DashboardPage() {
               {/* Categories & Items */}
               <div className="flex-1 overflow-y-auto p-4">
                 {categories.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Utensils className="w-8 h-8 text-slate-400" />
+                  <div className="text-center py-8 lg:py-12 px-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Sparkles className="w-8 h-8 text-blue-600" />
                     </div>
-                    <h3 className="font-semibold text-slate-900 mb-2">No menu items yet</h3>
-                    <p className="text-sm text-slate-500 mb-4">Start by adding a category</p>
-                    <Button onClick={handleAddCategory} className="gap-2">
-                      <Plus className="w-4 h-4" />
-                      Add Category
+                    <h3 className="font-bold text-slate-900 mb-2 text-lg">Let's build your menu!</h3>
+                    <p className="text-sm text-slate-500 mb-6 max-w-xs mx-auto">
+                      Start by adding categories like "Appetizers", "Main Courses", or "Drinks"
+                    </p>
+                    <Button onClick={handleAddCategory} className="gap-2" size="lg">
+                      <Plus className="w-5 h-5" />
+                      Add First Category
                     </Button>
+                    <div className="mt-6 p-4 bg-blue-50 rounded-xl text-left">
+                      <p className="text-xs font-medium text-blue-800 mb-2">💡 Quick tip</p>
+                      <p className="text-xs text-blue-700">
+                        Use emojis in category names! Try "🍕 Pizza" or "🥗 Salads" — they make your menu pop.
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -463,7 +487,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Right Panel - Live Preview */}
-            <div className="flex-1 bg-slate-200 flex flex-col items-center justify-center p-8">
+            <div className="flex-1 bg-slate-200 flex flex-col items-center justify-center p-4 lg:p-8 overflow-y-auto">
               {/* Preview Controls */}
               <div className="flex items-center gap-2 mb-4">
                 <Button
