@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { TemplateSelector } from '@/components/ui/templates'
 import { 
   Store, 
   MapPin, 
   Palette, 
+  Layout,
   Rocket, 
   ArrowRight, 
   ArrowLeft,
@@ -19,14 +21,16 @@ import {
   Utensils,
   Clock,
   Gift,
-  Truck
+  Truck,
+  Sparkles
 } from 'lucide-react'
 
 const steps = [
-  { id: 1, title: 'Restaurant Info', icon: Store },
+  { id: 1, title: 'Restaurant', icon: Store },
   { id: 2, title: 'Location', icon: MapPin },
-  { id: 3, title: 'Branding', icon: Palette },
-  { id: 4, title: 'Launch', icon: Rocket },
+  { id: 3, title: 'Layout', icon: Layout },
+  { id: 4, title: 'Branding', icon: Palette },
+  { id: 5, title: 'Launch', icon: Rocket },
 ]
 
 export default function OnboardingPage() {
@@ -44,6 +48,7 @@ export default function OnboardingPage() {
     state: '',
     zip: '',
     timezone: 'America/Chicago',
+    template: 'modern',
     primaryColor: '#2563eb',
     secondaryColor: '#1e40af',
     pickupEnabled: true,
@@ -78,7 +83,18 @@ export default function OnboardingPage() {
     }
   }
 
-  const progress = (step / 4) * 100
+  const progress = (step / 5) * 100
+
+  const canProceed = () => {
+    switch(step) {
+      case 1: return formData.restaurantName && formData.slug && formData.email && formData.password
+      case 2: return formData.address && formData.city && formData.state
+      case 3: return formData.template
+      case 4: return true
+      case 5: return true
+      default: return true
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -86,9 +102,10 @@ export default function OnboardingPage() {
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400/20 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-400/20 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-purple-400/10 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative max-w-4xl mx-auto px-4 py-8 md:py-16">
+      <div className="relative max-w-4xl mx-auto px-4 py-8 md:py-12">
         {/* Header */}
         <div className="text-center mb-8 animate-fade-in">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur rounded-full shadow-sm mb-6">
@@ -106,7 +123,7 @@ export default function OnboardingPage() {
         {/* Progress */}
         <div className="mb-8 animate-fade-in" style={{ animationDelay: '0.1s' }}>
           <div className="flex justify-between mb-3">
-            {steps.map((s, i) => {
+            {steps.map((s) => {
               const Icon = s.icon
               const isActive = step === s.id
               const isComplete = step > s.id
@@ -134,17 +151,24 @@ export default function OnboardingPage() {
         {/* Form Card */}
         <Card className="shadow-xl border-0 bg-white/80 backdrop-blur animate-fade-in" style={{ animationDelay: '0.2s' }}>
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl">
+            <CardTitle className="text-xl flex items-center gap-2">
               {step === 1 && 'Tell us about your restaurant'}
               {step === 2 && 'Where are you located?'}
-              {step === 3 && 'Make it yours'}
-              {step === 4 && 'Ready to launch!'}
+              {step === 3 && (
+                <>
+                  <Sparkles className="w-5 h-5 text-purple-500" />
+                  Choose your store layout
+                </>
+              )}
+              {step === 4 && 'Make it yours'}
+              {step === 5 && 'Ready to launch!'}
             </CardTitle>
             <CardDescription>
               {step === 1 && 'Basic information to get started'}
               {step === 2 && 'Your customers need to find you'}
-              {step === 3 && 'Customize your brand colors'}
-              {step === 4 && 'Review and choose your features'}
+              {step === 3 && 'Select a template that fits your brand'}
+              {step === 4 && 'Customize your brand colors'}
+              {step === 5 && 'Review and choose your features'}
             </CardDescription>
           </CardHeader>
 
@@ -274,8 +298,19 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 3: Branding */}
+            {/* Step 3: Template Selection */}
             {step === 3 && (
+              <div className="stagger-children">
+                <TemplateSelector
+                  selected={formData.template}
+                  onSelect={(id) => updateField('template', id)}
+                  primaryColor={formData.primaryColor}
+                />
+              </div>
+            )}
+
+            {/* Step 4: Branding */}
+            {step === 4 && (
               <div className="space-y-6 stagger-children">
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-3">
@@ -292,6 +327,20 @@ export default function OnboardingPage() {
                         onChange={(e) => updateField('primaryColor', e.target.value)}
                         className="h-12 font-mono"
                       />
+                    </div>
+                    {/* Color presets */}
+                    <div className="flex gap-2">
+                      {['#2563eb', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#0891b2'].map(color => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => updateField('primaryColor', color)}
+                          className={`w-8 h-8 rounded-full transition-transform hover:scale-110 ${
+                            formData.primaryColor === color ? 'ring-2 ring-offset-2 ring-slate-400' : ''
+                          }`}
+                          style={{ backgroundColor: color }}
+                        />
+                      ))}
                     </div>
                   </div>
                   <div className="space-y-3">
@@ -314,7 +363,7 @@ export default function OnboardingPage() {
 
                 {/* Live Preview */}
                 <div className="mt-6">
-                  <Label className="mb-3 block">Preview</Label>
+                  <Label className="mb-3 block">Live Preview</Label>
                   <div 
                     className="rounded-xl p-6 transition-all duration-300"
                     style={{ backgroundColor: formData.primaryColor }}
@@ -323,23 +372,33 @@ export default function OnboardingPage() {
                       <div className="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center">
                         <Utensils className="w-6 h-6 text-white" />
                       </div>
-                      <h3 className="text-white text-xl font-bold">
-                        {formData.restaurantName || 'Your Restaurant'}
-                      </h3>
+                      <div>
+                        <h3 className="text-white text-xl font-bold">
+                          {formData.restaurantName || 'Your Restaurant'}
+                        </h3>
+                        <p className="text-white/70 text-sm">
+                          {formData.template.charAt(0).toUpperCase() + formData.template.slice(1)} Template
+                        </p>
+                      </div>
                     </div>
-                    <button 
-                      className="px-6 py-3 rounded-lg text-white font-semibold transition-transform hover:scale-105"
-                      style={{ backgroundColor: formData.secondaryColor }}
-                    >
-                      Order Now
-                    </button>
+                    <div className="flex gap-3">
+                      <button 
+                        className="px-6 py-3 rounded-lg text-white font-semibold transition-transform hover:scale-105"
+                        style={{ backgroundColor: formData.secondaryColor }}
+                      >
+                        Order Now
+                      </button>
+                      <button className="px-6 py-3 rounded-lg bg-white/20 text-white font-semibold">
+                        View Menu
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Step 4: Features & Launch */}
-            {step === 4 && (
+            {/* Step 5: Features & Launch */}
+            {step === 5 && (
               <div className="space-y-6 stagger-children">
                 <div className="grid md:grid-cols-2 gap-4">
                   {[
@@ -367,12 +426,12 @@ export default function OnboardingPage() {
                           }`}>
                             <Icon className="w-5 h-5" />
                           </div>
-                          <div>
+                          <div className="flex-1">
                             <p className="font-semibold text-slate-900">{feature.title}</p>
                             <p className="text-sm text-slate-500">{feature.desc}</p>
                           </div>
                           {enabled && (
-                            <Check className="w-5 h-5 text-blue-500 ml-auto" />
+                            <Check className="w-5 h-5 text-blue-500" />
                           )}
                         </div>
                       </button>
@@ -382,7 +441,10 @@ export default function OnboardingPage() {
 
                 {/* Summary */}
                 <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-6 mt-6">
-                  <h4 className="font-semibold text-slate-900 mb-3">Ready to launch!</h4>
+                  <h4 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-yellow-500" />
+                    Ready to launch!
+                  </h4>
                   <ul className="space-y-2 text-sm text-slate-600">
                     <li className="flex items-center gap-2">
                       <Check className="w-4 h-4 text-green-500" />
@@ -395,6 +457,10 @@ export default function OnboardingPage() {
                     <li className="flex items-center gap-2">
                       <Check className="w-4 h-4 text-green-500" />
                       {formData.city}, {formData.state}
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-green-500" />
+                      {formData.template.charAt(0).toUpperCase() + formData.template.slice(1)} template
                     </li>
                   </ul>
                 </div>
@@ -412,8 +478,13 @@ export default function OnboardingPage() {
                 <div />
               )}
 
-              {step < 4 ? (
-                <Button onClick={() => setStep(step + 1)} className="gap-2" size="lg">
+              {step < 5 ? (
+                <Button 
+                  onClick={() => setStep(step + 1)} 
+                  className="gap-2" 
+                  size="lg"
+                  disabled={!canProceed()}
+                >
                   Continue
                   <ArrowRight className="w-4 h-4" />
                 </Button>
