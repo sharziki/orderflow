@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X, Printer, Wifi, Usb, Globe, CheckCircle, AlertCircle } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { X, Printer, Usb, Wifi, Monitor, Check, AlertCircle } from 'lucide-react'
 import { browserPrint, PrinterSettings } from '@/lib/browser-print'
 import toast from 'react-hot-toast'
 
@@ -11,40 +11,41 @@ interface PrinterSettingsModalProps {
 }
 
 export default function PrinterSettingsModal({ isOpen, onClose }: PrinterSettingsModalProps) {
-  const [settings, setSettings] = useState<PrinterSettings>(browserPrint.getPrinterSettings())
-  const [isTesting, setIsTesting] = useState(false)
+  const [settings, setSettings] = useState<PrinterSettings>({
+    printerType: 'browser',
+    autoPrint: false,
+    copies: 1,
+  })
   const [isPairing, setIsPairing] = useState(false)
-  const [isWebSerialSupported, setIsWebSerialSupported] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+  const [webSerialSupported, setWebSerialSupported] = useState(false)
 
   useEffect(() => {
-    // Check Web Serial API support
-    setIsWebSerialSupported(browserPrint.isWebSerialSupported())
-
-    // Load current settings
-    setSettings(browserPrint.getPrinterSettings())
+    if (isOpen) {
+      const savedSettings = browserPrint.getPrinterSettings()
+      setSettings(savedSettings)
+      setWebSerialSupported(browserPrint.isWebSerialSupported())
+    }
   }, [isOpen])
 
   const handleSave = () => {
     browserPrint.savePrinterSettings(settings)
-    toast.success('Printer settings saved')
+    toast.success('Printer settings saved!')
     onClose()
   }
 
-  const handlePairPrinter = async () => {
+  const handlePairUSB = async () => {
     setIsPairing(true)
-
     try {
       const result = await browserPrint.pairPrinter()
-
       if (result.success) {
-        toast.success('Printer paired successfully! Click Save to confirm.')
-        setSettings({ ...settings, printerType: 'webserial' })
+        toast.success('Printer paired successfully!')
+        setSettings(prev => ({ ...prev, printerType: 'webserial' }))
       } else {
         toast.error(result.error || 'Failed to pair printer')
       }
     } catch (error) {
-      console.error('Pairing error:', error)
-      toast.error('Unexpected error while pairing printer')
+      toast.error('Failed to pair printer')
     } finally {
       setIsPairing(false)
     }
@@ -52,31 +53,30 @@ export default function PrinterSettingsModal({ isOpen, onClose }: PrinterSetting
 
   const handleTestPrint = async () => {
     setIsTesting(true)
-
+    browserPrint.savePrinterSettings(settings) // Save before testing
     try {
-      // Save settings first
-      browserPrint.savePrinterSettings(settings)
-
       const result = await browserPrint.testPrint('Kitchen Printer')
-
       if (result.success) {
-        toast.success('Test print sent! Check your printer.')
+        toast.success('Test print sent!')
       } else {
         toast.error(result.error || 'Test print failed')
       }
     } catch (error) {
-      console.error('Test print error:', error)
-      toast.error('Unexpected error during test print')
+      toast.error('Test print failed')
     } finally {
       setIsTesting(false)
     }
   }
 
   const handleForgetPrinter = async () => {
-    if (confirm('Are you sure you want to forget the paired printer?')) {
+    if (confirm('Forget paired printer and reset settings?')) {
       await browserPrint.forgetPrinter()
-      setSettings(browserPrint.getPrinterSettings())
-      toast.success('Printer forgotten. You will need to pair again.')
+      setSettings({
+        printerType: 'browser',
+        autoPrint: false,
+        copies: 1,
+      })
+      toast.success('Printer settings reset')
     }
   }
 
@@ -85,30 +85,24 @@ export default function PrinterSettingsModal({ isOpen, onClose }: PrinterSetting
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/70 z-50"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/50 z-50" onClick={onClose} />
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg border border-gray-200 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
           {/* Header */}
-          <div className="sticky top-0 bg-gradient-to-r from-[rgb(var(--color-primary))] to-blue-700 border-b border-gray-200 p-6 flex items-start justify-between text-white">
-            <div>
-              <div className="flex items-center gap-3 mb-2">
-                <Printer className="w-6 h-6" />
-                <h2 className="text-2xl font-bold">Printer Settings</h2>
+          <div className="flex items-center justify-between p-6 border-b">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                <Printer className="w-5 h-5 text-blue-600" />
               </div>
-              <p className="text-sm text-blue-100">
-                Configure your kitchen printer for automatic order printing
-              </p>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">Printer Settings</h2>
+                <p className="text-sm text-slate-500">Configure kitchen ticket printing</p>
+              </div>
             </div>
-            <button
-              onClick={onClose}
-              className="text-white/80 hover:text-white transition-colors"
-            >
-              <X className="w-6 h-6" />
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+              <X className="w-5 h-5 text-slate-500" />
             </button>
           </div>
 
@@ -116,198 +110,195 @@ export default function PrinterSettingsModal({ isOpen, onClose }: PrinterSetting
           <div className="p-6 space-y-6">
             {/* Printer Type Selection */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
-                Printer Type
-              </label>
-              <div className="space-y-3">
-                {/* Web Serial API (USB) */}
-                <div
-                  onClick={() => isWebSerialSupported && setSettings({ ...settings, printerType: 'webserial' })}
-                  className={`border rounded-lg p-4 cursor-pointer transition-all ${
+              <label className="block text-sm font-semibold text-slate-700 mb-3">Printer Type</label>
+              <div className="space-y-2">
+                {/* USB Thermal Printer */}
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, printerType: 'webserial' }))}
+                  disabled={!webSerialSupported}
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
                     settings.printerType === 'webserial'
-                      ? 'border-[rgb(var(--color-primary))] bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  } ${!isWebSerialSupported ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-slate-300'
+                  } ${!webSerialSupported ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <div className="flex items-start gap-3">
-                    <Usb className={`w-5 h-5 mt-0.5 ${settings.printerType === 'webserial' ? 'text-[rgb(var(--color-primary))]' : 'text-gray-600'}`} />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-gray-900">USB Thermal Printer (Recommended)</h3>
-                        {settings.printerType === 'webserial' && (
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Direct USB connection using Web Serial API. Works with most thermal printers.
-                      </p>
-                      {!isWebSerialSupported && (
-                        <p className="text-sm text-red-600 mt-1 flex items-center gap-1">
-                          <AlertCircle className="w-4 h-4" />
-                          Not supported in your browser. Please use Chrome or Edge.
-                        </p>
-                      )}
-                    </div>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    settings.printerType === 'webserial' ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    <Usb className="w-5 h-5" />
                   </div>
-                </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-semibold text-slate-900">USB Thermal Printer</p>
+                    <p className="text-sm text-slate-500">Direct USB connection (Chrome/Edge only)</p>
+                  </div>
+                  {settings.printerType === 'webserial' && (
+                    <Check className="w-5 h-5 text-blue-500" />
+                  )}
+                </button>
 
-                {/* Star WebPRNT (Network) */}
-                <div
-                  onClick={() => setSettings({ ...settings, printerType: 'star' })}
-                  className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                {/* Star Network Printer */}
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, printerType: 'star' }))}
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
                     settings.printerType === 'star'
-                      ? 'border-[rgb(var(--color-primary))] bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <Wifi className={`w-5 h-5 mt-0.5 ${settings.printerType === 'star' ? 'text-[rgb(var(--color-primary))]' : 'text-gray-600'}`} />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-gray-900">Star Micronics Network Printer</h3>
-                        {settings.printerType === 'star' && (
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Network printer with CloudPRNT/WebPRNT support (Star TSP650/700, etc.)
-                      </p>
-                    </div>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    settings.printerType === 'star' ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    <Wifi className="w-5 h-5" />
                   </div>
-                </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-semibold text-slate-900">Star Network Printer</p>
+                    <p className="text-sm text-slate-500">Star printers via WiFi/Ethernet</p>
+                  </div>
+                  {settings.printerType === 'star' && (
+                    <Check className="w-5 h-5 text-blue-500" />
+                  )}
+                </button>
 
-                {/* Browser Print Dialog (Fallback) */}
-                <div
-                  onClick={() => setSettings({ ...settings, printerType: 'browser' })}
-                  className={`border rounded-lg p-4 cursor-pointer transition-all ${
+                {/* Browser Print Dialog */}
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, printerType: 'browser' }))}
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all ${
                     settings.printerType === 'browser'
-                      ? 'border-[rgb(var(--color-primary))] bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  <div className="flex items-start gap-3">
-                    <Globe className={`w-5 h-5 mt-0.5 ${settings.printerType === 'browser' ? 'text-[rgb(var(--color-primary))]' : 'text-gray-600'}`} />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-gray-900">Browser Print Dialog (Fallback)</h3>
-                        {settings.printerType === 'browser' && (
-                          <CheckCircle className="w-4 h-4 text-green-600" />
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Use your browser's native print dialog. Works with any printer.
-                      </p>
-                    </div>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    settings.printerType === 'browser' ? 'bg-blue-500 text-white' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    <Monitor className="w-5 h-5" />
                   </div>
-                </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-semibold text-slate-900">Browser Print Dialog</p>
+                    <p className="text-sm text-slate-500">Works with any printer (manual)</p>
+                  </div>
+                  {settings.printerType === 'browser' && (
+                    <Check className="w-5 h-5 text-blue-500" />
+                  )}
+                </button>
               </div>
             </div>
 
-            {/* Star Printer IP (if Star selected) */}
-            {settings.printerType === 'star' && (
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Star Printer IP Address
-                </label>
-                <input
-                  type="text"
-                  value={settings.starPrinterIP || ''}
-                  onChange={(e) => setSettings({ ...settings, starPrinterIP: e.target.value })}
-                  placeholder="e.g., 192.168.1.100"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[rgb(var(--color-primary))] focus:border-transparent"
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Enter the IP address of your Star network printer. You can find this in your printer's network settings.
+            {/* USB Pairing Button */}
+            {settings.printerType === 'webserial' && (
+              <div className="bg-slate-50 rounded-xl p-4">
+                <p className="text-sm text-slate-600 mb-3">
+                  Connect your USB thermal printer. Make sure it's plugged in before pairing.
                 </p>
+                <button
+                  onClick={handlePairUSB}
+                  disabled={isPairing || !webSerialSupported}
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white px-4 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Usb className="w-4 h-4" />
+                  {isPairing ? 'Pairing...' : 'Pair USB Printer'}
+                </button>
+                {!webSerialSupported && (
+                  <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Web Serial not supported. Use Chrome or Edge browser.
+                  </p>
+                )}
               </div>
             )}
 
-            {/* Pair Printer Button (for Web Serial) */}
-            {settings.printerType === 'webserial' && isWebSerialSupported && (
+            {/* Star Printer IP */}
+            {settings.printerType === 'star' && (
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  USB Printer Connection
-                </label>
-                <div className="flex gap-3">
-                  <button
-                    onClick={handlePairPrinter}
-                    disabled={isPairing}
-                    className="flex-1 bg-[rgb(var(--color-primary))] hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  >
-                    <Usb className="w-5 h-5" />
-                    {isPairing ? 'Pairing...' : 'Pair USB Printer'}
-                  </button>
-                  <button
-                    onClick={handleForgetPrinter}
-                    className="px-4 py-3 border border-gray-300 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-                  >
-                    Forget
-                  </button>
-                </div>
-                <p className="text-sm text-gray-500 mt-2">
-                  Click "Pair USB Printer" to connect your thermal printer via USB. You only need to do this once.
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Star Printer IP Address</label>
+                <input
+                  type="text"
+                  value={settings.starPrinterIP || ''}
+                  onChange={(e) => setSettings(prev => ({ ...prev, starPrinterIP: e.target.value }))}
+                  placeholder="192.168.1.100"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Find this in your Star printer's network settings
                 </p>
               </div>
             )}
 
             {/* Auto-Print Toggle */}
-            <div>
-              <label className="flex items-center justify-between cursor-pointer">
-                <div>
-                  <div className="text-sm font-semibold text-gray-700">Auto-Print Orders</div>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Automatically print orders when they are confirmed by restaurant
-                  </p>
-                </div>
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={settings.autoPrint}
-                    onChange={(e) => setSettings({ ...settings, autoPrint: e.target.checked })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[rgb(var(--color-primary))]"></div>
-                </div>
-              </label>
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+              <div>
+                <p className="font-semibold text-slate-900">Auto-Print New Orders</p>
+                <p className="text-sm text-slate-500">Automatically print when orders are accepted</p>
+              </div>
+              <button
+                onClick={() => setSettings(prev => ({ ...prev, autoPrint: !prev.autoPrint }))}
+                className={`relative w-12 h-7 rounded-full transition-colors ${
+                  settings.autoPrint ? 'bg-blue-500' : 'bg-slate-300'
+                }`}
+              >
+                <div
+                  className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                    settings.autoPrint ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
             </div>
 
             {/* Number of Copies */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Number of Copies
-              </label>
-              <select
-                value={settings.copies}
-                onChange={(e) => setSettings({ ...settings, copies: Number(e.target.value) })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[rgb(var(--color-primary))] focus:border-transparent"
-              >
-                <option value={1}>1 copy</option>
-                <option value={2}>2 copies</option>
-                <option value={3}>3 copies</option>
-              </select>
-              <p className="text-sm text-gray-500 mt-1">
-                Print multiple copies of each ticket (e.g., one for kitchen, one for expo)
-              </p>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Copies per Order</label>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, copies: Math.max(1, prev.copies - 1) }))}
+                  className="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold text-slate-700 transition-colors"
+                >
+                  -
+                </button>
+                <span className="w-12 text-center text-xl font-bold text-slate-900">{settings.copies}</span>
+                <button
+                  onClick={() => setSettings(prev => ({ ...prev, copies: Math.min(5, prev.copies + 1) }))}
+                  className="w-10 h-10 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold text-slate-700 transition-colors"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="border-t pt-6 flex gap-3">
+            {/* Test Print */}
+            <div className="border-t pt-6">
               <button
                 onClick={handleTestPrint}
                 disabled={isTesting}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 px-4 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-3 rounded-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50 transition-colors"
               >
-                <Printer className="w-5 h-5" />
-                {isTesting ? 'Printing...' : 'Test Print'}
-              </button>
-              <button
-                onClick={handleSave}
-                className="flex-1 bg-gradient-to-r from-[rgb(var(--color-primary))] to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-4 py-3 rounded-lg font-semibold transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-              >
-                <CheckCircle className="w-5 h-5" />
-                Save Settings
+                <Printer className="w-4 h-4" />
+                {isTesting ? 'Printing...' : 'Print Test Ticket'}
               </button>
             </div>
+
+            {/* Reset */}
+            <button
+              onClick={handleForgetPrinter}
+              className="w-full text-sm text-slate-500 hover:text-red-500 transition-colors"
+            >
+              Reset Printer Settings
+            </button>
+          </div>
+
+          {/* Footer */}
+          <div className="flex gap-3 p-6 border-t bg-slate-50">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-3 border border-slate-200 rounded-lg font-semibold text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg font-semibold transition-colors"
+            >
+              Save Settings
+            </button>
           </div>
         </div>
       </div>

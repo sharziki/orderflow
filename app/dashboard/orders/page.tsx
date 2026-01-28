@@ -4,12 +4,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { 
   Clock, CheckCircle, XCircle, Truck, Store, RefreshCw, ChefHat, Package, 
-  Bell, BellOff, Printer, ArrowLeft, Volume2, VolumeX, Phone, User, MapPin
+  Bell, BellOff, Printer, ArrowLeft, Volume2, VolumeX, Phone, User, MapPin, Settings
 } from 'lucide-react'
 import { browserPrint } from '@/lib/browser-print'
 import { formatHTMLTicket } from '@/lib/ticket-formatter'
 import toast, { Toaster } from 'react-hot-toast'
 import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import PrinterSettingsModal from '@/components/PrinterSettingsModal'
 import {
   DndContext,
   DragEndEvent,
@@ -72,6 +73,7 @@ export default function KanbanOrdersPage() {
   const [updatingOrders, setUpdatingOrders] = useState<Set<string>>(new Set())
   const [printingOrders, setPrintingOrders] = useState<Set<string>>(new Set())
   const [demoMode, setDemoMode] = useState(false)
+  const [showPrinterSettings, setShowPrinterSettings] = useState(false)
   const previousOrderCountRef = useRef(0)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -161,10 +163,20 @@ export default function KanbanOrdersPage() {
   }, [playNotificationSound, fetchOrders])
 
   const updateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
+    const order = orders.find(o => o.id === orderId)
+    
     if (demoMode) {
       // In demo mode, just update local state
       setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o))
       toast.success(`Order status updated to ${newStatus}`)
+      
+      // Auto-print in demo mode too
+      if (newStatus === 'preparing' && order) {
+        const settings = browserPrint.getPrinterSettings()
+        if (settings.autoPrint) {
+          handlePrintOrder({ ...order, status: newStatus })
+        }
+      }
       return
     }
 
@@ -185,6 +197,14 @@ export default function KanbanOrdersPage() {
       }
 
       toast.success(`Order ${newStatus === 'preparing' ? 'accepted' : newStatus}`)
+      
+      // Auto-print when order is accepted (preparing)
+      if (newStatus === 'preparing' && order) {
+        const settings = browserPrint.getPrinterSettings()
+        if (settings.autoPrint) {
+          handlePrintOrder({ ...order, status: newStatus })
+        }
+      }
     } catch (error) {
       fetchOrders()
       toast.error('Failed to update order')
@@ -487,6 +507,15 @@ export default function KanbanOrdersPage() {
                 <option value="delivery" className="text-slate-900">Delivery</option>
               </select>
 
+              {/* Printer Settings */}
+              <button
+                onClick={() => setShowPrinterSettings(true)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                title="Printer Settings"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+
               {/* Sound Toggle */}
               <button
                 onClick={toggleSound}
@@ -614,6 +643,12 @@ export default function KanbanOrdersPage() {
           </DragOverlay>
         </DndContext>
       </div>
+
+      {/* Printer Settings Modal */}
+      <PrinterSettingsModal
+        isOpen={showPrinterSettings}
+        onClose={() => setShowPrinterSettings(false)}
+      />
     </div>
   )
 }
