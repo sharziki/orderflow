@@ -20,10 +20,12 @@ export interface Store {
   address: string | null
   city: string | null
   state: string | null
+  zip?: string | null
   logo: string | null
   primaryColor: string
   secondaryColor: string
   template: string
+  menuLayout?: string
   pickupEnabled: boolean
   deliveryEnabled: boolean
   taxRate: number

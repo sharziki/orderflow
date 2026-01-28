@@ -10,6 +10,7 @@ import {
   MenuItem,
   ModernTemplate,
   SliceTemplate,
+  BluBentonvilleTemplate,
 } from '@/components/store-templates'
 
 export default function StorePage() {
@@ -185,16 +186,19 @@ export default function StorePage() {
     navRef,
   }
 
-  // Render appropriate template
-  switch (store.template) {
+  // Render appropriate template based on store.menuLayout or store.template
+  const layout = (store as any).menuLayout || store.template
+  
+  switch (layout) {
+    case 'blu-bentonville':
+      return <BluBentonvilleTemplate {...templateProps} />
     case 'slice':
       return <SliceTemplate {...templateProps} />
     case 'classic':
-      // Fall back to modern for now, can add ClassicTemplate later
       return <ModernTemplate {...templateProps} />
     case 'bold':
-      // Fall back to modern for now, can add BoldTemplate later
       return <ModernTemplate {...templateProps} />
+    case 'modern':
     default:
       return <ModernTemplate {...templateProps} />
   }

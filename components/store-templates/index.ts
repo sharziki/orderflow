@@ -1,3 +1,4 @@
 export * from './types'
-export { ModernTemplate } from './ModernTemplate'
-export { SliceTemplate } from './SliceTemplate'
+export * from './ModernTemplate'
+export * from './SliceTemplate'
+export * from './BluBentonvilleTemplate'
