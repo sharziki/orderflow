@@ -20,6 +20,7 @@ import {
   Smartphone
 } from 'lucide-react'
 import { MenuLayoutRenderer, MENU_LAYOUTS, type MenuLayoutId } from '@/components/menu-layouts'
+import { FallingPattern } from '@/components/ui/falling-pattern'
 
 // Animation variants
 const fadeInUp: Variants = {
@@ -394,17 +395,28 @@ export default function LandingPage() {
       </motion.nav>
 
       {/* Hero */}
-      <section ref={heroRef} className="pt-32 pb-20 px-4 sm:px-6 relative min-h-screen flex items-center">
+      <section ref={heroRef} className="pt-32 pb-20 px-4 sm:px-6 relative min-h-screen flex items-center overflow-hidden">
+        {/* Falling Pattern Background */}
+        <div className="absolute inset-0 -z-10">
+          <FallingPattern 
+            color="rgba(37, 99, 235, 0.15)"
+            backgroundColor="white"
+            duration={120}
+            blurIntensity="0.5em"
+            density={1.2}
+          />
+        </div>
+        
         <motion.div 
           style={{ opacity: heroOpacity, y: heroY, scale: heroScale }}
-          className="max-w-6xl mx-auto w-full"
+          className="max-w-6xl mx-auto w-full relative z-10"
         >
           <div className="text-center max-w-3xl mx-auto mb-12">
             <motion.div 
               initial={{ opacity: 0, y: 30, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-6"
+              className="inline-flex items-center gap-2 bg-blue-50/80 backdrop-blur-sm text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-6 border border-blue-100"
             >
               <motion.div
                 animate={{ scale: [1, 1.2, 1] }}
@@ -482,7 +494,7 @@ export default function LandingPage() {
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 400 }}
-                className="inline-flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-900 px-8 py-4 rounded-xl text-lg font-semibold transition-colors"
+                className="inline-flex items-center justify-center gap-2 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-900 px-8 py-4 rounded-xl text-lg font-semibold transition-colors border border-slate-200"
               >
                 <motion.span animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }}>
                   <Play className="w-5 h-5" />
@@ -501,23 +513,6 @@ export default function LandingPage() {
             </motion.p>
           </div>
         </motion.div>
-        
-        {/* Background blobs */}
-        <motion.div
-          className="absolute top-40 left-10 w-72 h-72 bg-blue-100 rounded-full blur-3xl opacity-40 -z-10"
-          animate={{ x: [0, 30, 0], y: [0, -30, 0], scale: [1, 1.1, 1] }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute bottom-20 right-10 w-96 h-96 bg-indigo-100 rounded-full blur-3xl opacity-40 -z-10"
-          animate={{ x: [0, -30, 0], y: [0, 30, 0], scale: [1, 1.15, 1] }}
-          transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full blur-3xl opacity-60 -z-10"
-          animate={{ scale: [1, 1.05, 1], rotate: [0, 180, 360] }}
-          transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-        />
       </section>
 
       {/* Social Proof */}
