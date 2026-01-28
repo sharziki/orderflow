@@ -362,18 +362,18 @@ export function BluOriginalTemplate({
       {/* Mobile Sidebar Overlay */}
       {isMobileSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setIsMobileSidebarOpen(false)}
         />
       )}
 
       {/* Layout */}
       <div className="relative min-h-screen">
-        {/* Left Sidebar */}
+        {/* Left Sidebar - Always visible on tablet/desktop (md+), slide-in on mobile */}
         <div className={`
-          fixed lg:fixed top-0 left-0 h-screen z-40 w-80
+          fixed top-0 left-0 h-screen z-40 w-80
           transform transition-transform duration-300 ease-in-out bg-white
-          ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}>
           <LeftSidebar
             store={{
@@ -413,7 +413,7 @@ export function BluOriginalTemplate({
         </div>
 
         {/* Main Content */}
-        <main className="p-4 sm:p-6 lg:p-8 lg:ml-80">
+        <main className="p-4 sm:p-6 md:p-8 md:ml-80">
           {/* Section Header */}
           <div className="mb-8 sticky top-0 bg-gray-50 py-4 z-30 border-b border-gray-200 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 shadow-sm">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
@@ -491,16 +491,16 @@ export function BluOriginalTemplate({
         primaryColor={primaryColor}
       />
 
-      {/* Mobile Menu Button */}
+      {/* Mobile Menu Button - Only on phones, hidden on tablet+ */}
       <button
         onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-3 bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full shadow-lg"
+        className="md:hidden fixed top-4 left-4 z-50 p-3 bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full shadow-lg"
       >
         {isMobileSidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
       </button>
 
       {/* Footer */}
-      <footer className="border-t border-gray-200 bg-white mt-24 lg:ml-80">
+      <footer className="border-t border-gray-200 bg-white mt-24 md:ml-80">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col items-center gap-4">
             <div className="flex items-center gap-3">
