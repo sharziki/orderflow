@@ -126,13 +126,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
   
-  // Protect dashboard routes - redirect to login if not authenticated
-  if (path.startsWith('/dashboard')) {
-    console.log('[Middleware] Dashboard route hit:', path)
+  // Protect dashboard and admin routes - redirect to login if not authenticated
+  if (path.startsWith('/dashboard') || path.startsWith('/admin')) {
     const isAuthenticated = await checkAuth(request)
-    console.log('[Middleware] isAuthenticated:', isAuthenticated)
     if (!isAuthenticated) {
-      console.log('[Middleware] Redirecting to login')
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('redirect', path)
       return NextResponse.redirect(loginUrl)
