@@ -117,6 +117,8 @@ export default function CheckoutPage() {
     address: '',
     notes: '',
   })
+  const [tipAmount, setTipAmount] = useState(0)
+  const [customTip, setCustomTip] = useState('')
 
   const primaryColor = store?.primaryColor || '#2563eb'
 
@@ -138,8 +140,23 @@ export default function CheckoutPage() {
   }, [slug])
 
   const subtotal = cart.reduce((sum, item) => sum + item.menuItem.price * item.quantity, 0)
-  const tax = subtotal * (store?.taxRate || 0)
-  const total = subtotal + tax
+  const tax = subtotal * (store?.taxRate || 0.08875)
+  const deliveryFee = orderType === 'delivery' ? 4.99 : 0
+  const tip = orderType === 'delivery' ? tipAmount : 0
+  const total = subtotal + tax + deliveryFee + tip
+
+  const tipPresets = [0, 3, 5, 7]
+
+  const handleTipSelect = (amount: number) => {
+    setTipAmount(amount)
+    setCustomTip('')
+  }
+
+  const handleCustomTip = (value: string) => {
+    setCustomTip(value)
+    const parsed = parseFloat(value)
+    setTipAmount(isNaN(parsed) ? 0 : Math.max(0, parsed))
+  }
 
   const handleContinueToPayment = async () => {
     if (!form.name || !form.email || !form.phone) {
@@ -171,6 +188,8 @@ export default function CheckoutPage() {
             options: [],
           })),
           deliveryAddress: orderType === 'delivery' ? form.address : null,
+          deliveryFee: orderType === 'delivery' ? deliveryFee : 0,
+          tipAmount: orderType === 'delivery' ? tip : 0,
           notes: form.notes,
         })
       })
@@ -279,6 +298,20 @@ export default function CheckoutPage() {
                 <span className="text-slate-600">Tax</span>
                 <span>${tax.toFixed(2)}</span>
               </div>
+              {orderType === 'delivery' && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Delivery Fee</span>
+                    <span>${deliveryFee.toFixed(2)}</span>
+                  </div>
+                  {tip > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-600">Tip for Dasher</span>
+                      <span>${tip.toFixed(2)}</span>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="flex justify-between font-bold text-base pt-1">
                 <span>Total</span>
                 <span style={{ color: primaryColor }}>${total.toFixed(2)}</span>
@@ -367,19 +400,55 @@ export default function CheckoutPage() {
 
             {/* Delivery Address */}
             {orderType === 'delivery' && (
-              <div className="bg-white border border-slate-200 rounded-xl p-4">
-                <h2 className="font-semibold text-slate-900 mb-3">Delivery Address</h2>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
-                  <textarea
-                    value={form.address}
-                    onChange={(e) => setForm({ ...form, address: e.target.value })}
-                    placeholder="123 Main St, Apt 4B, City, State ZIP"
-                    rows={2}
-                    className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                  />
+              <>
+                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                  <h2 className="font-semibold text-slate-900 mb-3">Delivery Address</h2>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 w-5 h-5 text-slate-400" />
+                    <textarea
+                      value={form.address}
+                      onChange={(e) => setForm({ ...form, address: e.target.value })}
+                      placeholder="123 Main St, Apt 4B, City, State ZIP"
+                      rows={2}
+                      className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    />
+                  </div>
                 </div>
-              </div>
+
+                {/* Tip for Dasher */}
+                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                  <h2 className="font-semibold text-slate-900 mb-3">Tip for Dasher</h2>
+                  <div className="flex gap-2 mb-3">
+                    {tipPresets.map((preset) => (
+                      <button
+                        key={preset}
+                        onClick={() => handleTipSelect(preset)}
+                        className={`flex-1 py-3 rounded-lg font-medium text-sm transition-all ${
+                          tipAmount === preset && customTip === ''
+                            ? 'text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                        style={tipAmount === preset && customTip === '' ? { backgroundColor: primaryColor } : {}}
+                      >
+                        {preset === 0 ? 'No tip' : `$${preset}`}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                    <input
+                      type="number"
+                      value={customTip}
+                      onChange={(e) => handleCustomTip(e.target.value)}
+                      placeholder="Custom amount"
+                      step="0.01"
+                      min="0"
+                      className="w-full pl-8 pr-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">100% of tip goes to your delivery driver</p>
+                </div>
+              </>
             )}
 
             {/* Special Instructions */}
