@@ -13,7 +13,8 @@ import {
   Pause,
   Trash2,
   RefreshCw,
-  Loader2
+  Loader2,
+  Truck
 } from 'lucide-react'
 
 interface Tenant {
@@ -43,6 +44,10 @@ interface Tenant {
   isActive: boolean
   stripeOnboardingComplete: boolean
   platformFeePercent: number
+  // DoorDash configuration
+  doordashDeveloperId: string | null
+  doordashKeyId: string | null
+  doordashSigningSecret: string | null
 }
 
 const LAYOUTS = [
@@ -520,21 +525,81 @@ export default function SettingsPage() {
 
         {/* Features Tab */}
         {activeTab === 'features' && (
-          <div className="bg-white rounded-xl p-6 shadow-sm border max-w-lg">
-            <h2 className="text-lg font-semibold mb-4">Features</h2>
-            <div className="space-y-4">
-              {[
-                { id: 'pickup', label: 'Enable Pickup', value: pickupEnabled, setter: setPickupEnabled },
-                { id: 'delivery', label: 'Enable Delivery', value: deliveryEnabled, setter: setDeliveryEnabled },
-                { id: 'scheduled', label: 'Enable Scheduled Orders', value: scheduledOrdersEnabled, setter: setScheduledOrdersEnabled },
-                { id: 'giftcards', label: 'Enable Gift Cards', value: giftCardsEnabled, setter: setGiftCardsEnabled },
-                { id: 'loyalty', label: 'Enable Loyalty Program', value: loyaltyEnabled, setter: setLoyaltyEnabled },
-              ].map(feature => (
-                <label key={feature.id} className="flex items-center gap-3 py-2">
-                  <input type="checkbox" checked={feature.value} onChange={e => feature.setter(e.target.checked)} className="rounded text-blue-600 w-5 h-5" />
-                  <span className="font-medium">{feature.label}</span>
+          <div className="space-y-6 max-w-lg">
+            {/* Order Types */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h2 className="text-lg font-semibold mb-4">Order Types</h2>
+              <div className="space-y-4">
+                <label className="flex items-center gap-3 py-2">
+                  <input type="checkbox" checked={pickupEnabled} onChange={e => setPickupEnabled(e.target.checked)} className="rounded text-blue-600 w-5 h-5" />
+                  <span className="font-medium">Enable Pickup</span>
                 </label>
-              ))}
+                
+                {/* Delivery with DoorDash status */}
+                <div className="border-t pt-4">
+                  <label className="flex items-center gap-3">
+                    <input 
+                      type="checkbox" 
+                      checked={deliveryEnabled} 
+                      onChange={e => setDeliveryEnabled(e.target.checked)} 
+                      className="rounded text-blue-600 w-5 h-5" 
+                    />
+                    <span className="font-medium">Enable Delivery</span>
+                  </label>
+                  
+                  {/* DoorDash status indicator */}
+                  {deliveryEnabled && (
+                    <div className={`mt-3 ml-8 p-3 rounded-lg text-sm ${
+                      tenant?.doordashDeveloperId && tenant?.doordashKeyId && tenant?.doordashSigningSecret
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-amber-50 border border-amber-200'
+                    }`}>
+                      {tenant?.doordashDeveloperId && tenant?.doordashKeyId && tenant?.doordashSigningSecret ? (
+                        <div className="flex items-center gap-2 text-green-700">
+                          <Check className="w-4 h-4" />
+                          <span>DoorDash is configured — delivery is available to customers</span>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-center gap-2 text-amber-700 font-medium">
+                            <AlertTriangle className="w-4 h-4" />
+                            <span>DoorDash not configured</span>
+                          </div>
+                          <p className="text-amber-600 mt-1">
+                            Delivery requires DoorDash Drive integration. Customers won't see delivery option until configured.
+                          </p>
+                          <Link 
+                            href="/dashboard/settings/doordash" 
+                            className="inline-flex items-center gap-1 text-amber-800 font-medium mt-2 hover:underline"
+                          >
+                            Configure DoorDash →
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Other Features */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h2 className="text-lg font-semibold mb-4">Additional Features</h2>
+              <div className="space-y-4">
+                {[
+                  { id: 'scheduled', label: 'Enable Scheduled Orders', desc: 'Let customers order ahead', value: scheduledOrdersEnabled, setter: setScheduledOrdersEnabled },
+                  { id: 'giftcards', label: 'Enable Gift Cards', desc: 'Sell and redeem gift cards', value: giftCardsEnabled, setter: setGiftCardsEnabled },
+                  { id: 'loyalty', label: 'Enable Loyalty Program', desc: 'Reward repeat customers', value: loyaltyEnabled, setter: setLoyaltyEnabled },
+                ].map(feature => (
+                  <label key={feature.id} className="flex items-start gap-3 py-2">
+                    <input type="checkbox" checked={feature.value} onChange={e => feature.setter(e.target.checked)} className="rounded text-blue-600 w-5 h-5 mt-0.5" />
+                    <div>
+                      <span className="font-medium block">{feature.label}</span>
+                      <span className="text-sm text-gray-500">{feature.desc}</span>
+                    </div>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -560,11 +625,27 @@ export default function SettingsPage() {
             {/* DoorDash */}
             <div className="bg-white rounded-xl p-6 shadow-sm border">
               <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold">DoorDash Delivery</h3>
-                  <p className="text-sm text-gray-500">Enable DoorDash Drive for deliveries</p>
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
+                    <Truck className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">DoorDash Drive</h3>
+                    <p className="text-sm text-gray-500">On-demand delivery for your orders</p>
+                    {tenant?.doordashDeveloperId && tenant?.doordashKeyId && tenant?.doordashSigningSecret ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-green-600 mt-1">
+                        <Check className="w-3.5 h-3.5" /> Configured
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 mt-1">
+                        <AlertTriangle className="w-3.5 h-3.5" /> Not configured
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <Link href="/dashboard/settings/doordash" className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Configure</Link>
+                <Link href="/dashboard/settings/doordash" className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">
+                  {tenant?.doordashDeveloperId ? 'Manage' : 'Set Up'}
+                </Link>
               </div>
             </div>
 

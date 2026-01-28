@@ -258,6 +258,7 @@ export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [selectedLayout, setSelectedLayout] = useState<MenuLayoutId>('blu-bentonville')
   const [deviceView, setDeviceView] = useState<'mobile' | 'desktop'>('desktop')
+  const [demoModalOpen, setDemoModalOpen] = useState(false)
   
   const heroRef = useRef(null)
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] })
@@ -662,7 +663,7 @@ export default function LandingPage() {
             </motion.p>
           </AnimatePresence>
 
-          {/* Preview Container */}
+          {/* Preview Container - Static with click to open modal */}
           <div className="flex justify-center">
             <AnimatePresence mode="wait">
               {deviceView === 'mobile' ? (
@@ -672,7 +673,8 @@ export default function LandingPage() {
                   animate={{ opacity: 1, x: 0, rotateY: 0 }}
                   exit={{ opacity: 0, x: 100, rotateY: 15 }}
                   transition={{ duration: 0.5, type: "spring" }}
-                  className="relative"
+                  className="relative group cursor-pointer"
+                  onClick={() => setDemoModalOpen(true)}
                 >
                   <div className="relative bg-slate-900 rounded-[3rem] p-3 shadow-2xl">
                     <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-slate-900 rounded-b-2xl z-10" />
@@ -685,12 +687,8 @@ export default function LandingPage() {
                           </div>
                         </div>
                       </div>
-                      <motion.div 
-                        key={selectedLayout}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="h-full overflow-auto pt-8"
-                      >
+                      {/* Non-interactive preview */}
+                      <div className="h-full overflow-hidden pt-8 pointer-events-none">
                         <MenuLayoutRenderer
                           layout={selectedLayout}
                           restaurantName="Demo Kitchen"
@@ -701,7 +699,14 @@ export default function LandingPage() {
                           menuItems={DEMO_ITEMS}
                           categories={DEMO_CATEGORIES}
                         />
-                      </motion.div>
+                      </div>
+                      {/* Hover overlay */}
+                      <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/10 transition-colors flex items-center justify-center rounded-[2.5rem]">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-xl flex items-center gap-2">
+                          <Play className="w-5 h-5" />
+                          Try Interactive Demo
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-slate-700 rounded-full" />
@@ -713,16 +718,17 @@ export default function LandingPage() {
                   animate={{ opacity: 1, x: 0, rotateY: 0 }}
                   exit={{ opacity: 0, x: -100, rotateY: -15 }}
                   transition={{ duration: 0.5, type: "spring" }}
-                  className="w-full"
+                  className="w-full group cursor-pointer"
                   style={{ maxWidth: '1440px' }}
+                  onClick={() => setDemoModalOpen(true)}
                 >
-                  <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 shadow-2xl">
+                  <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 shadow-2xl relative">
                     <div className="bg-slate-800 rounded-xl overflow-hidden">
                       <div className="flex items-center gap-2 px-4 py-3 bg-slate-700">
                         <div className="flex gap-2">
-                          <motion.div whileHover={{ scale: 1.3 }} className="w-3 h-3 rounded-full bg-red-500 cursor-pointer" />
-                          <motion.div whileHover={{ scale: 1.3 }} className="w-3 h-3 rounded-full bg-yellow-500 cursor-pointer" />
-                          <motion.div whileHover={{ scale: 1.3 }} className="w-3 h-3 rounded-full bg-green-500 cursor-pointer" />
+                          <div className="w-3 h-3 rounded-full bg-red-500" />
+                          <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                          <div className="w-3 h-3 rounded-full bg-green-500" />
                         </div>
                         <div className="flex-1 mx-4">
                           <div className="bg-slate-600 rounded-lg px-4 py-1.5 text-slate-400 text-sm text-center">
@@ -730,12 +736,8 @@ export default function LandingPage() {
                           </div>
                         </div>
                       </div>
-                      <motion.div 
-                        key={selectedLayout}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="h-[600px] overflow-auto bg-white"
-                      >
+                      {/* Non-interactive preview */}
+                      <div className="h-[800px] overflow-hidden bg-white pointer-events-none">
                         <MenuLayoutRenderer
                           layout={selectedLayout}
                           restaurantName="Demo Kitchen"
@@ -746,7 +748,14 @@ export default function LandingPage() {
                           menuItems={DEMO_ITEMS}
                           categories={DEMO_CATEGORIES}
                         />
-                      </motion.div>
+                      </div>
+                    </div>
+                    {/* Hover overlay */}
+                    <div className="absolute inset-4 bg-blue-600/0 group-hover:bg-blue-600/10 transition-colors flex items-center justify-center rounded-xl">
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold shadow-xl flex items-center gap-2 text-lg">
+                        <Play className="w-6 h-6" />
+                        Try Interactive Demo
+                      </div>
                     </div>
                   </div>
                 </motion.div>
@@ -1139,6 +1148,84 @@ export default function LandingPage() {
           </div>
         </div>
       </footer>
+
+      {/* Interactive Demo Modal */}
+      <AnimatePresence>
+        {demoModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setDemoModalOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: "spring", duration: 0.5 }}
+              className="relative w-full max-w-6xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-50">
+                <div className="flex items-center gap-4">
+                  <h3 className="font-semibold text-slate-900">Interactive Demo</h3>
+                  <span className="text-sm text-slate-500">
+                    {MENU_LAYOUTS[selectedLayout].name} Template
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  {/* Layout switcher in modal */}
+                  <select
+                    value={selectedLayout}
+                    onChange={(e) => setSelectedLayout(e.target.value as MenuLayoutId)}
+                    className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {Object.values(MENU_LAYOUTS).map((layout) => (
+                      <option key={layout.id} value={layout.id}>
+                        {layout.thumbnail} {layout.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => setDemoModalOpen(false)}
+                    className="p-2 hover:bg-slate-200 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-slate-500" />
+                  </button>
+                </div>
+              </div>
+              
+              {/* Modal Content - Interactive */}
+              <div className="h-[calc(90vh-80px)] overflow-auto">
+                <MenuLayoutRenderer
+                  layout={selectedLayout}
+                  restaurantName="Demo Kitchen"
+                  logoUrl="https://images.unsplash.com/photo-1567521464027-f127ff144326?w=200&h=200&fit=crop"
+                  storeHours={{ open: '11:00 AM', close: '10:00 PM', isOpen: true }}
+                  primaryColor="#2563eb"
+                  secondaryColor="#4f46e5"
+                  menuItems={DEMO_ITEMS}
+                  categories={DEMO_CATEGORIES}
+                />
+              </div>
+
+              {/* Modal Footer CTA */}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-white via-white to-transparent pt-8 pb-4 px-6">
+                <div className="flex items-center justify-center gap-4">
+                  <Link 
+                    href="/dashboard/onboarding"
+                    className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-colors shadow-lg"
+                  >
+                    Use This Template <ArrowRight className="w-5 h-5" />
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

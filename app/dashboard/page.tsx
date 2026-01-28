@@ -19,7 +19,9 @@ import {
   CreditCard,
   Settings,
   Menu,
-  BarChart3
+  BarChart3,
+  ChefHat,
+  AlertCircle
 } from 'lucide-react'
 import {
   AreaChart,
@@ -285,32 +287,35 @@ export default function DashboardHome() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-8">
-              <Link href="/dashboard" className="text-xl font-bold text-blue-600">
-                OrderFlow
+              <Link href="/dashboard" className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                  <ChefHat className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-xl font-bold text-gray-900">OrderFlow</span>
               </Link>
               <nav className="hidden md:flex items-center gap-1">
                 <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
                   Dashboard
                 </Link>
-                <Link href="/dashboard/menu" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
+                <Link href="/dashboard/menu" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                   Menu
                 </Link>
-                <Link href="/dashboard/orders" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
+                <Link href="/dashboard/orders" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                   Orders
                 </Link>
-                <Link href="/admin" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
+                <Link href="/admin" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                   Kitchen
                 </Link>
-                <Link href="/admin/gift-cards" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
+                <Link href="/admin/gift-cards" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                   Gift Cards
                 </Link>
-                <Link href="/dashboard/settings" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
+                <Link href="/dashboard/settings" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
                   Settings
                 </Link>
               </nav>
             </div>
-            <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" asChild>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" size="sm" asChild className="border-gray-300">
                 <Link href={`/store/${tenant?.slug}`} target="_blank">
                   <ExternalLink className="w-4 h-4 mr-2" />
                   View Store
@@ -332,67 +337,83 @@ export default function DashboardHome() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {/* Today */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Today's Revenue</CardTitle>
-              <DollarSign className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats?.today.revenue || 0)}</div>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`flex items-center text-xs font-medium ${(stats?.today.change || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {(stats?.today.change || 0) >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                  {Math.abs(stats?.today.change || 0).toFixed(1)}%
-                </span>
-                <span className="text-xs text-gray-500">vs yesterday</span>
+          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Today's Revenue</p>
+                  <div className="text-2xl font-bold text-gray-900">{formatCurrency(stats?.today.revenue || 0)}</div>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <span className={`flex items-center text-xs font-semibold px-1.5 py-0.5 rounded ${(stats?.today.change || 0) >= 0 ? 'text-green-700 bg-green-100' : 'text-red-700 bg-red-100'}`}>
+                      {(stats?.today.change || 0) >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                      {Math.abs(stats?.today.change || 0).toFixed(1)}%
+                    </span>
+                    <span className="text-xs text-gray-500">vs yesterday</span>
+                  </div>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Orders Today */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Orders Today</CardTitle>
-              <ShoppingBag className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.today.orders || 0}</div>
-              <div className="text-xs text-gray-500 mt-1">
-                {stats?.week.orders || 0} this week
+          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Orders Today</p>
+                  <div className="text-2xl font-bold text-gray-900">{stats?.today.orders || 0}</div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {stats?.week.orders || 0} orders this week
+                  </p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <ShoppingBag className="h-5 w-5 text-blue-600" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Monthly Revenue */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Monthly Revenue</CardTitle>
-              <TrendingUp className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats?.month.revenue || 0)}</div>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`flex items-center text-xs font-medium ${(stats?.month.change || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  {(stats?.month.change || 0) >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                  {Math.abs(stats?.month.change || 0).toFixed(1)}%
-                </span>
-                <span className="text-xs text-gray-500">growth</span>
+          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Monthly Revenue</p>
+                  <div className="text-2xl font-bold text-gray-900">{formatCurrency(stats?.month.revenue || 0)}</div>
+                  <div className="flex items-center gap-1.5 mt-2">
+                    <span className={`flex items-center text-xs font-semibold px-1.5 py-0.5 rounded ${(stats?.month.change || 0) >= 0 ? 'text-green-700 bg-green-100' : 'text-red-700 bg-red-100'}`}>
+                      {(stats?.month.change || 0) >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                      {Math.abs(stats?.month.change || 0).toFixed(1)}%
+                    </span>
+                    <span className="text-xs text-gray-500">growth</span>
+                  </div>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                  <TrendingUp className="h-5 w-5 text-purple-600" />
+                </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Gift Cards */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-500">Gift Cards</CardTitle>
-              <Gift className="h-4 w-4 text-gray-400" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(stats?.giftCards.totalValue || 0)}</div>
-              <div className="text-xs text-gray-500 mt-1">
-                {stats?.giftCards.activeCards || 0} active cards
+          <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+            <CardContent className="pt-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500 mb-1">Gift Cards Sold</p>
+                  <div className="text-2xl font-bold text-gray-900">{formatCurrency(stats?.giftCards.totalValue || 0)}</div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    {stats?.giftCards.activeCards || 0} active cards
+                  </p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                  <Gift className="h-5 w-5 text-amber-600" />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -477,22 +498,33 @@ export default function DashboardHome() {
             </CardHeader>
             <CardContent>
               {stats?.topItems && stats.topItems.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {stats.topItems.map((item, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-medium flex items-center justify-center flex-shrink-0">
+                    <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                      <span className={`w-7 h-7 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 ${
+                        i === 0 ? 'bg-amber-100 text-amber-700' : 
+                        i === 1 ? 'bg-gray-200 text-gray-700' : 
+                        i === 2 ? 'bg-orange-100 text-orange-700' : 
+                        'bg-gray-100 text-gray-600'
+                      }`}>
                         {i + 1}
                       </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
                         <p className="text-xs text-gray-500">{item.count} sold</p>
                       </div>
-                      <span className="text-sm font-medium text-gray-900">{formatCurrency(item.revenue)}</span>
+                      <span className="text-sm font-semibold text-gray-900">{formatCurrency(item.revenue)}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm text-center py-8">No sales data yet</p>
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                    <BarChart3 className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 text-sm">No sales data yet</p>
+                  <p className="text-gray-400 text-xs mt-1">Start receiving orders to see top items</p>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -510,15 +542,15 @@ export default function DashboardHome() {
             </CardHeader>
             <CardContent>
               {stats?.recentOrders && stats.recentOrders.length > 0 ? (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {stats.recentOrders.map((order) => (
-                    <div key={order.id} className="flex items-center justify-between">
+                    <div key={order.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 transition-colors">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">#{order.orderNumber}</p>
+                        <p className="text-sm font-semibold text-gray-900">#{order.orderNumber}</p>
                         <p className="text-xs text-gray-500">{order.customerName} · {formatTime(order.createdAt)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium text-gray-900">{formatCurrency(order.total)}</p>
+                        <p className="text-sm font-semibold text-gray-900">{formatCurrency(order.total)}</p>
                         <Badge variant="outline" className={`text-xs ${getStatusColor(order.status)}`}>
                           {order.status}
                         </Badge>
@@ -527,7 +559,13 @@ export default function DashboardHome() {
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500 text-sm text-center py-8">No orders yet</p>
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                    <ShoppingBag className="w-6 h-6 text-gray-400" />
+                  </div>
+                  <p className="text-gray-500 text-sm">No orders yet</p>
+                  <p className="text-gray-400 text-xs mt-1">Orders will appear here in real-time</p>
+                </div>
               )}
             </CardContent>
           </Card>

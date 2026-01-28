@@ -12,6 +12,9 @@ interface Store {
   name: string
   primaryColor: string
   taxRate: number
+  deliveryEnabled: boolean
+  deliveryFee: number
+  doordashConfigured: boolean
 }
 
 function CheckoutForm({ 
@@ -134,6 +137,11 @@ export default function CheckoutPage() {
       .then(res => res.json())
       .then(data => {
         setStore(data.store)
+        // If delivery is not available, force pickup
+        if (!data.store?.deliveryEnabled) {
+          setOrderType('pickup')
+          localStorage.setItem(`orderType_${slug}`, 'pickup')
+        }
         setLoading(false)
       })
       .catch(() => setLoading(false))
@@ -141,7 +149,7 @@ export default function CheckoutPage() {
 
   const subtotal = cart.reduce((sum, item) => sum + item.menuItem.price * item.quantity, 0)
   const tax = subtotal * (store?.taxRate || 0.08875)
-  const deliveryFee = orderType === 'delivery' ? 4.99 : 0
+  const deliveryFee = orderType === 'delivery' ? (store?.deliveryFee || 4.99) : 0
   const tip = orderType === 'delivery' ? tipAmount : 0
   const total = subtotal + tax + deliveryFee + tip
 
@@ -326,30 +334,44 @@ export default function CheckoutPage() {
             {/* Order Type */}
             <div className="bg-white border border-slate-200 rounded-xl p-4">
               <h2 className="font-semibold text-slate-900 mb-3">Order Type</h2>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setOrderType('pickup')}
-                  className={`flex-1 py-3 rounded-lg font-medium text-sm transition-all ${
-                    orderType === 'pickup'
-                      ? 'text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                  style={orderType === 'pickup' ? { backgroundColor: primaryColor } : {}}
-                >
-                  Pickup
-                </button>
-                <button
-                  onClick={() => setOrderType('delivery')}
-                  className={`flex-1 py-3 rounded-lg font-medium text-sm transition-all ${
-                    orderType === 'delivery'
-                      ? 'text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                  style={orderType === 'delivery' ? { backgroundColor: primaryColor } : {}}
-                >
-                  Delivery
-                </button>
-              </div>
+              {store?.deliveryEnabled ? (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setOrderType('pickup')}
+                    className={`flex-1 py-3 rounded-lg font-medium text-sm transition-all ${
+                      orderType === 'pickup'
+                        ? 'text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                    style={orderType === 'pickup' ? { backgroundColor: primaryColor } : {}}
+                  >
+                    Pickup
+                  </button>
+                  <button
+                    onClick={() => setOrderType('delivery')}
+                    className={`flex-1 py-3 rounded-lg font-medium text-sm transition-all ${
+                      orderType === 'delivery'
+                        ? 'text-white'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                    style={orderType === 'delivery' ? { backgroundColor: primaryColor } : {}}
+                  >
+                    Delivery
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div 
+                    className="py-3 rounded-lg font-medium text-sm text-center text-white"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    Pickup
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2 text-center">
+                    Delivery is not available for this location
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Contact Info */}

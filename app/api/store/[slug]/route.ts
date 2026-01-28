@@ -80,6 +80,10 @@ export async function GET(
         timezone: true,
         isActive: true,
         loyaltyEnabled: true,
+        // DoorDash config (to check if delivery is actually available)
+        doordashDeveloperId: true,
+        doordashKeyId: true,
+        doordashSigningSecret: true,
       },
     })
     
@@ -189,9 +193,24 @@ export async function GET(
       }
     }
     
+    // Check if DoorDash is actually configured for delivery
+    const doordashConfigured = !!(
+      tenant.doordashDeveloperId &&
+      tenant.doordashKeyId &&
+      tenant.doordashSigningSecret
+    )
+    
+    // Only enable delivery if both the setting is on AND DoorDash is configured
+    const actualDeliveryEnabled = tenant.deliveryEnabled && doordashConfigured
+    
+    // Remove sensitive DoorDash credentials from response
+    const { doordashDeveloperId, doordashKeyId, doordashSigningSecret, ...safeStore } = tenant
+    
     return NextResponse.json({
       store: {
-        ...tenant,
+        ...safeStore,
+        deliveryEnabled: actualDeliveryEnabled,
+        doordashConfigured, // Let frontend know if DoorDash is set up
         isOpen,
       },
       categories: filteredCategories,
