@@ -1,5 +1,23 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { jwtVerify } from 'jose'
+
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'orderflow-secret-change-in-production'
+)
+
+// Check if user is authenticated for protected routes
+async function checkAuth(request: NextRequest): Promise<boolean> {
+  const token = request.cookies.get('auth-token')?.value
+  if (!token) return false
+  
+  try {
+    await jwtVerify(token, JWT_SECRET)
+    return true
+  } catch {
+    return false
+  }
+}
 
 // CSRF Protection: Check Origin header for mutations
 function checkCsrf(request: NextRequest): NextResponse | null {
@@ -78,7 +96,7 @@ function checkCsrf(request: NextRequest): NextResponse | null {
   }
 }
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const url = request.nextUrl
   const hostname = request.headers.get('host') || ''
   
@@ -102,6 +120,16 @@ export function middleware(request: NextRequest) {
     path === '/favicon.ico'
   ) {
     return NextResponse.next()
+  }
+  
+  // Protect dashboard routes - redirect to login if not authenticated
+  if (path.startsWith('/dashboard')) {
+    const isAuthenticated = await checkAuth(request)
+    if (!isAuthenticated) {
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('redirect', path)
+      return NextResponse.redirect(loginUrl)
+    }
   }
   
   // Main domain paths that shouldn't be treated as store slugs
@@ -173,11 +201,10 @@ export const config = {
   matcher: [
     /*
      * Match all paths except:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
