@@ -25,23 +25,46 @@ const COMMANDS = {
 
 interface OrderItem {
   quantity: number
-  name: string
+  name?: string
+  menuItem?: { name: string }
   price: number
 }
 
+// Flexible Order type that works with both OrderFlow and legacy admin formats
 interface Order {
   id: string
-  orderNumber: string
-  type: 'pickup' | 'delivery'
+  orderNumber?: string
+  type?: 'pickup' | 'delivery'
+  orderType?: 'PICKUP' | 'DELIVERY'
   status: string
   createdAt: string
-  customerName: string
+  customerName?: string
+  customer?: { name: string; phone?: string }
   customerPhone?: string
   items: OrderItem[]
   notes?: string | null
   deliveryAddress?: string | null
-  total: number
+  total?: number
+  finalAmount?: number
   scheduledFor?: string | null
+  scheduledPickupTime?: string | null
+}
+
+// Helper to normalize order data from different formats
+function normalizeOrder(order: Order) {
+  const orderNumber = order.orderNumber || order.id.slice(-6).toUpperCase()
+  const orderType = (order.type || order.orderType || 'pickup').toLowerCase() as 'pickup' | 'delivery'
+  const customerName = order.customerName || order.customer?.name || 'Customer'
+  const customerPhone = order.customerPhone || order.customer?.phone
+  const total = order.total ?? order.finalAmount ?? 0
+  const scheduledTime = order.scheduledFor || order.scheduledPickupTime
+  
+  return { orderNumber, orderType, customerName, customerPhone, total, scheduledTime }
+}
+
+// Helper to get item name from different formats
+function getItemName(item: OrderItem): string {
+  return item.name || item.menuItem?.name || 'Item'
 }
 
 /**
@@ -51,6 +74,8 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'ORDER 
   const LINE_WIDTH = 42
   const SEPARATOR = '='.repeat(LINE_WIDTH)
   const DASH_LINE = '-'.repeat(LINE_WIDTH)
+  
+  const { orderNumber, orderType, customerName, customerPhone, total, scheduledTime } = normalizeOrder(order)
 
   let ticket = COMMANDS.INIT
 
@@ -68,7 +93,7 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'ORDER 
   ticket += COMMANDS.LEFT
   ticket += COMMANDS.BOLD_ON
   ticket += COMMANDS.DOUBLE_HEIGHT
-  ticket += `Order #: ${order.orderNumber}` + COMMANDS.LINE_FEED
+  ticket += `Order #: ${orderNumber}` + COMMANDS.LINE_FEED
   ticket += COMMANDS.NORMAL_SIZE
   ticket += COMMANDS.BOLD_OFF
 
@@ -88,13 +113,13 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'ORDER 
 
   // Order Type
   ticket += COMMANDS.BOLD_ON
-  ticket += `Type: [${order.type.toUpperCase()}]` + COMMANDS.LINE_FEED
+  ticket += `Type: [${orderType.toUpperCase()}]` + COMMANDS.LINE_FEED
   ticket += COMMANDS.BOLD_OFF
 
   // Scheduled Time
-  if (order.scheduledFor) {
-    const scheduledTime = new Date(order.scheduledFor)
-    const scheduledStr = scheduledTime.toLocaleString('en-US', {
+  if (scheduledTime) {
+    const scheduledDate = new Date(scheduledTime)
+    const scheduledStr = scheduledDate.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -110,15 +135,15 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'ORDER 
 
   // Customer Information
   ticket += COMMANDS.BOLD_ON
-  ticket += `Customer: ${truncateText(order.customerName, LINE_WIDTH - 10)}` + COMMANDS.LINE_FEED
+  ticket += `Customer: ${truncateText(customerName, LINE_WIDTH - 10)}` + COMMANDS.LINE_FEED
   ticket += COMMANDS.BOLD_OFF
 
-  if (order.customerPhone) {
-    ticket += `Phone: ${order.customerPhone}` + COMMANDS.LINE_FEED
+  if (customerPhone) {
+    ticket += `Phone: ${customerPhone}` + COMMANDS.LINE_FEED
   }
 
   // Delivery Address
-  if (order.type === 'delivery' && order.deliveryAddress) {
+  if (orderType === 'delivery' && order.deliveryAddress) {
     ticket += `Address: ${wrapText(order.deliveryAddress, LINE_WIDTH - 9)}` + COMMANDS.LINE_FEED
   }
 
@@ -131,9 +156,10 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'ORDER 
 
   // Order Items
   order.items.forEach((item) => {
+    const itemName = getItemName(item)
     ticket += COMMANDS.BOLD_ON
     ticket += COMMANDS.DOUBLE_WIDTH
-    ticket += `${item.quantity}x ${truncateText(item.name, (LINE_WIDTH / 2) - 4)}` + COMMANDS.LINE_FEED
+    ticket += `${item.quantity}x ${truncateText(itemName, (LINE_WIDTH / 2) - 4)}` + COMMANDS.LINE_FEED
     ticket += COMMANDS.NORMAL_SIZE
     ticket += COMMANDS.BOLD_OFF
     ticket += COMMANDS.LINE_FEED
@@ -153,7 +179,7 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'ORDER 
   // Total Amount
   ticket += COMMANDS.BOLD_ON
   ticket += COMMANDS.DOUBLE_HEIGHT
-  ticket += `Total: $${order.total.toFixed(2)}` + COMMANDS.LINE_FEED
+  ticket += `Total: $${total.toFixed(2)}` + COMMANDS.LINE_FEED
   ticket += COMMANDS.NORMAL_SIZE
   ticket += COMMANDS.BOLD_OFF
 
@@ -243,6 +269,8 @@ export function formatTestTicket(printerName: string): string {
  * Format order as HTML for browser print dialog
  */
 export function formatHTMLTicket(order: Order, restaurantName: string = 'ORDER FLOW'): string {
+  const { orderNumber, orderType, customerName, customerPhone, total, scheduledTime } = normalizeOrder(order)
+  
   const orderTime = new Date(order.createdAt)
   const timeStr = orderTime.toLocaleTimeString('en-US', {
     hour: '2-digit',
@@ -256,9 +284,9 @@ export function formatHTMLTicket(order: Order, restaurantName: string = 'ORDER F
   })
 
   let scheduledHTML = ''
-  if (order.scheduledFor) {
-    const scheduledTime = new Date(order.scheduledFor)
-    const scheduledStr = scheduledTime.toLocaleString('en-US', {
+  if (scheduledTime) {
+    const scheduledDate = new Date(scheduledTime)
+    const scheduledStr = scheduledDate.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -268,11 +296,14 @@ export function formatHTMLTicket(order: Order, restaurantName: string = 'ORDER F
     scheduledHTML = `<div class="scheduled"><strong>SCHEDULED: ${scheduledStr}</strong></div>`
   }
 
-  const itemsHTML = order.items.map(item => `
-    <div class="item">
-      <div class="item-name"><strong>${item.quantity}x ${item.name}</strong></div>
-    </div>
-  `).join('')
+  const itemsHTML = order.items.map(item => {
+    const itemName = getItemName(item)
+    return `
+      <div class="item">
+        <div class="item-name"><strong>${item.quantity}x ${itemName}</strong></div>
+      </div>
+    `
+  }).join('')
 
   const notesHTML = order.notes && order.notes.trim() ? `
     <div class="separator"></div>
@@ -280,7 +311,7 @@ export function formatHTMLTicket(order: Order, restaurantName: string = 'ORDER F
     <div>${order.notes}</div>
   ` : ''
 
-  const deliveryHTML = order.type === 'delivery' && order.deliveryAddress ? `
+  const deliveryHTML = orderType === 'delivery' && order.deliveryAddress ? `
     <div>Address: ${order.deliveryAddress}</div>
   ` : ''
 
@@ -289,7 +320,7 @@ export function formatHTMLTicket(order: Order, restaurantName: string = 'ORDER F
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Order ${order.orderNumber}</title>
+      <title>Order ${orderNumber}</title>
       <style>
         @media print {
           @page { size: 80mm auto; margin: 0; }
@@ -318,20 +349,20 @@ export function formatHTMLTicket(order: Order, restaurantName: string = 'ORDER F
     <body>
       <div class="header">${restaurantName}</div>
       <div class="double-separator"></div>
-      <div class="order-number">Order #: ${order.orderNumber}</div>
+      <div class="order-number">Order #: ${orderNumber}</div>
       <div>Time: ${timeStr} - ${dateStr}</div>
-      <div><strong>Type: [${order.type.toUpperCase()}]</strong></div>
+      <div><strong>Type: [${orderType.toUpperCase()}]</strong></div>
       ${scheduledHTML}
       <div class="separator"></div>
-      <div><strong>Customer: ${order.customerName}</strong></div>
-      ${order.customerPhone ? `<div>Phone: ${order.customerPhone}</div>` : ''}
+      <div><strong>Customer: ${customerName}</strong></div>
+      ${customerPhone ? `<div>Phone: ${customerPhone}</div>` : ''}
       ${deliveryHTML}
       <div class="separator"></div>
       <div class="section-title">ITEMS:</div>
       ${itemsHTML}
       ${notesHTML}
       <div class="separator"></div>
-      <div class="total">Total: $${order.total.toFixed(2)}</div>
+      <div class="total">Total: $${total.toFixed(2)}</div>
       <div class="double-separator"></div>
       <div class="footer">
         <div>Status: ${order.status}</div>
