@@ -7,6 +7,79 @@ import { sendOrderConfirmation, sendNewOrderNotification } from '@/lib/email'
 import { checkOrderThrottle, formatThrottleMessage } from '@/lib/order-throttle'
 import { calculatePrepTimeFromMenuItems } from '@/lib/prep-time'
 
+// Check if we're in demo mode (no database configured)
+function isDemoMode(): boolean {
+  return !process.env.DATABASE_URL
+}
+
+// Demo orders for when database isn't available
+const DEMO_ORDERS = [
+  {
+    id: 'demo-order-1',
+    orderNumber: 'ORD-20260128-0001',
+    status: 'pending',
+    type: 'delivery',
+    customerName: 'John Smith',
+    customerEmail: 'john@example.com',
+    customerPhone: '(555) 123-4567',
+    deliveryAddress: '123 Main St, San Francisco, CA 94102',
+    items: [
+      { menuItemId: '1', name: 'Classic Cheeseburger', quantity: 2, price: 12.99, options: [], specialRequests: '' },
+      { menuItemId: '5', name: 'Truffle Fries', quantity: 1, price: 6.99, options: [], specialRequests: '' },
+    ],
+    subtotal: 32.97,
+    tax: 2.97,
+    tip: 5.00,
+    deliveryFee: 4.99,
+    discount: 0,
+    total: 45.93,
+    createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
+    notes: 'Extra napkins please',
+  },
+  {
+    id: 'demo-order-2',
+    orderNumber: 'ORD-20260128-0002',
+    status: 'preparing',
+    type: 'pickup',
+    customerName: 'Sarah Johnson',
+    customerEmail: 'sarah@example.com',
+    customerPhone: '(555) 987-6543',
+    items: [
+      { menuItemId: '2', name: 'Crispy Chicken Sandwich', quantity: 1, price: 11.99, options: [], specialRequests: 'No pickles' },
+      { menuItemId: '6', name: 'Fresh Lemonade', quantity: 2, price: 4.99, options: [], specialRequests: '' },
+    ],
+    subtotal: 21.97,
+    tax: 1.98,
+    tip: 3.00,
+    deliveryFee: 0,
+    discount: 0,
+    total: 26.95,
+    createdAt: new Date(Date.now() - 15 * 60000).toISOString(),
+    notes: '',
+  },
+  {
+    id: 'demo-order-3',
+    orderNumber: 'ORD-20260128-0003',
+    status: 'ready',
+    type: 'pickup',
+    customerName: 'Mike Williams',
+    customerEmail: 'mike@example.com',
+    customerPhone: '(555) 456-7890',
+    items: [
+      { menuItemId: '4', name: 'BBQ Bacon Burger', quantity: 1, price: 14.99, options: [], specialRequests: '' },
+      { menuItemId: '3', name: 'Garden Salad', quantity: 1, price: 8.99, options: [], specialRequests: '' },
+    ],
+    subtotal: 23.98,
+    tax: 2.16,
+    tip: 0,
+    deliveryFee: 0,
+    discount: 0,
+    total: 26.14,
+    createdAt: new Date(Date.now() - 25 * 60000).toISOString(),
+    notes: '',
+  },
+]
+
 // Validate promo code and return discount info
 async function validatePromoCode(
   tenantId: string,
@@ -73,6 +146,29 @@ async function validatePromoCode(
 
 // GET /api/orders - List orders for current tenant
 export async function GET(req: NextRequest) {
+  // Demo mode - return demo orders
+  if (isDemoMode()) {
+    const { searchParams } = new URL(req.url)
+    const status = searchParams.get('status')
+    const type = searchParams.get('type')
+    
+    let filteredOrders = [...DEMO_ORDERS]
+    if (status && status !== 'all') {
+      filteredOrders = filteredOrders.filter(o => o.status === status)
+    }
+    if (type && type !== 'all') {
+      filteredOrders = filteredOrders.filter(o => o.type === type)
+    }
+    
+    return NextResponse.json({
+      orders: filteredOrders,
+      total: filteredOrders.length,
+      stats: [],
+      pagination: { limit: 50, offset: 0, hasMore: false },
+      demoMode: true,
+    })
+  }
+
   try {
     const session = await getSession()
     if (!session) {
