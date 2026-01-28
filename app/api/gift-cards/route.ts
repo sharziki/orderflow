@@ -2,6 +2,66 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { getSession } from '@/lib/auth'
 
+// Check if we're in demo mode (no database configured)
+function isDemoMode(): boolean {
+  return !process.env.DATABASE_URL
+}
+
+// Demo gift cards
+const DEMO_GIFT_CARDS = [
+  {
+    id: 'demo-gc-1',
+    code: 'GIFT-DEMO-1234-ABCD',
+    initialAmount: 50.00,
+    currentBalance: 35.50,
+    purchasedBy: 'demo-customer',
+    purchasedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    lastUsedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    status: 'ACTIVE' as const,
+    notes: 'Happy Birthday!\nPayment Intent: pi_demo123',
+    customer: {
+      id: 'demo-customer',
+      name: 'John Smith',
+      email: 'john@example.com',
+      phone: '(555) 123-4567'
+    }
+  },
+  {
+    id: 'demo-gc-2',
+    code: 'GIFT-DEMO-5678-EFGH',
+    initialAmount: 100.00,
+    currentBalance: 100.00,
+    purchasedBy: 'demo-customer-2',
+    purchasedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+    lastUsedAt: null,
+    status: 'ACTIVE' as const,
+    notes: 'Enjoy your gift card!',
+    customer: {
+      id: 'demo-customer-2',
+      name: 'Sarah Johnson',
+      email: 'sarah@example.com',
+      phone: '(555) 987-6543'
+    }
+  },
+  {
+    id: 'demo-gc-3',
+    code: 'GIFT-DEMO-9999-WXYZ',
+    initialAmount: 25.00,
+    currentBalance: 0.00,
+    purchasedBy: 'demo-customer-3',
+    purchasedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    lastUsedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    status: 'REDEEMED' as const,
+    notes: null,
+    customer: {
+      id: 'demo-customer-3',
+      name: 'Mike Williams',
+      email: 'mike@example.com',
+      phone: null
+    }
+  }
+]
+
 // Generate a unique gift card code
 function generateGiftCardCode(): string {
   const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -19,6 +79,11 @@ function generateGiftCardCode(): string {
 
 // GET /api/gift-cards - List gift cards for tenant (dashboard)
 export async function GET(request: NextRequest) {
+  // Demo mode - return demo gift cards
+  if (isDemoMode()) {
+    return NextResponse.json(DEMO_GIFT_CARDS)
+  }
+
   try {
     const session = await getSession()
     if (!session) {
@@ -30,7 +95,8 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ giftCards })
+    // Return array directly for consistency
+    return NextResponse.json(giftCards)
   } catch (error) {
     console.error('[GiftCards] Error:', error)
     return NextResponse.json(

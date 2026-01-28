@@ -73,10 +73,13 @@ export default function AdminGiftCards() {
         throw new Error('Failed to fetch gift cards')
       }
       const data = await response.json()
-      setGiftCards(data)
+      // Handle both array and { giftCards: [] } formats
+      const cards = Array.isArray(data) ? data : (data.giftCards || [])
+      setGiftCards(cards)
     } catch (error) {
       console.error('Error fetching gift cards:', error)
       toast.error('Failed to load gift cards')
+      setGiftCards([]) // Set empty array on error
     } finally {
       setLoading(false)
     }
