@@ -25,40 +25,36 @@ const COMMANDS = {
 
 interface OrderItem {
   quantity: number
-  menuItem: {
-    name: string
-  }
+  name: string
   price: number
 }
 
 interface Order {
   id: string
-  orderType: 'PICKUP' | 'DELIVERY'
+  orderNumber: string
+  type: 'pickup' | 'delivery'
   status: string
   createdAt: string
-  customer: {
-    name: string
-    phone?: string
-  }
+  customerName: string
+  customerPhone?: string
   items: OrderItem[]
-  notes?: string
-  deliveryAddress?: string
-  finalAmount: number
-  scheduledPickupTime?: string | null
+  notes?: string | null
+  deliveryAddress?: string | null
+  total: number
+  scheduledFor?: string | null
 }
 
 /**
  * Format an order for thermal printer (80mm width)
- * 80mm thermal printers typically support 42-48 characters per line at normal width
  */
-export function formatOrderTicket(order: Order, restaurantName: string = 'BLU FISH HOUSE'): string {
+export function formatOrderTicket(order: Order, restaurantName: string = 'ORDER FLOW'): string {
   const LINE_WIDTH = 42
   const SEPARATOR = '='.repeat(LINE_WIDTH)
   const DASH_LINE = '-'.repeat(LINE_WIDTH)
 
   let ticket = COMMANDS.INIT
 
-  // Header - Restaurant Name (Centered, Bold, Double Size)
+  // Header
   ticket += COMMANDS.CENTER
   ticket += COMMANDS.BOLD_ON
   ticket += COMMANDS.DOUBLE_SIZE
@@ -68,11 +64,11 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'BLU FI
   ticket += SEPARATOR + COMMANDS.LINE_FEED
   ticket += COMMANDS.LINE_FEED
 
-  // Order Number (Bold, Large)
+  // Order Number
   ticket += COMMANDS.LEFT
   ticket += COMMANDS.BOLD_ON
   ticket += COMMANDS.DOUBLE_HEIGHT
-  ticket += `Order #: ${order.id.slice(-6).toUpperCase()}` + COMMANDS.LINE_FEED
+  ticket += `Order #: ${order.orderNumber}` + COMMANDS.LINE_FEED
   ticket += COMMANDS.NORMAL_SIZE
   ticket += COMMANDS.BOLD_OFF
 
@@ -90,14 +86,14 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'BLU FI
   })
   ticket += `Time: ${timeStr} - ${dateStr}` + COMMANDS.LINE_FEED
 
-  // Order Type (Bold)
+  // Order Type
   ticket += COMMANDS.BOLD_ON
-  ticket += `Type: [${order.orderType}]` + COMMANDS.LINE_FEED
+  ticket += `Type: [${order.type.toUpperCase()}]` + COMMANDS.LINE_FEED
   ticket += COMMANDS.BOLD_OFF
 
-  // Scheduled Pickup Time (if applicable)
-  if (order.scheduledPickupTime) {
-    const scheduledTime = new Date(order.scheduledPickupTime)
+  // Scheduled Time
+  if (order.scheduledFor) {
+    const scheduledTime = new Date(order.scheduledFor)
     const scheduledStr = scheduledTime.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -114,15 +110,15 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'BLU FI
 
   // Customer Information
   ticket += COMMANDS.BOLD_ON
-  ticket += `Customer: ${truncateText(order.customer.name, LINE_WIDTH - 10)}` + COMMANDS.LINE_FEED
+  ticket += `Customer: ${truncateText(order.customerName, LINE_WIDTH - 10)}` + COMMANDS.LINE_FEED
   ticket += COMMANDS.BOLD_OFF
 
-  if (order.customer.phone) {
-    ticket += `Phone: ${order.customer.phone}` + COMMANDS.LINE_FEED
+  if (order.customerPhone) {
+    ticket += `Phone: ${order.customerPhone}` + COMMANDS.LINE_FEED
   }
 
-  // Delivery Address (if delivery order)
-  if (order.orderType === 'DELIVERY' && order.deliveryAddress) {
+  // Delivery Address
+  if (order.type === 'delivery' && order.deliveryAddress) {
     ticket += `Address: ${wrapText(order.deliveryAddress, LINE_WIDTH - 9)}` + COMMANDS.LINE_FEED
   }
 
@@ -135,20 +131,17 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'BLU FI
 
   // Order Items
   order.items.forEach((item) => {
-    // Item quantity and name (Bold)
     ticket += COMMANDS.BOLD_ON
     ticket += COMMANDS.DOUBLE_WIDTH
-    ticket += `${item.quantity}x ${truncateText(item.menuItem.name, (LINE_WIDTH / 2) - 4)}` + COMMANDS.LINE_FEED
+    ticket += `${item.quantity}x ${truncateText(item.name, (LINE_WIDTH / 2) - 4)}` + COMMANDS.LINE_FEED
     ticket += COMMANDS.NORMAL_SIZE
     ticket += COMMANDS.BOLD_OFF
-
-    // Add a blank line between items for readability
     ticket += COMMANDS.LINE_FEED
   })
 
   ticket += DASH_LINE + COMMANDS.LINE_FEED
 
-  // Special Instructions (if any)
+  // Special Instructions
   if (order.notes && order.notes.trim()) {
     ticket += COMMANDS.BOLD_ON
     ticket += 'SPECIAL REQUESTS:' + COMMANDS.LINE_FEED
@@ -160,7 +153,7 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'BLU FI
   // Total Amount
   ticket += COMMANDS.BOLD_ON
   ticket += COMMANDS.DOUBLE_HEIGHT
-  ticket += `Total: $${order.finalAmount.toFixed(2)}` + COMMANDS.LINE_FEED
+  ticket += `Total: $${order.total.toFixed(2)}` + COMMANDS.LINE_FEED
   ticket += COMMANDS.NORMAL_SIZE
   ticket += COMMANDS.BOLD_OFF
 
@@ -169,37 +162,24 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'BLU FI
   ticket += COMMANDS.CENTER
   ticket += `Status: ${order.status}` + COMMANDS.LINE_FEED
   ticket += COMMANDS.LINE_FEED
-  
-  // Derby Digital branding
   ticket += COMMANDS.BOLD_ON
-  ticket += 'Powered By Derby Digital' + COMMANDS.LINE_FEED
+  ticket += 'Powered By OrderFlow' + COMMANDS.LINE_FEED
   ticket += COMMANDS.BOLD_OFF
   ticket += COMMANDS.LEFT
 
-  // Add extra line feeds before cut
   ticket += COMMANDS.LINE_FEED
   ticket += COMMANDS.LINE_FEED
   ticket += COMMANDS.LINE_FEED
-
-  // Cut paper
   ticket += COMMANDS.CUT
 
   return ticket
 }
 
-/**
- * Truncate text to fit within a maximum width
- */
 function truncateText(text: string, maxWidth: number): string {
-  if (text.length <= maxWidth) {
-    return text
-  }
+  if (text.length <= maxWidth) return text
   return text.substring(0, maxWidth - 3) + '...'
 }
 
-/**
- * Wrap text to multiple lines based on maximum width
- */
 function wrapText(text: string, maxWidth: number, indent: string = '  '): string {
   const words = text.split(' ')
   const lines: string[] = []
@@ -210,23 +190,16 @@ function wrapText(text: string, maxWidth: number, indent: string = '  '): string
     if (testLine.length <= maxWidth) {
       currentLine = testLine
     } else {
-      if (currentLine) {
-        lines.push(currentLine)
-      }
+      if (currentLine) lines.push(currentLine)
       currentLine = word
     }
   })
 
-  if (currentLine) {
-    lines.push(currentLine)
-  }
+  if (currentLine) lines.push(currentLine)
 
   return lines.map((line, index) => (index === 0 ? line : `${indent}${line}`)).join('\n')
 }
 
-/**
- * Generate a test ticket for printer verification
- */
 export function formatTestTicket(printerName: string): string {
   const LINE_WIDTH = 42
   const SEPARATOR = '='.repeat(LINE_WIDTH)
@@ -254,24 +227,22 @@ export function formatTestTicket(printerName: string): string {
 
   ticket += SEPARATOR + COMMANDS.LINE_FEED
   ticket += COMMANDS.CENTER
-  ticket += 'BLU FISH HOUSE' + COMMANDS.LINE_FEED
+  ticket += 'ORDER FLOW' + COMMANDS.LINE_FEED
   ticket += 'Kitchen Printer System' + COMMANDS.LINE_FEED
   ticket += COMMANDS.LEFT
 
   ticket += COMMANDS.LINE_FEED
   ticket += COMMANDS.LINE_FEED
   ticket += COMMANDS.LINE_FEED
-
   ticket += COMMANDS.CUT
 
   return ticket
 }
 
 /**
- * Format order as HTML for browser print dialog fallback
- * Used when Web Serial API or Star WebPRNT is not available
+ * Format order as HTML for browser print dialog
  */
-export function formatHTMLTicket(order: Order, restaurantName: string = 'BLU FISH HOUSE'): string {
+export function formatHTMLTicket(order: Order, restaurantName: string = 'ORDER FLOW'): string {
   const orderTime = new Date(order.createdAt)
   const timeStr = orderTime.toLocaleTimeString('en-US', {
     hour: '2-digit',
@@ -285,8 +256,8 @@ export function formatHTMLTicket(order: Order, restaurantName: string = 'BLU FIS
   })
 
   let scheduledHTML = ''
-  if (order.scheduledPickupTime) {
-    const scheduledTime = new Date(order.scheduledPickupTime)
+  if (order.scheduledFor) {
+    const scheduledTime = new Date(order.scheduledFor)
     const scheduledStr = scheduledTime.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -299,7 +270,7 @@ export function formatHTMLTicket(order: Order, restaurantName: string = 'BLU FIS
 
   const itemsHTML = order.items.map(item => `
     <div class="item">
-      <div class="item-name"><strong>${item.quantity}x ${item.menuItem.name}</strong></div>
+      <div class="item-name"><strong>${item.quantity}x ${item.name}</strong></div>
     </div>
   `).join('')
 
@@ -309,7 +280,7 @@ export function formatHTMLTicket(order: Order, restaurantName: string = 'BLU FIS
     <div>${order.notes}</div>
   ` : ''
 
-  const deliveryHTML = order.orderType === 'DELIVERY' && order.deliveryAddress ? `
+  const deliveryHTML = order.type === 'delivery' && order.deliveryAddress ? `
     <div>Address: ${order.deliveryAddress}</div>
   ` : ''
 
@@ -318,17 +289,11 @@ export function formatHTMLTicket(order: Order, restaurantName: string = 'BLU FIS
     <html>
     <head>
       <meta charset="utf-8">
-      <title>Order #${order.id.slice(-6).toUpperCase()}</title>
+      <title>Order ${order.orderNumber}</title>
       <style>
         @media print {
-          @page {
-            size: 80mm auto;
-            margin: 0;
-          }
-          body {
-            margin: 0;
-            padding: 0;
-          }
+          @page { size: 80mm auto; margin: 0; }
+          body { margin: 0; padding: 0; }
         }
         body {
           font-family: 'Courier New', Courier, monospace;
@@ -338,86 +303,39 @@ export function formatHTMLTicket(order: Order, restaurantName: string = 'BLU FIS
           padding: 5mm;
           line-height: 1.3;
         }
-        .header {
-          text-align: center;
-          font-size: 16px;
-          font-weight: bold;
-          margin-bottom: 3mm;
-        }
-        .separator {
-          border-top: 1px dashed #000;
-          margin: 3mm 0;
-        }
-        .double-separator {
-          border-top: 2px solid #000;
-          margin: 3mm 0;
-        }
-        .order-number {
-          font-size: 18px;
-          font-weight: bold;
-          margin: 2mm 0;
-        }
-        .section-title {
-          font-weight: bold;
-          margin-top: 2mm;
-          margin-bottom: 1mm;
-        }
-        .item {
-          margin: 2mm 0;
-        }
-        .item-name {
-          font-size: 13px;
-        }
-        .scheduled {
-          font-weight: bold;
-          margin: 2mm 0;
-          font-size: 12px;
-        }
-        .total {
-          font-size: 16px;
-          font-weight: bold;
-          margin: 3mm 0;
-        }
-        .footer {
-          text-align: center;
-          margin-top: 3mm;
-          font-size: 10px;
-        }
+        .header { text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 3mm; }
+        .separator { border-top: 1px dashed #000; margin: 3mm 0; }
+        .double-separator { border-top: 2px solid #000; margin: 3mm 0; }
+        .order-number { font-size: 18px; font-weight: bold; margin: 2mm 0; }
+        .section-title { font-weight: bold; margin-top: 2mm; margin-bottom: 1mm; }
+        .item { margin: 2mm 0; }
+        .item-name { font-size: 13px; }
+        .scheduled { font-weight: bold; margin: 2mm 0; font-size: 12px; }
+        .total { font-size: 16px; font-weight: bold; margin: 3mm 0; }
+        .footer { text-align: center; margin-top: 3mm; font-size: 10px; }
       </style>
     </head>
     <body>
       <div class="header">${restaurantName}</div>
       <div class="double-separator"></div>
-
-      <div class="order-number">Order #: ${order.id.slice(-6).toUpperCase()}</div>
+      <div class="order-number">Order #: ${order.orderNumber}</div>
       <div>Time: ${timeStr} - ${dateStr}</div>
-      <div><strong>Type: [${order.orderType}]</strong></div>
+      <div><strong>Type: [${order.type.toUpperCase()}]</strong></div>
       ${scheduledHTML}
-
       <div class="separator"></div>
-
-      <div><strong>Customer: ${order.customer.name}</strong></div>
-      ${order.customer.phone ? `<div>Phone: ${order.customer.phone}</div>` : ''}
+      <div><strong>Customer: ${order.customerName}</strong></div>
+      ${order.customerPhone ? `<div>Phone: ${order.customerPhone}</div>` : ''}
       ${deliveryHTML}
-
       <div class="separator"></div>
-
       <div class="section-title">ITEMS:</div>
       ${itemsHTML}
-
       ${notesHTML}
-
       <div class="separator"></div>
-
-      <div class="total">Total: $${order.finalAmount.toFixed(2)}</div>
-
+      <div class="total">Total: $${order.total.toFixed(2)}</div>
       <div class="double-separator"></div>
-
       <div class="footer">
         <div>Status: ${order.status}</div>
-        <div style="margin-top: 4mm; text-align: center;">
-          <div style="font-weight: bold; margin-bottom: 2mm;">Powered By Derby Digital</div>
-        </div>
+        <div style="margin-top: 4mm;"><strong>Powered By OrderFlow</strong></div>
       </div>
     </body>
     </html>
