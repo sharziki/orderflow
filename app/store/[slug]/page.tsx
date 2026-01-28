@@ -11,6 +11,7 @@ import {
   ModernTemplate,
   SliceTemplate,
   BluBentonvilleTemplate,
+  BluOriginalTemplate,
 } from '@/components/store-templates'
 
 export default function StorePage() {
@@ -191,13 +192,14 @@ export default function StorePage() {
   
   switch (layout) {
     case 'blu-bentonville':
-      return <BluBentonvilleTemplate {...templateProps} />
+    case 'blu-original':
+    case 'sidebar':
+      return <BluOriginalTemplate {...templateProps} />
     case 'slice':
       return <SliceTemplate {...templateProps} />
+    case 'wide':
+      return <BluBentonvilleTemplate {...templateProps} />
     case 'classic':
-      return <ModernTemplate {...templateProps} />
-    case 'bold':
-      return <ModernTemplate {...templateProps} />
     case 'modern':
     default:
       return <ModernTemplate {...templateProps} />
