@@ -5,41 +5,38 @@ import { useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Image from 'next/image'
 
-type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'COMPLETED' | 'CANCELLED'
-
-interface MenuItem {
-  id: string
-  name: string
-  price: number
-}
+type OrderStatus = 'pending' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery' | 'completed' | 'cancelled'
+type OrderType = 'pickup' | 'delivery'
 
 interface OrderItem {
   id: string
+  name: string
+  description?: string
   quantity: number
   price: number
-  menu_item: MenuItem
-}
-
-interface Customer {
-  name: string
-  phone: string
+  total: number
 }
 
 interface Order {
   id: string
+  orderNumber: string
   status: OrderStatus
-  totalAmount: number
-  tax: number
-  deliveryFee?: number
-  merchantDeliveryFee?: number
-  stripeFee: number
-  finalAmount: number
-  orderType: 'PICKUP' | 'DELIVERY'
-  deliveryAddress?: string
-  createdAt: string
-  customer: Customer
+  type: OrderType
+  customerName: string
+  customerEmail: string
+  customerPhone: string
+  deliveryAddress?: string | null
   items: OrderItem[]
-  notes?: string
+  subtotal: number
+  tax: number
+  tip: number
+  deliveryFee: number
+  discount: number
+  total: number
+  notes?: string | null
+  doordashDeliveryId?: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export default function TrackOrderPage() {
@@ -53,7 +50,6 @@ export default function TrackOrderPage() {
 
   useEffect(() => {
     if (!orderId || typeof orderId !== 'string') {
-      console.log('[Tracking] No valid order ID:', orderId)
       setError('No order ID provided')
       setLoading(false)
       return
@@ -61,7 +57,6 @@ export default function TrackOrderPage() {
 
     const fetchOrder = async () => {
       try {
-        console.log('[Tracking] Fetching order:', orderId)
         const response = await fetch(`/api/orders/${orderId}`)
 
         if (response.status === 410) {
@@ -81,7 +76,6 @@ export default function TrackOrderPage() {
         }
 
         const data = await response.json()
-        console.log('[Tracking] Order data:', data)
         setOrder(data)
         setError(null)
       } catch (err) {
@@ -95,7 +89,6 @@ export default function TrackOrderPage() {
     fetchOrder()
 
     // Set up real-time subscription to order updates
-    console.log('[Tracking] Setting up real-time subscription for order:', orderId)
     const channel = supabase
       .channel(`order-${orderId}`)
       .on(
@@ -103,40 +96,24 @@ export default function TrackOrderPage() {
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'orders',
+          table: 'Order',
           filter: `id=eq.${orderId}`
         },
         (payload) => {
           console.log('[Tracking] Real-time update received:', payload)
-          // Refetch order to get complete data with relations
           fetchOrder()
         }
       )
       .subscribe()
 
+    // Poll every 30 seconds as backup
+    const pollInterval = setInterval(fetchOrder, 30000)
+
     return () => {
-      console.log('[Tracking] Cleaning up subscription')
       supabase.removeChannel(channel)
+      clearInterval(pollInterval)
     }
   }, [orderId])
-
-  const getStatusStep = (status: OrderStatus): number => {
-    switch (status) {
-      case 'PENDING':
-      case 'CONFIRMED':
-        return 1
-      case 'PREPARING':
-        return 2
-      case 'READY':
-        return 3
-      case 'COMPLETED':
-        return 4
-      case 'CANCELLED':
-        return 0
-      default:
-        return 0
-    }
-  }
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString)
@@ -145,6 +122,71 @@ export default function TrackOrderPage() {
       minute: '2-digit',
       hour12: true
     })
+  }
+
+  // Pickup order steps
+  const pickupSteps = [
+    { id: 'confirmed', label: 'Order Confirmed', icon: '✓' },
+    { id: 'preparing', label: 'Preparing', icon: '👨‍🍳' },
+    { id: 'ready', label: 'Ready for Pickup', icon: '🔔' },
+    { id: 'completed', label: 'Picked Up', icon: '✅' }
+  ]
+
+  // Delivery order steps
+  const deliverySteps = [
+    { id: 'confirmed', label: 'Order Confirmed', icon: '✓' },
+    { id: 'preparing', label: 'Preparing', icon: '👨‍🍳' },
+    { id: 'ready', label: 'Ready for Dasher', icon: '📦' },
+    { id: 'out_for_delivery', label: 'Out for Delivery', icon: '🚗' },
+    { id: 'completed', label: 'Delivered', icon: '🏠' }
+  ]
+
+  const getStepIndex = (status: OrderStatus, isDelivery: boolean): number => {
+    const steps = isDelivery ? deliverySteps : pickupSteps
+    
+    // Map status to step index
+    switch (status) {
+      case 'pending':
+      case 'confirmed':
+        return 0
+      case 'preparing':
+        return 1
+      case 'ready':
+        return 2
+      case 'out_for_delivery':
+        return isDelivery ? 3 : 2
+      case 'completed':
+        return isDelivery ? 4 : 3
+      case 'cancelled':
+        return -1
+      default:
+        return 0
+    }
+  }
+
+  const getStatusMessage = (status: OrderStatus, isDelivery: boolean): string => {
+    switch (status) {
+      case 'pending':
+        return 'Your order has been received and is being confirmed.'
+      case 'confirmed':
+        return 'Your order has been confirmed! The kitchen will start preparing it soon.'
+      case 'preparing':
+        return 'Your order is being prepared! 👨‍🍳'
+      case 'ready':
+        return isDelivery 
+          ? 'Your order is ready! A DoorDash driver will pick it up soon. 📦'
+          : 'Your order is ready for pickup! 🎉'
+      case 'out_for_delivery':
+        return 'Your order is on the way! The Dasher is heading to you. 🚗'
+      case 'completed':
+        return isDelivery 
+          ? 'Your order has been delivered! Enjoy your meal! 🙏'
+          : 'Order completed. Thank you for dining with us! 🙏'
+      case 'cancelled':
+        return 'This order has been cancelled.'
+      default:
+        return 'Order status unknown.'
+    }
   }
 
   if (loading) {
@@ -194,15 +236,10 @@ export default function TrackOrderPage() {
     return null
   }
 
-  const currentStep = getStatusStep(order.status)
-  const isCancelled = order.status === 'CANCELLED'
-
-  const steps = [
-    { label: 'Order Confirmed', step: 1 },
-    { label: 'Preparing', step: 2 },
-    { label: 'Ready for Pickup', step: 3 },
-    { label: 'Completed', step: 4 }
-  ]
+  const isDelivery = order.type === 'delivery'
+  const steps = isDelivery ? deliverySteps : pickupSteps
+  const currentStepIndex = getStepIndex(order.status, isDelivery)
+  const isCancelled = order.status === 'cancelled'
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 py-8">
@@ -220,11 +257,20 @@ export default function TrackOrderPage() {
           <h1 className="text-3xl font-bold mb-1 text-gray-900">Blu Fish House</h1>
           <p className="text-lg text-gray-600 mb-2">Track Your Order</p>
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-[rgb(var(--color-primary))] text-white rounded-full font-semibold shadow-md">
-            Order #{order.id.slice(-6)}
+            Order #{order.orderNumber}
           </div>
           <p className="text-sm text-gray-500 mt-2">
             Placed at {formatTime(order.createdAt)}
           </p>
+          <div className="mt-2">
+            <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+              isDelivery 
+                ? 'bg-blue-100 text-blue-700' 
+                : 'bg-green-100 text-green-700'
+            }`}>
+              {isDelivery ? '🚗 Delivery' : '🏪 Pickup'}
+            </span>
+          </div>
         </div>
 
         {/* Status Timeline */}
@@ -235,27 +281,27 @@ export default function TrackOrderPage() {
               <div className="absolute top-5 left-0 w-full h-1 bg-gray-200">
                 <div
                   className="h-full bg-[rgb(var(--color-primary))] transition-all duration-500"
-                  style={{ width: `${((currentStep - 1) / 3) * 100}%` }}
+                  style={{ width: `${(currentStepIndex / (steps.length - 1)) * 100}%` }}
                 />
               </div>
 
               {/* Steps */}
               <div className="relative flex justify-between">
-                {steps.map((item) => (
-                  <div key={item.step} className="flex flex-col items-center">
+                {steps.map((step, index) => (
+                  <div key={step.id} className="flex flex-col items-center">
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors shadow-md ${
-                        currentStep >= item.step
+                      className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 transition-colors shadow-md text-lg ${
+                        currentStepIndex >= index
                           ? 'bg-[rgb(var(--color-primary))] text-white'
                           : 'bg-gray-200 text-gray-500'
                       }`}
                     >
-                      {currentStep >= item.step ? '✓' : item.step}
+                      {currentStepIndex >= index ? step.icon : index + 1}
                     </div>
-                    <div className={`text-xs text-center max-w-[80px] ${
-                      currentStep >= item.step ? 'text-gray-900 font-medium' : 'text-gray-500'
+                    <div className={`text-xs text-center max-w-[70px] ${
+                      currentStepIndex >= index ? 'text-gray-900 font-medium' : 'text-gray-500'
                     }`}>
-                      {item.label}
+                      {step.label}
                     </div>
                   </div>
                 ))}
@@ -264,17 +310,17 @@ export default function TrackOrderPage() {
 
             {/* Current Status Message */}
             <div className="mt-8 text-center">
-              {currentStep === 1 && (
-                <p className="text-lg text-blue-600 font-medium">Your order has been confirmed and will be prepared soon.</p>
-              )}
-              {currentStep === 2 && (
-                <p className="text-lg text-blue-600 font-medium">Your order is being prepared! 👨‍🍳</p>
-              )}
-              {currentStep === 3 && (
-                <p className="text-lg text-green-600 font-medium">Your order is ready for pickup! 🎉</p>
-              )}
-              {currentStep === 4 && (
-                <p className="text-lg text-gray-600 font-medium">Order completed. Thank you! 🙏</p>
+              <p className={`text-lg font-medium ${
+                order.status === 'completed' ? 'text-green-600' : 'text-blue-600'
+              }`}>
+                {getStatusMessage(order.status, isDelivery)}
+              </p>
+              
+              {/* DoorDash info for delivery orders */}
+              {isDelivery && order.doordashDeliveryId && (
+                <p className="text-sm text-gray-500 mt-2">
+                  📱 You'll receive SMS updates from DoorDash with Dasher details and real-time tracking.
+                </p>
               )}
             </div>
           </div>
@@ -290,6 +336,19 @@ export default function TrackOrderPage() {
           </div>
         )}
 
+        {/* Delivery Address for delivery orders */}
+        {isDelivery && order.deliveryAddress && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">📍</span>
+              <div>
+                <h3 className="font-semibold text-blue-900">Delivering to:</h3>
+                <p className="text-blue-800">{order.deliveryAddress}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Order Details */}
         <div className="bg-white rounded-lg p-6 mb-6 shadow-md border border-gray-200">
           <h2 className="text-xl font-semibold mb-4 text-gray-900">Order Details</h2>
@@ -297,24 +356,12 @@ export default function TrackOrderPage() {
           <div className="space-y-3 mb-4">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Customer:</span>
-              <span className="text-gray-900 font-medium">{order.customer.name}</span>
+              <span className="text-gray-900 font-medium">{order.customerName}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Phone:</span>
-              <span className="text-gray-900 font-medium">{order.customer.phone}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Order Type:</span>
-              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-                {order.orderType}
-              </span>
-            </div>
-            {order.orderType === 'DELIVERY' && order.deliveryAddress && (
+            {order.customerPhone && (
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Delivery Address:</span>
-                <span className="text-gray-900 font-medium text-right max-w-[60%]">
-                  {order.deliveryAddress}
-                </span>
+                <span className="text-gray-600">Phone:</span>
+                <span className="text-gray-900 font-medium">{order.customerPhone}</span>
               </div>
             )}
           </div>
@@ -330,12 +377,12 @@ export default function TrackOrderPage() {
           <div className="border-t border-gray-200 pt-4">
             <h3 className="font-semibold mb-3 text-gray-900">Items</h3>
             <div className="space-y-2">
-              {order.items.map((item) => (
-                <div key={item.id} className="flex justify-between text-sm">
+              {order.items.map((item, index) => (
+                <div key={item.id || index} className="flex justify-between text-sm">
                   <span className="text-gray-900">
-                    <span className="text-gray-600">{item.quantity}x</span> {item.menu_item.name}
+                    <span className="text-gray-600">{item.quantity}x</span> {item.name}
                   </span>
-                  <span className="text-gray-900 font-medium">${(item.price * item.quantity).toFixed(2)}</span>
+                  <span className="text-gray-900 font-medium">${item.total.toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -344,35 +391,33 @@ export default function TrackOrderPage() {
           <div className="border-t border-gray-200 mt-4 pt-4 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Subtotal:</span>
-              <span className="text-gray-900">${order.totalAmount.toFixed(2)}</span>
+              <span className="text-gray-900">${order.subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-600">Tax:</span>
               <span className="text-gray-900">${order.tax.toFixed(2)}</span>
             </div>
-            {order.orderType === 'DELIVERY' && (
-              <>
-                {(order.deliveryFee ?? 0) > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">DoorDash Delivery Fee:</span>
-                    <span className="text-gray-900">${(order.deliveryFee ?? 0).toFixed(2)}</span>
-                  </div>
-                )}
-                {(order.merchantDeliveryFee ?? 0) > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Merchant Delivery Fee:</span>
-                    <span className="text-gray-900">${(order.merchantDeliveryFee ?? 0).toFixed(2)}</span>
-                  </div>
-                )}
-              </>
+            {order.deliveryFee > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Delivery Fee:</span>
+                <span className="text-gray-900">${order.deliveryFee.toFixed(2)}</span>
+              </div>
             )}
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Processing Fee:</span>
-              <span className="text-gray-900">${order.stripeFee.toFixed(2)}</span>
-            </div>
+            {order.tip > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Tip:</span>
+                <span className="text-gray-900">${order.tip.toFixed(2)}</span>
+              </div>
+            )}
+            {order.discount > 0 && (
+              <div className="flex justify-between text-sm text-green-600">
+                <span>Gift Card Discount:</span>
+                <span>-${order.discount.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-lg font-semibold border-t border-gray-200 pt-2">
               <span className="text-gray-900">Total:</span>
-              <span className="text-[rgb(var(--color-primary))]">${order.finalAmount.toFixed(2)}</span>
+              <span className="text-[rgb(var(--color-primary))]">${order.total.toFixed(2)}</span>
             </div>
           </div>
         </div>

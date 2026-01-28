@@ -23,31 +23,32 @@ import { CSS } from '@dnd-kit/utilities'
 
 interface Order {
   id: string
-  orderType: 'PICKUP' | 'DELIVERY'
-  status: 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'READY' | 'COMPLETED' | 'CANCELLED'
-  totalAmount: number
+  orderNumber: string
+  type: 'pickup' | 'delivery'
+  status: 'pending' | 'confirmed' | 'preparing' | 'ready' | 'completed' | 'cancelled'
+  customerName: string
+  customerEmail: string
+  customerPhone?: string
+  subtotal: number
   deliveryFee: number
   merchantDeliveryFee?: number
-  tax: number
   stripeFee?: number
-  finalAmount: number
-  deliveryAddress?: string
-  doordashOrderId?: string
-  notes?: string
+  tax: number
+  tip: number
+  discount: number
+  total: number
+  deliveryAddress?: string | null
+  doordashDeliveryId?: string | null
+  notes?: string | null
   createdAt: string
-  customer: {
-    name: string
-    email: string
-    phone?: string
-  }
+  updatedAt: string
   items: Array<{
     id: string
+    name: string
+    description?: string
     quantity: number
     price: number
-    menu_item: {
-      name: string
-      description: string
-    }
+    total: number
   }>
 }
 
@@ -55,7 +56,7 @@ export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [filter, setFilter] = useState<'ALL' | 'PICKUP' | 'DELIVERY'>('ALL')
+  const [filter, setFilter] = useState<'ALL' | 'pickup' | 'delivery'>('ALL')
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set())
@@ -215,7 +216,7 @@ export default function AdminDashboard() {
           {
             event: 'INSERT',
             schema: 'public',
-            table: 'orders'
+            table: 'Order'
           },
           (payload: any) => {
             console.log('[Admin] New order received:', payload)
@@ -241,7 +242,7 @@ export default function AdminDashboard() {
           {
             event: 'UPDATE',
             schema: 'public',
-            table: 'orders'
+            table: 'Order'
           },
           async (payload: any) => {
             console.log('[Admin] Order updated:', payload)
@@ -250,7 +251,7 @@ export default function AdminDashboard() {
               fetchOrders()
 
               // Auto-print when order is CONFIRMED
-              if (payload.new.status === 'CONFIRMED') {
+              if (payload.new.status === 'confirmed') {
                 const settings = browserPrint.getPrinterSettings()
                 if (settings.autoPrint) {
                   try {
@@ -322,23 +323,25 @@ export default function AdminDashboard() {
 
       const data = await response.json()
 
-      // Ensure data is an array
-      if (!Array.isArray(data)) {
-        console.error('[Admin] Invalid response format: expected array, got:', typeof data)
+      // Handle both array and { orders: [...] } response formats
+      const ordersArray = Array.isArray(data) ? data : (data.orders || [])
+      
+      if (!Array.isArray(ordersArray)) {
+        console.error('[Admin] Invalid response format:', typeof data)
         setError('Invalid response format from server')
-        setOrders([]) // Set empty array on invalid data
+        setOrders([])
         return
       }
 
-      console.log('[Admin] Orders fetched successfully:', data.length)
+      console.log('[Admin] Orders fetched successfully:', ordersArray.length)
 
       // Check if new orders arrived
-      if (data.length > previousOrderCountRef.current) {
+      if (ordersArray.length > previousOrderCountRef.current) {
         playNotificationSound()
       }
-      previousOrderCountRef.current = data.length
+      previousOrderCountRef.current = ordersArray.length
 
-      setOrders(data)
+      setOrders(ordersArray)
       setError(null) // Clear any previous errors
     } catch (error) {
       console.error('[Admin] Error fetching orders:', error)
@@ -374,7 +377,7 @@ export default function AdminDashboard() {
       }
 
       // Auto-print when order is accepted (changed to PREPARING) if auto-print is enabled
-      if (newStatus === 'PREPARING') {
+      if (newStatus === 'preparing') {
         // Get fresh settings from storage (don't rely on cached values)
         const settings = browserPrint.getPrinterSettings()
         // Only auto-print if explicitly enabled (check for true, not just truthy)
@@ -389,24 +392,24 @@ export default function AdminDashboard() {
               // Convert order to format expected by formatHTMLTicket
               const orderForPrint = {
                 id: order.id,
-                orderType: order.orderType,
+                orderType: order.type.toUpperCase() as 'PICKUP' | 'DELIVERY',
                 status: order.status,
                 createdAt: order.createdAt,
                 customer: {
-                  name: order.customer.name,
-                  phone: order.customer.phone
+                  name: order.customerName,
+                  phone: order.customerPhone
                 },
                 items: order.items.map(item => ({
                   quantity: item.quantity,
                   menuItem: {
-                    name: item.menu_item.name
+                    name: item.name
                   },
                   price: item.price
                 })),
-                notes: order.notes,
-                deliveryAddress: order.deliveryAddress,
-                finalAmount: order.finalAmount,
-                scheduledPickupTime: null
+                notes: order.notes || undefined,
+                deliveryAddress: order.deliveryAddress || undefined,
+                finalAmount: order.total,
+                scheduledPickupTime: undefined
               }
               
               const htmlContent = formatHTMLTicket(orderForPrint)
@@ -497,24 +500,24 @@ export default function AdminDashboard() {
       // Convert order to format expected by formatHTMLTicket
       const orderForPrint = {
         id: order.id,
-        orderType: order.orderType,
+        orderType: order.type.toUpperCase() as 'PICKUP' | 'DELIVERY',
         status: order.status,
         createdAt: order.createdAt,
         customer: {
-          name: order.customer.name,
-          phone: order.customer.phone
+          name: order.customerName,
+          phone: order.customerPhone
         },
         items: order.items.map(item => ({
           quantity: item.quantity,
           menuItem: {
-            name: item.menu_item.name
+            name: item.name
           },
           price: item.price
         })),
-        notes: order.notes,
-        deliveryAddress: order.deliveryAddress,
-        finalAmount: order.finalAmount,
-        scheduledPickupTime: null
+        notes: order.notes || undefined,
+        deliveryAddress: order.deliveryAddress || undefined,
+        finalAmount: order.total,
+        scheduledPickupTime: undefined
       }
       
       const htmlContent = formatHTMLTicket(orderForPrint)
@@ -615,7 +618,7 @@ export default function AdminDashboard() {
         case '2':
         case '3':
           if (!e.metaKey && !e.ctrlKey) {
-            const filters: ('ALL' | 'PICKUP' | 'DELIVERY')[] = ['ALL', 'PICKUP', 'DELIVERY']
+            const filters: ('ALL' | 'pickup' | 'delivery')[] = ['ALL', 'pickup', 'delivery']
             setFilter(filters[parseInt(e.key) - 1])
           }
           break
@@ -677,9 +680,9 @@ export default function AdminDashboard() {
 
     // Map column IDs to order statuses
     const columnToStatus: Record<string, Order['status']> = {
-      'new-orders': 'PENDING',
-      'making-orders': 'PREPARING',
-      'ready-orders': 'READY'
+      'new-orders': 'pending',
+      'making-orders': 'preparing',
+      'ready-orders': 'ready'
     }
 
     // Check if we dropped directly on a column
@@ -692,12 +695,12 @@ export default function AdminDashboard() {
       if (targetOrder) {
         // Map order status to column ID
         const statusToColumn: Record<Order['status'], string> = {
-          'PENDING': 'new-orders',
-          'CONFIRMED': 'new-orders',
-          'PREPARING': 'making-orders',
-          'READY': 'ready-orders',
-          'COMPLETED': 'new-orders', // Fallback
-          'CANCELLED': 'new-orders' // Fallback
+          'pending': 'new-orders',
+          'confirmed': 'new-orders',
+          'preparing': 'making-orders',
+          'ready': 'ready-orders',
+          'completed': 'new-orders', // Fallback
+          'cancelled': 'new-orders' // Fallback
         }
         targetColumn = statusToColumn[targetOrder.status] || 'new-orders'
         newStatus = columnToStatus[targetColumn]
@@ -751,22 +754,22 @@ export default function AdminDashboard() {
 
   // Filter orders by type, exclude COMPLETED and CANCELLED from board
   const activeOrders = orders.filter(order => {
-    const typeMatch = filter === 'ALL' || order.orderType === filter
-    const isActive = order.status !== 'COMPLETED' && order.status !== 'CANCELLED'
+    const typeMatch = filter === 'ALL' || order.type === filter
+    const isActive = order.status !== 'completed' && order.status !== 'cancelled'
     return typeMatch && isActive
   })
 
   // Split orders into columns
   const newOrders = activeOrders
-    .filter(order => order.status === 'PENDING' || order.status === 'CONFIRMED')
+    .filter(order => order.status === 'pending' || order.status === 'confirmed')
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) // oldest first
 
   const makingOrders = activeOrders
-    .filter(order => order.status === 'PREPARING')
+    .filter(order => order.status === 'preparing')
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
   const readyOrders = activeOrders
-    .filter(order => order.status === 'READY')
+    .filter(order => order.status === 'ready')
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
   // Sortable order card component with drag and drop
@@ -843,25 +846,25 @@ export default function AdminDashboard() {
           {/* Customer Name - Large */}
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="flex-1 min-w-0">
-              <h3 className="text-xl font-bold text-gray-900 mb-1">{order.customer.name}</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-1">{order.customerName}</h3>
               <p className="text-xs text-gray-500">#{order.id.slice(-6).toUpperCase()}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${
-                  order.orderType === 'PICKUP'
+                  order.type === 'pickup'
                     ? 'bg-blue-100 text-blue-700'
                     : 'bg-green-100 text-green-700'
                 }`}>
-                  {order.orderType === 'PICKUP' ? <Store className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
-                  {order.orderType}
+                  {order.type === 'pickup' ? <Store className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
+                  {order.type}
                 </span>
                 {/* Category Tag - Fresh Fish Market vs Restaurant */}
-                {order.items.some(item => item.menu_item?.name && (
-                  item.menu_item.name.toLowerCase().includes('fish') ||
-                  item.menu_item.name.toLowerCase().includes('salmon') ||
-                  item.menu_item.name.toLowerCase().includes('tuna') ||
-                  item.menu_item.name.toLowerCase().includes('crab') ||
-                  item.menu_item.name.toLowerCase().includes('snapper') ||
-                  item.menu_item.name.toLowerCase().includes('bass')
+                {order.items.some(item => item.name && (
+                  item.name.toLowerCase().includes('fish') ||
+                  item.name.toLowerCase().includes('salmon') ||
+                  item.name.toLowerCase().includes('tuna') ||
+                  item.name.toLowerCase().includes('crab') ||
+                  item.name.toLowerCase().includes('snapper') ||
+                  item.name.toLowerCase().includes('bass')
                 )) ? (
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-cyan-100 text-cyan-700 border border-cyan-200">
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -879,7 +882,7 @@ export default function AdminDashboard() {
             </div>
             <div className="text-right">
               <p className="text-base font-bold text-gray-900">
-                ${order.finalAmount.toFixed(2)}
+                ${order.total.toFixed(2)}
               </p>
               <p className="text-xs text-gray-500">
                 {new Date(order.createdAt).toLocaleTimeString([], {
@@ -896,7 +899,7 @@ export default function AdminDashboard() {
         {order.items.slice(0, 3).map((item) => (
           <div key={item.id} className="flex items-center justify-between text-xs">
             <span className="text-gray-600 truncate">
-              <span className="font-semibold text-gray-900">{item.quantity}x</span> {item.menu_item.name}
+              <span className="font-semibold text-gray-900">{item.quantity}x</span> {item.name}
             </span>
           </div>
         ))}
@@ -926,12 +929,12 @@ export default function AdminDashboard() {
           onClick={(e) => e.stopPropagation()}
         >
         <div className="flex gap-2">
-          {(order.status === 'PENDING' || order.status === 'CONFIRMED') && (
+          {(order.status === 'pending' || order.status === 'confirmed') && (
             <>
               <button
                 onClick={(e) => {
                   e.stopPropagation()
-                  updateOrderStatus(order.id, 'PREPARING')
+                  updateOrderStatus(order.id, 'preparing')
                 }}
                 onPointerDown={(e) => e.stopPropagation()}
                 onMouseDown={(e) => e.stopPropagation()}
@@ -944,7 +947,7 @@ export default function AdminDashboard() {
               onClick={(e) => {
                 e.stopPropagation()
                 if (confirm('Are you sure you want to reject this order? The customer will be notified.')) {
-                  updateOrderStatus(order.id, 'CANCELLED')
+                  updateOrderStatus(order.id, 'cancelled')
                 }
               }}
               onPointerDown={(e) => e.stopPropagation()}
@@ -956,11 +959,11 @@ export default function AdminDashboard() {
             </button>
           </>
         )}
-        {order.status === 'PREPARING' && (
+        {order.status === 'preparing' && (
           <button
             onClick={(e) => {
               e.stopPropagation()
-              updateOrderStatus(order.id, 'READY')
+              updateOrderStatus(order.id, 'ready')
             }}
             onPointerDown={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -970,11 +973,11 @@ export default function AdminDashboard() {
             Mark Ready
           </button>
         )}
-        {order.status === 'READY' && (
+        {order.status === 'ready' && (
           <button
             onClick={(e) => {
               e.stopPropagation()
-              updateOrderStatus(order.id, 'COMPLETED')
+              updateOrderStatus(order.id, 'completed')
             }}
             onPointerDown={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
@@ -1022,21 +1025,21 @@ export default function AdminDashboard() {
               <div className="flex items-center gap-3 mb-2 flex-wrap">
                 <h2 className="text-2xl font-bold">Order #{order.id.slice(-6)}</h2>
                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded text-sm font-semibold ${
-                  order.orderType === 'PICKUP'
+                  order.type === 'pickup'
                     ? 'bg-white/20 text-white'
                     : 'bg-white/20 text-white'
                 }`}>
-                  {order.orderType === 'PICKUP' ? <Store className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
-                  {order.orderType}
+                  {order.type === 'pickup' ? <Store className="w-4 h-4" /> : <Truck className="w-4 h-4" />}
+                  {order.type}
                 </span>
                 {/* Category Tag - Fresh Fish Market vs Restaurant */}
-                {order.items.some(item => item.menu_item?.name && (
-                  item.menu_item.name.toLowerCase().includes('fish') ||
-                  item.menu_item.name.toLowerCase().includes('salmon') ||
-                  item.menu_item.name.toLowerCase().includes('tuna') ||
-                  item.menu_item.name.toLowerCase().includes('crab') ||
-                  item.menu_item.name.toLowerCase().includes('snapper') ||
-                  item.menu_item.name.toLowerCase().includes('bass')
+                {order.items.some(item => item.name && (
+                  item.name.toLowerCase().includes('fish') ||
+                  item.name.toLowerCase().includes('salmon') ||
+                  item.name.toLowerCase().includes('tuna') ||
+                  item.name.toLowerCase().includes('crab') ||
+                  item.name.toLowerCase().includes('snapper') ||
+                  item.name.toLowerCase().includes('bass')
                 )) ? (
                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-sm font-semibold bg-cyan-50 text-cyan-700 border border-cyan-300">
                     <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -1071,16 +1074,16 @@ export default function AdminDashboard() {
               <div className="card p-4 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-neutral-400">Name:</span>
-                  <span className="font-medium">{order.customer.name}</span>
+                  <span className="font-medium">{order.customerName}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-400">Email:</span>
-                  <span className="font-medium">{order.customer.email}</span>
+                  <span className="font-medium">{order.customerEmail}</span>
                 </div>
-                {order.customer.phone && (
+                {order.customerPhone && (
                   <div className="flex justify-between">
                     <span className="text-neutral-400">Phone:</span>
-                    <span className="font-medium">{order.customer.phone}</span>
+                    <span className="font-medium">{order.customerPhone}</span>
                   </div>
                 )}
               </div>
@@ -1103,8 +1106,8 @@ export default function AdminDashboard() {
                 {order.items.map((item) => (
                   <div key={item.id} className="flex items-start justify-between">
                     <div className="flex-1">
-                      <p className="font-medium">{item.menu_item.name}</p>
-                      <p className="text-sm text-neutral-400">{item.menu_item.description}</p>
+                      <p className="font-medium">{item.name}</p>
+                      <p className="text-sm text-neutral-400">{item.description}</p>
                       <p className="text-xs text-neutral-500 mt-1">
                         ${item.price.toFixed(2)} × {item.quantity}
                       </p>
@@ -1123,13 +1126,13 @@ export default function AdminDashboard() {
               <div className="card p-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-neutral-400">Subtotal:</span>
-                  <span>${order.totalAmount.toFixed(2)}</span>
+                  <span>${order.subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-neutral-400">Tax:</span>
                   <span>${order.tax.toFixed(2)}</span>
                 </div>
-                {order.orderType === 'DELIVERY' && (
+                {order.type === 'delivery' && (
                   <>
                     {order.deliveryFee > 0 && (
                       <div className="flex justify-between text-sm">
@@ -1151,19 +1154,19 @@ export default function AdminDashboard() {
                 </div>
                 <div className="border-t border-neutral-800 pt-2 flex justify-between text-lg font-bold">
                   <span>Total:</span>
-                  <span className="text-[rgb(var(--color-primary))]">${order.finalAmount.toFixed(2)}</span>
+                  <span className="text-[rgb(var(--color-primary))]">${order.total.toFixed(2)}</span>
                 </div>
               </div>
             </div>
 
             {/* Action Buttons */}
             <div className="space-y-2 pt-4">
-              {(order.status === 'PENDING' || order.status === 'CONFIRMED') && (
+              {(order.status === 'pending' || order.status === 'confirmed') && (
                 <>
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      updateOrderStatus(order.id, 'PREPARING')
+                      updateOrderStatus(order.id, 'preparing')
                       setSelectedOrder(null)
                     }}
                     className="btn-primary w-full"
@@ -1175,7 +1178,7 @@ export default function AdminDashboard() {
                     onClick={(e) => {
                       e.stopPropagation()
                       if (confirm('Are you sure you want to reject this order? The customer will be notified and this action cannot be undone.')) {
-                        updateOrderStatus(order.id, 'CANCELLED')
+                        updateOrderStatus(order.id, 'cancelled')
                         setSelectedOrder(null)
                       }
                     }}
@@ -1186,11 +1189,11 @@ export default function AdminDashboard() {
                   </button>
                 </>
               )}
-              {order.status === 'PREPARING' && (
+              {order.status === 'preparing' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    updateOrderStatus(order.id, 'READY')
+                    updateOrderStatus(order.id, 'ready')
                     setSelectedOrder(null)
                   }}
                   className="btn-primary w-full"
@@ -1199,11 +1202,11 @@ export default function AdminDashboard() {
                   Mark as Ready
                 </button>
               )}
-              {order.status === 'READY' && (
+              {order.status === 'ready' && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
-                    updateOrderStatus(order.id, 'COMPLETED')
+                    updateOrderStatus(order.id, 'completed')
                     setSelectedOrder(null)
                   }}
                   className="w-full rounded px-4 py-3 text-sm font-medium text-white bg-green-600 hover:bg-green-700 flex items-center justify-center gap-2"
@@ -1503,22 +1506,22 @@ export default function AdminDashboard() {
                     )}
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-xl font-bold text-gray-900 mb-1">{draggedOrder.customer.name}</h3>
+                        <h3 className="text-xl font-bold text-gray-900 mb-1">{draggedOrder.customerName}</h3>
                         <p className="text-xs text-gray-500">#{draggedOrder.id.slice(-6).toUpperCase()}</p>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${
-                            draggedOrder.orderType === 'PICKUP'
+                            draggedOrder.type === 'pickup'
                               ? 'bg-blue-100 text-blue-700'
                               : 'bg-green-100 text-green-700'
                           }`}>
-                            {draggedOrder.orderType === 'PICKUP' ? <Store className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
-                            {draggedOrder.orderType}
+                            {draggedOrder.type === 'pickup' ? <Store className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
+                            {draggedOrder.type}
                           </span>
                         </div>
                       </div>
                       <div className="text-right">
                         <p className="text-base font-bold text-gray-900">
-                          ${draggedOrder.finalAmount.toFixed(2)}
+                          ${draggedOrder.total.toFixed(2)}
                         </p>
                       </div>
                     </div>
