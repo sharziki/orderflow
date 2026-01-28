@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { X, Plus, Minus, Truck, Store, CreditCard, MapPin, Check, Gift, Loader2 } from 'lucide-react'
-import toast from 'react-hot-toast'
 import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import AddressPicker from './AddressPicker'
@@ -462,7 +461,7 @@ export default function OrderModal({
       if (!orderResponse.ok) {
         const text = await orderResponse.text().catch(() => '')
         console.error('[Checkout] Order API non-OK:', orderResponse.status, text)
-        toast.error('Order creation failed. Please try again.')
+        alert('Order creation failed. Please try again.')
         return
       }
 
@@ -499,11 +498,11 @@ export default function OrderModal({
         onUpdateCart([])
         window.location.href = `/track/${result.orderId}`
       } else {
-        toast.error(result.error || 'Order creation failed. Please try again.')
+        alert(result.error || 'Order creation failed. Please try again.')
       }
     } catch (err) {
       console.error('[Checkout] Gift-card-only order error:', err)
-      toast.error('Something went wrong. Please try again.')
+      alert('An unexpected error occurred. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -565,14 +564,14 @@ export default function OrderModal({
     }
 
     if (!orderType || !customerInfo.name || !customerInfo.email) {
-      toast.error('Please fill in your name and email')
+      alert('Please fill in all required fields')
       return
     }
 
     // Basic email validation
     const emailValid = /.+@.+\..+/.test(customerInfo.email)
     if (!emailValid) {
-      toast.error('Please enter a valid email address')
+      alert('Please enter a valid email address')
       return
     }
 
@@ -580,18 +579,18 @@ export default function OrderModal({
     if (customerInfo.phone && customerInfo.phone.trim()) {
       const phoneDigits = customerInfo.phone.replace(/\D/g, '')
       if (phoneDigits.length < 10) {
-        toast.error('Please enter a valid 10-digit phone number (e.g., 555-123-4567)')
+        alert('Please enter a valid phone number with at least 10 digits, or leave it empty to use default')
         return
       }
     }
 
     if (orderType === 'DELIVERY' && !deliveryAddress) {
-      toast.error('Please enter a delivery address')
+      alert('Please provide delivery address')
       return
     }
 
     if (orderType === 'DELIVERY' && !addressValidated) {
-      toast.error('Please select an address from the suggestions to verify it')
+      alert('Please select a validated address from the dropdown suggestions, or click one of the test address buttons.')
       return
     }
 
@@ -737,11 +736,14 @@ export default function OrderModal({
           // Check for specific field validation errors
           if (quoteJson.error?.field_errors && Array.isArray(quoteJson.error.field_errors)) {
             const fieldErrors = quoteJson.error.field_errors
-              .map((fe: any) => `${fe.field}: ${fe.error}`)
-              .join('; ')
-
-            if (fieldErrors) {
-              errorMessage = `Address validation failed: ${fieldErrors}. Please select an address from the dropdown suggestions.`
+            
+            // Check for phone number errors specifically
+            const phoneError = fieldErrors.find((fe: any) => fe.field === 'dropoff_phone_number')
+            if (phoneError) {
+              errorMessage = '📱 Please enter a valid US phone number (not 555-xxx-xxxx or other fake numbers).'
+            } else {
+              const errorDetails = fieldErrors.map((fe: any) => `${fe.field}: ${fe.error}`).join('; ')
+              errorMessage = `Address validation failed: ${errorDetails}. Please select an address from the dropdown suggestions.`
             }
           } else if (quoteJson.error?.code === 'validation_error') {
             errorMessage = 'Address validation failed. Please select a valid address from the dropdown suggestions, or click one of the test address buttons.'
@@ -792,7 +794,7 @@ export default function OrderModal({
       
     } catch (error) {
       console.error('Payment setup error:', error)
-      toast.error('Payment setup failed. Please try again.')
+      alert('Failed to initialize payment. Please try again.')
     } finally {
       setIsSubmitting(false)
     }
@@ -1050,43 +1052,46 @@ export default function OrderModal({
                     </div>
                   )}
 
-                  <div className="mt-4">
-                    <label className="mb-2 block text-sm font-semibold text-gray-700">
-                      Optional Tip for Dasher
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-neutral-400">$</span>
-                      <input
-                        type="text"
-                        value={tipInputValue}
-                        onChange={(e) => {
-                          const rawValue = e.target.value
-                          // Allow empty string, numbers, and one decimal point
-                          if (rawValue === '' || /^\d*\.?\d*$/.test(rawValue)) {
-                            setTipInputValue(rawValue)
-                            // Update tipCents as user types
-                            const dollars = parseFloat(rawValue || '0')
-                            if (!isNaN(dollars)) {
-                              setTipCents(Math.max(0, Math.round(dollars * 100)))
+                  {/* Tip for Dasher - only show for delivery orders */}
+                  {orderType === 'DELIVERY' && (
+                    <div className="mt-4">
+                      <label className="mb-2 block text-sm font-semibold text-gray-700">
+                        Optional Tip for Dasher
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-neutral-400">$</span>
+                        <input
+                          type="text"
+                          value={tipInputValue}
+                          onChange={(e) => {
+                            const rawValue = e.target.value
+                            // Allow empty string, numbers, and one decimal point
+                            if (rawValue === '' || /^\d*\.?\d*$/.test(rawValue)) {
+                              setTipInputValue(rawValue)
+                              // Update tipCents as user types
+                              const dollars = parseFloat(rawValue || '0')
+                              if (!isNaN(dollars)) {
+                                setTipCents(Math.max(0, Math.round(dollars * 100)))
+                              }
                             }
-                          }
-                        }}
-                        onBlur={(e) => {
-                          // Format to 2 decimal places on blur
-                          const dollars = parseFloat(e.target.value || '0')
-                          if (isNaN(dollars) || dollars < 0) {
-                            setTipInputValue('0.00')
-                            setTipCents(0)
-                          } else {
-                            setTipInputValue(dollars.toFixed(2))
-                            setTipCents(Math.round(dollars * 100))
-                          }
-                        }}
-                        className="input-field"
-                        placeholder="0.00"
-                      />
+                          }}
+                          onBlur={(e) => {
+                            // Format to 2 decimal places on blur
+                            const dollars = parseFloat(e.target.value || '0')
+                            if (isNaN(dollars) || dollars < 0) {
+                              setTipInputValue('0.00')
+                              setTipCents(0)
+                            } else {
+                              setTipInputValue(dollars.toFixed(2))
+                              setTipCents(Math.round(dollars * 100))
+                            }
+                          }}
+                          className="input-field"
+                          placeholder="0.00"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
               <div>
@@ -1396,7 +1401,7 @@ export default function OrderModal({
                 <button
                   onClick={async () => {
                     if (quoteLoading || quoteError || deliveryFeeCents === null) {
-                      toast.error('Please wait for the delivery quote to load')
+                      alert('Please wait for the quote to load or fix any errors.')
                       return
                     }
 
@@ -1414,7 +1419,9 @@ export default function OrderModal({
                         })
                         const acceptJson = await acceptRes.json()
                         if (!acceptJson.success) {
-                          toast.error('Could not confirm delivery. Please try again.')
+                          const errorMsg = acceptJson.error?.message || acceptJson.error?.field_errors?.[0]?.error || 'Quote may have expired. Please refresh and try again.'
+                          console.error('[OrderModal] DoorDash quote accept failed:', acceptJson)
+                          alert(`Delivery quote error: ${errorMsg}`)
                           return
                         }
                         setAcceptedDeliveryId(acceptJson.delivery?.delivery_id ?? null)
@@ -1444,7 +1451,7 @@ export default function OrderModal({
                       setClientSecret(paymentData.clientSecret)
                       setStep(4)
                     } catch (e) {
-                      toast.error('Payment setup failed. Please try again.')
+                      alert('Failed to initialize payment. Please try again.')
                     }
                   }}
                   disabled={quoteLoading || !!quoteError || deliveryFeeCents === null}

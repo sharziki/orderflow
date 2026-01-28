@@ -5,6 +5,7 @@ import { ShoppingCart, Menu, X, Plus, Minus } from 'lucide-react'
 import { StoreTemplateProps, MenuItem } from './types'
 import LeftSidebar from '@/components/blu-template/LeftSidebar'
 import AddressPicker from '@/components/AddressPicker'
+import OrderModal from '@/components/OrderModal'
 
 // MenuItemCard component
 function MenuItemCard({ 
@@ -259,6 +260,7 @@ export function BluOriginalTemplate({
   const [activeSection, setActiveSection] = useState('All')
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
   const [showDeliveryModal, setShowDeliveryModal] = useState(false)
+  const [showOrderModal, setShowOrderModal] = useState(false)
   const [deliveryAddress, setDeliveryAddress] = useState('')
   const [deliveryCoordinates, setDeliveryCoordinates] = useState<{ lat: number; lng: number } | null>(null)
 
@@ -487,7 +489,7 @@ export function BluOriginalTemplate({
       <FloatingCart
         itemCount={cartCount}
         total={cartTotal}
-        onClick={goToCheckout}
+        onClick={() => setShowOrderModal(true)}
         primaryColor={primaryColor}
       />
 
@@ -542,6 +544,31 @@ export function BluOriginalTemplate({
           setShowDeliveryModal(false)
         }}
         primaryColor={primaryColor}
+      />
+
+      {/* Order Modal */}
+      <OrderModal
+        isOpen={showOrderModal}
+        onClose={() => setShowOrderModal(false)}
+        cart={cart.map(c => ({
+          id: c.menuItem.id,
+          name: c.menuItem.name,
+          description: c.menuItem.description || '',
+          price: c.menuItem.price,
+          category: '',
+          quantity: c.quantity,
+        }))}
+        onUpdateCart={(newCart) => {
+          // Transform back to store template format
+          // For now, just clear cart on order completion
+          if (newCart.length === 0) {
+            // Cart was cleared (order completed)
+            window.location.reload()
+          }
+        }}
+        total={cartTotal}
+        preselectedOrderType={orderType === 'delivery' ? 'DELIVERY' : 'PICKUP'}
+        preselectedDeliveryAddress={deliveryAddress}
       />
     </div>
   )
