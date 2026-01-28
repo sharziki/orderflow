@@ -124,8 +124,8 @@ export default function StorePage() {
     setCart(prev => {
       return prev.map(c => {
         if (c.menuItem.id === itemId) {
-          const newQty = c.quantity + delta
-          return newQty > 0 ? { ...c, quantity: newQty } : c
+          const newQty = Math.max(0, c.quantity + delta)
+          return { ...c, quantity: newQty }
         }
         return c
       }).filter(c => c.quantity > 0)
