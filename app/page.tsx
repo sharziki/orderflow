@@ -397,13 +397,13 @@ export default function LandingPage() {
       {/* Hero */}
       <section ref={heroRef} className="pt-32 pb-20 px-4 sm:px-6 relative min-h-screen flex items-center overflow-hidden bg-white">
         {/* Falling Pattern Background */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 pointer-events-none">
           <FallingPattern 
-            color="rgba(37, 99, 235, 0.25)"
+            color="rgba(37, 99, 235, 0.4)"
             backgroundColor="transparent"
-            duration={100}
-            blurIntensity="0.3em"
-            density={1}
+            duration={80}
+            blurIntensity="0.2em"
+            density={0.8}
           />
         </div>
         
