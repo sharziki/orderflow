@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { 
   Store, 
@@ -16,7 +16,9 @@ import {
 
 export default function StorePage() {
   const params = useParams()
+  const searchParams = useSearchParams()
   const slug = params.slug as string
+  const layoutOverride = searchParams.get('layout') // For preview in settings
   
   const [store, setStore] = useState<Store | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
@@ -187,8 +189,8 @@ export default function StorePage() {
     navRef,
   }
 
-  // Render appropriate template based on store.menuLayout or store.template
-  const layout = (store as any).menuLayout || store.template
+  // Render appropriate template based on layoutOverride, store.menuLayout, or store.template
+  const layout = layoutOverride || (store as any).menuLayout || store.template
   
   switch (layout) {
     case 'blu-bentonville':

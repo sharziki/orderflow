@@ -4,17 +4,14 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  ArrowLeft,
   Save,
   Upload,
-  MapPin,
-  Phone,
-  Clock,
-  Palette,
-  Layout,
-  Store,
+  Check,
   ExternalLink,
-  Check
+  AlertTriangle,
+  Pause,
+  Trash2,
+  RefreshCw
 } from 'lucide-react'
 
 interface Tenant {
@@ -37,13 +34,20 @@ interface Tenant {
   deliveryEnabled: boolean
   deliveryFee: number
   minOrderAmount: number
+  pickupEnabled: boolean
+  scheduledOrdersEnabled: boolean
+  giftCardsEnabled: boolean
+  loyaltyEnabled: boolean
+  isActive: boolean
+  stripeOnboardingComplete: boolean
+  platformFeePercent: number
 }
 
 const LAYOUTS = [
-  { id: 'sidebar', name: 'Sidebar', description: 'Left sidebar with categories, like Blu Bentonville' },
-  { id: 'modern', name: 'Modern', description: 'Centered layout with sticky nav' },
-  { id: 'wide', name: 'Wide', description: 'Full-width with desktop cart sidebar' },
-  { id: 'slice', name: 'Slice', description: 'Pizza-shop style cards' },
+  { id: 'sidebar', name: 'Sidebar', description: 'Left sidebar with categories' },
+  { id: 'modern', name: 'Modern', description: 'Centered narrow layout' },
+  { id: 'wide', name: 'Wide', description: 'Full-width with cart sidebar' },
+  { id: 'slice', name: 'Slice', description: 'Pizza-shop card style' },
 ]
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
@@ -54,6 +58,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [tenant, setTenant] = useState<Tenant | null>(null)
   const [activeTab, setActiveTab] = useState('store')
+  const [previewKey, setPreviewKey] = useState(0)
   
   // Form state
   const [name, setName] = useState('')
@@ -69,7 +74,14 @@ export default function SettingsPage() {
   const [deliveryEnabled, setDeliveryEnabled] = useState(false)
   const [deliveryFee, setDeliveryFee] = useState(0)
   const [minOrderAmount, setMinOrderAmount] = useState(0)
+  const [pickupEnabled, setPickupEnabled] = useState(true)
+  const [scheduledOrdersEnabled, setScheduledOrdersEnabled] = useState(true)
+  const [giftCardsEnabled, setGiftCardsEnabled] = useState(false)
+  const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
+  const [isActive, setIsActive] = useState(true)
   const [businessHours, setBusinessHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({})
+  const [gaId, setGaId] = useState('')
+  const [fbPixelId, setFbPixelId] = useState('')
 
   useEffect(() => {
     fetchSettings()
@@ -100,6 +112,11 @@ export default function SettingsPage() {
       setDeliveryEnabled(t.deliveryEnabled || false)
       setDeliveryFee(t.deliveryFee || 0)
       setMinOrderAmount(t.minOrderAmount || 0)
+      setPickupEnabled(t.pickupEnabled !== false)
+      setScheduledOrdersEnabled(t.scheduledOrdersEnabled !== false)
+      setGiftCardsEnabled(t.giftCardsEnabled || false)
+      setLoyaltyEnabled(t.loyaltyEnabled || false)
+      setIsActive(t.isActive !== false)
       
       // Business hours
       const hours = t.businessHours || {}
@@ -136,14 +153,21 @@ export default function SettingsPage() {
           deliveryEnabled,
           deliveryFee,
           minOrderAmount,
+          pickupEnabled,
+          scheduledOrdersEnabled,
+          giftCardsEnabled,
+          loyaltyEnabled,
+          isActive,
           businessHours,
         })
       })
       
       if (res.ok) {
+        setPreviewKey(k => k + 1) // Refresh preview
         alert('Settings saved!')
       } else {
-        alert('Failed to save settings')
+        const data = await res.json()
+        alert(data.error || 'Failed to save settings')
       }
     } catch (error) {
       alert('Failed to save settings')
@@ -180,6 +204,26 @@ export default function SettingsPage() {
     }))
   }
 
+  const handlePauseStore = async () => {
+    if (!confirm('This will temporarily disable ordering. Continue?')) return
+    setIsActive(false)
+    await handleSave()
+  }
+
+  const handleDeleteStore = async () => {
+    const confirmText = prompt('Type "DELETE" to permanently delete this store:')
+    if (confirmText !== 'DELETE') return
+    
+    try {
+      const res = await fetch('/api/tenants', { method: 'DELETE' })
+      if (res.ok) {
+        router.push('/login')
+      }
+    } catch (error) {
+      alert('Failed to delete store')
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -191,33 +235,19 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-8">
-              <Link href="/dashboard" className="text-xl font-bold text-blue-600">
-                OrderFlow
-              </Link>
+              <Link href="/dashboard" className="text-xl font-bold text-blue-600">OrderFlow</Link>
               <nav className="hidden md:flex items-center gap-1">
-                <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
-                  Dashboard
-                </Link>
-                <Link href="/dashboard/menu" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
-                  Menu
-                </Link>
-                <Link href="/dashboard/orders" className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg">
-                  Orders
-                </Link>
-                <Link href="/dashboard/settings" className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
-                  Settings
-                </Link>
+                <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Dashboard</Link>
+                <Link href="/dashboard/menu" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Menu</Link>
+                <Link href="/dashboard/orders" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Orders</Link>
+                <Link href="/dashboard/settings" className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">Settings</Link>
               </nav>
             </div>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-            >
+            <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
               <Save className="w-4 h-4" />
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
@@ -225,153 +255,94 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-8">Settings</h1>
-
-        {/* Tabs */}
-        <div className="flex gap-2 mb-8 border-b border-gray-200">
-          {[
-            { id: 'store', label: 'Store Info', icon: Store },
-            { id: 'hours', label: 'Hours', icon: Clock },
-            { id: 'layout', label: 'Layout', icon: Layout },
-            { id: 'orders', label: 'Orders & Fees', icon: Phone },
-          ].map(tab => (
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex gap-2 mb-8 border-b border-gray-200 overflow-x-auto">
+          {['store', 'hours', 'layout', 'fees', 'features', 'integrations', 'danger'].map(tab => (
             <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px whitespace-nowrap capitalize ${
+                activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
+              {tab === 'danger' ? '⚠️ Danger' : tab}
             </button>
           ))}
         </div>
 
         {/* Store Info Tab */}
         {activeTab === 'store' && (
-          <div className="space-y-6">
-            {/* Logo */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Logo</h2>
-              <div className="flex items-center gap-6">
-                {logo ? (
-                  <img src={logo} alt="Logo" className="w-24 h-24 rounded-xl object-cover" />
-                ) : (
-                  <div 
-                    className="w-24 h-24 rounded-xl flex items-center justify-center text-white text-3xl font-bold"
-                    style={{ backgroundColor: primaryColor }}
-                  >
-                    {name.charAt(0)}
-                  </div>
-                )}
-                <div>
+          <div className="grid lg:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              {/* Logo */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border">
+                <h2 className="text-lg font-semibold mb-4">Logo</h2>
+                <div className="flex items-center gap-6">
+                  {logo ? (
+                    <img src={logo} alt="Logo" className="w-20 h-20 rounded-xl object-cover" />
+                  ) : (
+                    <div className="w-20 h-20 rounded-xl flex items-center justify-center text-white text-2xl font-bold" style={{ backgroundColor: primaryColor }}>
+                      {name.charAt(0)}
+                    </div>
+                  )}
                   <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 cursor-pointer">
                     <Upload className="w-4 h-4" />
-                    Upload Logo
+                    Upload
                     <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                   </label>
-                  <p className="text-sm text-gray-500 mt-2">PNG or JPG, max 2MB</p>
+                </div>
+              </div>
+
+              {/* Basic Info */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border">
+                <h2 className="text-lg font-semibold mb-4">Basic Info</h2>
+                <div className="grid gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Restaurant Name</label>
+                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                    <input type="text" value={address} onChange={e => setAddress(e.target.value)} className="w-full px-4 py-2 border rounded-lg" />
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <input type="text" placeholder="City" value={city} onChange={e => setCity(e.target.value)} className="px-4 py-2 border rounded-lg" />
+                    <input type="text" placeholder="State" value={state} onChange={e => setState(e.target.value)} className="px-4 py-2 border rounded-lg" />
+                    <input type="text" placeholder="ZIP" value={zip} onChange={e => setZip(e.target.value)} className="px-4 py-2 border rounded-lg" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Brand Color */}
+              <div className="bg-white rounded-xl p-6 shadow-sm border">
+                <h2 className="text-lg font-semibold mb-4">Brand Color</h2>
+                <div className="flex items-center gap-4">
+                  <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="w-12 h-12 rounded-lg cursor-pointer border-0" />
+                  <input type="text" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="w-28 px-3 py-2 border rounded-lg font-mono text-sm" />
+                  <div className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: primaryColor }}>Preview</div>
                 </div>
               </div>
             </div>
 
-            {/* Basic Info */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Basic Info</h2>
-              <div className="grid gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Restaurant Name</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={e => setPhone(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
+            {/* Live Preview */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Live Preview</h2>
+                <button onClick={() => setPreviewKey(k => k + 1)} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                  <RefreshCw className="w-4 h-4" /> Refresh
+                </button>
               </div>
-            </div>
-
-            {/* Address */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Address</h2>
-              <div className="grid gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={e => setAddress(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-                    <input
-                      type="text"
-                      value={city}
-                      onChange={e => setCity(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-                    <input
-                      type="text"
-                      value={state}
-                      onChange={e => setState(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">ZIP</label>
-                    <input
-                      type="text"
-                      value={zip}
-                      onChange={e => setZip(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Brand Color */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Brand Color</h2>
-              <div className="flex items-center gap-4">
-                <input
-                  type="color"
-                  value={primaryColor}
-                  onChange={e => setPrimaryColor(e.target.value)}
-                  className="w-12 h-12 rounded-lg cursor-pointer"
+              <div className="border rounded-lg overflow-hidden bg-gray-100" style={{ height: '500px' }}>
+                <iframe
+                  key={previewKey}
+                  src={`/store/${tenant?.slug}?preview=1`}
+                  className="w-full h-full"
+                  title="Store Preview"
                 />
-                <input
-                  type="text"
-                  value={primaryColor}
-                  onChange={e => setPrimaryColor(e.target.value)}
-                  className="w-32 px-4 py-2 border border-gray-300 rounded-lg font-mono"
-                />
-                <div 
-                  className="px-4 py-2 rounded-lg text-white font-medium"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  Preview
-                </div>
               </div>
             </div>
           </div>
@@ -379,41 +350,24 @@ export default function SettingsPage() {
 
         {/* Hours Tab */}
         {activeTab === 'hours' && (
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Business Hours</h2>
-            <div className="space-y-4">
+          <div className="bg-white rounded-xl p-6 shadow-sm border max-w-2xl">
+            <h2 className="text-lg font-semibold mb-4">Business Hours</h2>
+            <div className="space-y-3">
               {DAYS.map(day => (
-                <div key={day} className="flex items-center gap-4 py-3 border-b border-gray-100 last:border-0">
-                  <div className="w-28 font-medium text-gray-900 capitalize">{day}</div>
+                <div key={day} className="flex items-center gap-4 py-2 border-b last:border-0">
+                  <div className="w-24 font-medium capitalize">{day}</div>
                   <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={!businessHours[day]?.closed}
-                      onChange={e => updateHours(day, 'closed', !e.target.checked)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-600">Open</span>
+                    <input type="checkbox" checked={!businessHours[day]?.closed} onChange={e => updateHours(day, 'closed', !e.target.checked)} className="rounded text-blue-600" />
+                    <span className="text-sm">Open</span>
                   </label>
                   {!businessHours[day]?.closed && (
                     <>
-                      <input
-                        type="time"
-                        value={businessHours[day]?.open || '09:00'}
-                        onChange={e => updateHours(day, 'open', e.target.value)}
-                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-                      />
-                      <span className="text-gray-500">to</span>
-                      <input
-                        type="time"
-                        value={businessHours[day]?.close || '21:00'}
-                        onChange={e => updateHours(day, 'close', e.target.value)}
-                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm"
-                      />
+                      <input type="time" value={businessHours[day]?.open || '09:00'} onChange={e => updateHours(day, 'open', e.target.value)} className="px-2 py-1 border rounded text-sm" />
+                      <span>to</span>
+                      <input type="time" value={businessHours[day]?.close || '21:00'} onChange={e => updateHours(day, 'close', e.target.value)} className="px-2 py-1 border rounded text-sm" />
                     </>
                   )}
-                  {businessHours[day]?.closed && (
-                    <span className="text-gray-500 text-sm">Closed</span>
-                  )}
+                  {businessHours[day]?.closed && <span className="text-gray-400 text-sm">Closed</span>}
                 </div>
               ))}
             </div>
@@ -422,96 +376,177 @@ export default function SettingsPage() {
 
         {/* Layout Tab */}
         {activeTab === 'layout' && (
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Store Layout</h2>
-            <p className="text-gray-600 mb-6">Choose how your menu appears to customers</p>
-            <div className="grid grid-cols-2 gap-4">
-              {LAYOUTS.map(layout => (
-                <button
-                  key={layout.id}
-                  onClick={() => setMenuLayout(layout.id)}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    menuLayout === layout.id
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-semibold text-gray-900">{layout.name}</span>
-                    {menuLayout === layout.id && (
-                      <Check className="w-5 h-5 text-blue-600" />
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-600">{layout.description}</p>
-                </button>
-              ))}
+          <div className="space-y-8">
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h2 className="text-lg font-semibold mb-4">Choose Layout</h2>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {LAYOUTS.map(layout => (
+                  <button
+                    key={layout.id}
+                    onClick={() => { setMenuLayout(layout.id); setPreviewKey(k => k + 1) }}
+                    className={`p-4 rounded-xl border-2 text-left transition-all ${
+                      menuLayout === layout.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {/* Mini layout icon */}
+                    <div className="w-full h-16 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-gray-400 text-xs">
+                      {layout.id === 'sidebar' && <div className="flex w-full h-full"><div className="w-1/4 bg-gray-300 rounded-l"></div><div className="w-3/4 p-1"><div className="w-full h-full bg-gray-200 rounded"></div></div></div>}
+                      {layout.id === 'modern' && <div className="w-1/2 h-full bg-gray-300 rounded"></div>}
+                      {layout.id === 'wide' && <div className="flex w-full h-full"><div className="w-3/4 p-1"><div className="w-full h-full bg-gray-300 rounded"></div></div><div className="w-1/4 bg-gray-200 rounded-r"></div></div>}
+                      {layout.id === 'slice' && <div className="grid grid-cols-2 gap-1 p-1 w-full h-full"><div className="bg-gray-300 rounded"></div><div className="bg-gray-300 rounded"></div><div className="bg-gray-300 rounded"></div><div className="bg-gray-300 rounded"></div></div>}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{layout.name}</span>
+                      {menuLayout === layout.id && <Check className="w-5 h-5 text-blue-600" />}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{layout.description}</p>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-              <Link 
-                href={`/store/${tenant?.slug}`}
-                target="_blank"
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-700"
-              >
-                <ExternalLink className="w-4 h-4" />
-                Preview your store with this layout
-              </Link>
+
+            {/* Side-by-side preview */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h2 className="text-lg font-semibold mb-4">Preview with YOUR store</h2>
+              <div className="grid lg:grid-cols-2 gap-6">
+                {/* Phone Preview */}
+                <div>
+                  <div className="text-sm font-medium text-gray-500 mb-2 text-center">📱 Phone</div>
+                  <div className="mx-auto w-[375px] h-[667px] border-8 border-gray-800 rounded-[3rem] overflow-hidden bg-white shadow-xl">
+                    <iframe key={`phone-${previewKey}-${menuLayout}`} src={`/store/${tenant?.slug}?layout=${menuLayout}`} className="w-full h-full" title="Phone Preview" />
+                  </div>
+                </div>
+                {/* Desktop Preview */}
+                <div>
+                  <div className="text-sm font-medium text-gray-500 mb-2 text-center">🖥️ Desktop</div>
+                  <div className="border rounded-lg overflow-hidden bg-white shadow-lg" style={{ height: '667px' }}>
+                    <iframe key={`desktop-${previewKey}-${menuLayout}`} src={`/store/${tenant?.slug}?layout=${menuLayout}`} className="w-full h-full" style={{ transform: 'scale(0.6)', transformOrigin: 'top left', width: '166.67%', height: '166.67%' }} title="Desktop Preview" />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Orders & Fees Tab */}
-        {activeTab === 'orders' && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Tax & Fees</h2>
-              <div className="grid gap-4">
+        {/* Fees Tab */}
+        {activeTab === 'fees' && (
+          <div className="bg-white rounded-xl p-6 shadow-sm border max-w-lg">
+            <h2 className="text-lg font-semibold mb-4">Fees & Taxes</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
+                <input type="number" step="0.01" value={taxRate} onChange={e => setTaxRate(parseFloat(e.target.value) || 0)} className="w-32 px-4 py-2 border rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Fee ($)</label>
+                <input type="number" step="0.01" value={deliveryFee} onChange={e => setDeliveryFee(parseFloat(e.target.value) || 0)} className="w-32 px-4 py-2 border rounded-lg" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Order for Delivery ($)</label>
+                <input type="number" step="0.01" value={minOrderAmount} onChange={e => setMinOrderAmount(parseFloat(e.target.value) || 0)} className="w-32 px-4 py-2 border rounded-lg" />
+              </div>
+              <div className="pt-4 border-t">
+                <label className="block text-sm font-medium text-gray-500 mb-1">Platform Fee (read-only)</label>
+                <div className="text-lg font-semibold text-gray-700">{tenant?.platformFeePercent || 2.9}%</div>
+                <p className="text-xs text-gray-400 mt-1">Contact support to discuss enterprise pricing</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Features Tab */}
+        {activeTab === 'features' && (
+          <div className="bg-white rounded-xl p-6 shadow-sm border max-w-lg">
+            <h2 className="text-lg font-semibold mb-4">Features</h2>
+            <div className="space-y-4">
+              {[
+                { id: 'pickup', label: 'Enable Pickup', value: pickupEnabled, setter: setPickupEnabled },
+                { id: 'delivery', label: 'Enable Delivery', value: deliveryEnabled, setter: setDeliveryEnabled },
+                { id: 'scheduled', label: 'Enable Scheduled Orders', value: scheduledOrdersEnabled, setter: setScheduledOrdersEnabled },
+                { id: 'giftcards', label: 'Enable Gift Cards', value: giftCardsEnabled, setter: setGiftCardsEnabled },
+                { id: 'loyalty', label: 'Enable Loyalty Program', value: loyaltyEnabled, setter: setLoyaltyEnabled },
+              ].map(feature => (
+                <label key={feature.id} className="flex items-center gap-3 py-2">
+                  <input type="checkbox" checked={feature.value} onChange={e => feature.setter(e.target.checked)} className="rounded text-blue-600 w-5 h-5" />
+                  <span className="font-medium">{feature.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Integrations Tab */}
+        {activeTab === 'integrations' && (
+          <div className="space-y-6 max-w-2xl">
+            {/* Stripe */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <div className="flex items-center justify-between">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={taxRate}
-                    onChange={e => setTaxRate(parseFloat(e.target.value) || 0)}
-                    className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <h3 className="font-semibold">Stripe Payments</h3>
+                  <p className="text-sm text-gray-500">Accept credit card payments</p>
+                </div>
+                {tenant?.stripeOnboardingComplete ? (
+                  <span className="flex items-center gap-2 text-green-600"><Check className="w-5 h-5" /> Connected</span>
+                ) : (
+                  <Link href="/api/stripe/connect/onboard" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Connect Stripe</Link>
+                )}
+              </div>
+            </div>
+
+            {/* DoorDash */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold">DoorDash Delivery</h3>
+                  <p className="text-sm text-gray-500">Enable DoorDash Drive for deliveries</p>
+                </div>
+                <Link href="/dashboard/settings/doordash" className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">Configure</Link>
+              </div>
+            </div>
+
+            {/* Analytics */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h3 className="font-semibold mb-4">Analytics</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Google Analytics ID</label>
+                  <input type="text" placeholder="G-XXXXXXXXXX" value={gaId} onChange={e => setGaId(e.target.value)} className="w-full px-4 py-2 border rounded-lg" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Order Amount ($)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={minOrderAmount}
-                    onChange={e => setMinOrderAmount(parseFloat(e.target.value) || 0)}
-                    className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Facebook Pixel ID</label>
+                  <input type="text" placeholder="123456789" value={fbPixelId} onChange={e => setFbPixelId(e.target.value)} className="w-full px-4 py-2 border rounded-lg" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Danger Zone Tab */}
+        {activeTab === 'danger' && (
+          <div className="space-y-6 max-w-lg">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+              <div className="flex items-start gap-4">
+                <Pause className="w-6 h-6 text-yellow-600 mt-1" />
+                <div>
+                  <h3 className="font-semibold text-yellow-800">Pause Store</h3>
+                  <p className="text-sm text-yellow-700 mt-1">Temporarily disable ordering. Customers will see "Closed" but your menu stays intact.</p>
+                  <button onClick={handlePauseStore} className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm hover:bg-yellow-700">
+                    {isActive ? 'Pause Store' : 'Store is Paused — Click Save to Unpause'}
+                  </button>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Delivery</h2>
-              <div className="space-y-4">
-                <label className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={deliveryEnabled}
-                    onChange={e => setDeliveryEnabled(e.target.checked)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="font-medium text-gray-900">Enable Delivery</span>
-                </label>
-                {deliveryEnabled && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Fee ($)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={deliveryFee}
-                      onChange={e => setDeliveryFee(parseFloat(e.target.value) || 0)}
-                      className="w-32 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                )}
+            <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+              <div className="flex items-start gap-4">
+                <Trash2 className="w-6 h-6 text-red-600 mt-1" />
+                <div>
+                  <h3 className="font-semibold text-red-800">Delete Store</h3>
+                  <p className="text-sm text-red-700 mt-1">Permanently delete this store and all data. This cannot be undone.</p>
+                  <button onClick={handleDeleteStore} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">
+                    Delete Store
+                  </button>
+                </div>
               </div>
             </div>
           </div>
