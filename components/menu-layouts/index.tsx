@@ -125,6 +125,16 @@ export function MenuLayoutRenderer({
     onAddToCart?.(id)
   }
 
+  const handleRemoveFromCart = (id: string) => {
+    setCart(prev => {
+      const existing = prev.find(i => i.id === id)
+      if (existing && existing.qty > 1) {
+        return prev.map(i => i.id === id ? { ...i, qty: i.qty - 1 } : i)
+      }
+      return prev.filter(i => i.id !== id)
+    })
+  }
+
   const commonProps = {
     restaurantName,
     logoUrl,
@@ -135,6 +145,7 @@ export function MenuLayoutRenderer({
     categories,
     cart,
     onAddToCart: handleAddToCart,
+    onRemoveFromCart: handleRemoveFromCart,
   }
 
   switch (layout) {

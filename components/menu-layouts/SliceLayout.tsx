@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { ShoppingCart, ChevronDown, ChevronUp, Clock } from 'lucide-react'
+import { ShoppingCart, ChevronDown, ChevronUp, Clock, Plus, Minus } from 'lucide-react'
 
 interface MenuItem {
   id: string
@@ -35,22 +35,29 @@ interface SliceLayoutProps {
   categories: Category[]
   cart: { id: string; qty: number }[]
   onAddToCart: (id: string) => void
+  onRemoveFromCart: (id: string) => void
 }
 
 function CategorySection({
   category,
   items,
   primaryColor,
+  cart,
   onAddToCart,
+  onRemoveFromCart,
   defaultExpanded = true
 }: {
   category: Category
   items: MenuItem[]
   primaryColor: string
+  cart: { id: string; qty: number }[]
   onAddToCart: (id: string) => void
+  onRemoveFromCart: (id: string) => void
   defaultExpanded?: boolean
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
+
+  const getQty = (id: string) => cart.find(i => i.id === id)?.qty || 0
 
   return (
     <div className="mb-6">
@@ -70,51 +77,84 @@ function CategorySection({
       {/* Items */}
       {expanded && (
         <div className="mt-3 space-y-3">
-          {items.map(item => (
-            <div
-              key={item.id}
-              onClick={() => onAddToCart(item.id)}
-              className="flex gap-4 p-4 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all cursor-pointer group"
-            >
-              {/* Product Info - Left Side */}
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
-                  {item.name}
-                </h4>
-                {item.description && (
-                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                    {item.description}
-                  </p>
-                )}
-                <p 
-                  className="text-lg font-bold mt-2"
-                  style={{ color: primaryColor }}
-                >
-                  ${item.price.toFixed(2)}
-                </p>
-              </div>
-
-              {/* Product Image - Right Side */}
-              <div className="relative w-[100px] h-[100px] flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
-                {item.image ? (
-                  <Image
-                    src={item.image}
-                    alt={item.name}
-                    fill
-                    sizes="100px"
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div 
-                    className="w-full h-full flex items-center justify-center"
-                    style={{ backgroundColor: `${primaryColor}10` }}
-                  >
-                    <span className="text-3xl">🍽️</span>
+          {items.map(item => {
+            const qty = getQty(item.id)
+            return (
+              <div
+                key={item.id}
+                className="flex gap-4 p-4 bg-white rounded-xl border border-gray-200 hover:border-gray-300 hover:shadow-md transition-all group"
+              >
+                {/* Product Info - Left Side */}
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
+                    {item.name}
+                  </h4>
+                  {item.description && (
+                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                      {item.description}
+                    </p>
+                  )}
+                  <div className="flex items-center justify-between mt-2">
+                    <p 
+                      className="text-lg font-bold"
+                      style={{ color: primaryColor }}
+                    >
+                      ${item.price.toFixed(2)}
+                    </p>
+                    {/* Quantity Controls */}
+                    <div className="flex items-center gap-2">
+                      {qty > 0 ? (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onRemoveFromCart(item.id) }}
+                            className="w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 hover:bg-gray-200 transition-colors"
+                          >
+                            <Minus className="w-4 h-4 text-gray-600" />
+                          </button>
+                          <span className="w-6 text-center font-semibold">{qty}</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onAddToCart(item.id) }}
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors"
+                            style={{ backgroundColor: primaryColor }}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onAddToCart(item.id) }}
+                          className="px-4 py-2 rounded-full text-sm font-medium text-white transition-colors"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          Add
+                        </button>
+                      )}
+                    </div>
                   </div>
-                )}
+                </div>
+
+                {/* Product Image - Right Side */}
+                <div className="relative w-[100px] h-[100px] flex-shrink-0 rounded-lg overflow-hidden bg-gray-100">
+                  {item.image ? (
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      fill
+                      sizes="100px"
+                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div 
+                      className="w-full h-full flex items-center justify-center"
+                      style={{ backgroundColor: `${primaryColor}10` }}
+                    >
+                      <span className="text-3xl">🍽️</span>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {items.length === 0 && (
             <p className="text-center py-8 text-gray-400">No items in this category</p>
@@ -134,7 +174,8 @@ export default function SliceLayout({
   menuItems,
   categories,
   cart,
-  onAddToCart
+  onAddToCart,
+  onRemoveFromCart
 }: SliceLayoutProps) {
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
   const cartTotal = cart.reduce((sum, cartItem) => {
@@ -245,7 +286,9 @@ export default function SliceLayout({
               category={category}
               items={getItemsForCategory(category.id)}
               primaryColor={primaryColor}
+              cart={cart}
               onAddToCart={onAddToCart}
+              onRemoveFromCart={onRemoveFromCart}
               defaultExpanded={idx < 3} // First 3 categories expanded by default
             />
           </div>

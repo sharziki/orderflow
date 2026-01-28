@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Image from 'next/image'
-import { Plus, ShoppingCart, Clock } from 'lucide-react'
+import { Plus, Minus, ShoppingCart, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface MenuItem {
@@ -36,6 +36,7 @@ interface BluBentonvilleLayoutProps {
   categories: Category[]
   cart: { id: string; qty: number }[]
   onAddToCart: (id: string) => void
+  onRemoveFromCart: (id: string) => void
 }
 
 // Item-specific hover images based on keywords in the name
@@ -85,11 +86,15 @@ const getHoverImageForItem = (name: string): string => {
 function MenuCard({ 
   item, 
   primaryColor, 
-  onAddToCart 
+  qty,
+  onAddToCart,
+  onRemoveFromCart
 }: { 
   item: MenuItem
   primaryColor: string
-  onAddToCart: (id: string) => void 
+  qty: number
+  onAddToCart: (id: string) => void
+  onRemoveFromCart: (id: string) => void
 }) {
   const [isHovered, setIsHovered] = useState(false)
   const secondaryImage = useMemo(() => getHoverImageForItem(item.name), [item.name])
@@ -131,6 +136,15 @@ function MenuCard({
             <span className="text-5xl">🍽️</span>
           </div>
         )}
+        {/* Quantity Badge */}
+        {qty > 0 && (
+          <div 
+            className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-lg"
+            style={{ backgroundColor: primaryColor }}
+          >
+            {qty}
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -144,7 +158,7 @@ function MenuCard({
           </p>
         </div>
 
-        {/* Price and Add Button */}
+        {/* Price and Add/Remove Buttons */}
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
           <div 
             className="text-2xl font-bold"
@@ -152,13 +166,34 @@ function MenuCard({
           >
             ${item.price.toFixed(2)}
           </div>
-          <button
-            onClick={() => onAddToCart(item.id)}
-            className="inline-flex items-center justify-center w-10 h-10 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105"
-            style={{ backgroundColor: primaryColor }}
-          >
-            <Plus className="h-5 w-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {qty > 0 ? (
+              <>
+                <button
+                  onClick={() => onRemoveFromCart(item.id)}
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200 bg-gray-100 hover:bg-gray-200"
+                >
+                  <Minus className="h-4 w-4 text-gray-600" />
+                </button>
+                <span className="w-6 text-center font-semibold">{qty}</span>
+                <button
+                  onClick={() => onAddToCart(item.id)}
+                  className="inline-flex items-center justify-center w-9 h-9 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => onAddToCart(item.id)}
+                className="inline-flex items-center justify-center w-10 h-10 text-white rounded-lg transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105"
+                style={{ backgroundColor: primaryColor }}
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -174,11 +209,13 @@ export default function BluBentonvilleLayout({
   menuItems,
   categories,
   cart,
-  onAddToCart
+  onAddToCart,
+  onRemoveFromCart
 }: BluBentonvilleLayoutProps) {
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id || '')
   const filteredItems = menuItems.filter(item => item.available && item.category === activeCategory)
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
+  const getQty = (id: string) => cart.find(i => i.id === id)?.qty || 0
 
   return (
     <div className="min-h-full bg-gray-50">
@@ -281,7 +318,9 @@ export default function BluBentonvilleLayout({
               key={item.id}
               item={item}
               primaryColor={primaryColor}
+              qty={getQty(item.id)}
               onAddToCart={onAddToCart}
+              onRemoveFromCart={onRemoveFromCart}
             />
           ))}
         </div>

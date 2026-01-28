@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Plus, ShoppingCart, Sparkles, Clock } from 'lucide-react'
+import { Plus, Minus, ShoppingCart, Sparkles, Clock } from 'lucide-react'
 
 interface MenuItem {
   id: string
@@ -35,6 +35,7 @@ interface DarkModeLayoutProps {
   categories: Category[]
   cart: { id: string; qty: number }[]
   onAddToCart: (id: string) => void
+  onRemoveFromCart: (id: string) => void
 }
 
 export default function DarkModeLayout({
@@ -46,7 +47,8 @@ export default function DarkModeLayout({
   menuItems,
   categories,
   cart,
-  onAddToCart
+  onAddToCart,
+  onRemoveFromCart
 }: DarkModeLayoutProps) {
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id || '')
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
@@ -54,6 +56,7 @@ export default function DarkModeLayout({
     const item = menuItems.find(m => m.id === cartItem.id)
     return sum + (item ? item.price * cartItem.qty : 0)
   }, 0)
+  const getQty = (id: string) => cart.find(i => i.id === id)?.qty || 0
 
   const filteredItems = menuItems.filter(item => item.available && item.category === activeCategory)
 
@@ -140,59 +143,93 @@ export default function DarkModeLayout({
       {/* Menu Grid */}
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredItems.map(item => (
-            <div
-              key={item.id}
-              className="group bg-white/5 rounded-2xl overflow-hidden border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all"
-            >
-              {/* Image */}
-              <div className="relative aspect-[4/3] bg-white/5 overflow-hidden">
-                {item.image ? (
-                  <Image
-                    src={item.image}
-                    alt={item.name}
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                ) : (
+          {filteredItems.map(item => {
+            const qty = getQty(item.id)
+            return (
+              <div
+                key={item.id}
+                className="group bg-white/5 rounded-2xl overflow-hidden border border-white/5 hover:border-white/10 hover:bg-white/10 transition-all"
+              >
+                {/* Image */}
+                <div className="relative aspect-[4/3] bg-white/5 overflow-hidden">
+                  {item.image ? (
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div 
+                      className="w-full h-full flex items-center justify-center"
+                      style={{ background: `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}20)` }}
+                    >
+                      <span className="text-5xl">🍽️</span>
+                    </div>
+                  )}
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  
+                  {/* Price Badge */}
                   <div 
-                    className="w-full h-full flex items-center justify-center"
-                    style={{ background: `linear-gradient(135deg, ${primaryColor}20, ${secondaryColor}20)` }}
-                  >
-                    <span className="text-5xl">🍽️</span>
-                  </div>
-                )}
-                {/* Gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                
-                {/* Price Badge */}
-                <div 
-                  className="absolute bottom-3 left-3 px-3 py-1 rounded-full text-white text-sm font-bold"
-                  style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
-                >
-                  ${item.price.toFixed(2)}
-                </div>
-              </div>
-
-              {/* Content */}
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h3 className="text-white font-semibold mb-1">{item.name}</h3>
-                    <p className="text-gray-400 text-sm line-clamp-2">{item.description}</p>
-                  </div>
-                  <button
-                    onClick={() => onAddToCart(item.id)}
-                    className="flex-shrink-0 w-10 h-10 rounded-xl text-white flex items-center justify-center transition-transform hover:scale-110"
+                    className="absolute bottom-3 left-3 px-3 py-1 rounded-full text-white text-sm font-bold"
                     style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
                   >
-                    <Plus className="w-5 h-5" />
-                  </button>
+                    ${item.price.toFixed(2)}
+                  </div>
+
+                  {/* Quantity Badge */}
+                  {qty > 0 && (
+                    <div 
+                      className="absolute top-3 right-3 w-7 h-7 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                      style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
+                    >
+                      {qty}
+                    </div>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-white font-semibold mb-1">{item.name}</h3>
+                      <p className="text-gray-400 text-sm line-clamp-2">{item.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {qty > 0 ? (
+                        <>
+                          <button
+                            onClick={() => onRemoveFromCart(item.id)}
+                            className="flex-shrink-0 w-9 h-9 rounded-xl bg-white/10 text-white flex items-center justify-center transition-all hover:bg-white/20"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="text-white font-medium w-5 text-center">{qty}</span>
+                          <button
+                            onClick={() => onAddToCart(item.id)}
+                            className="flex-shrink-0 w-9 h-9 rounded-xl text-white flex items-center justify-center transition-transform hover:scale-110"
+                            style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => onAddToCart(item.id)}
+                          className="flex-shrink-0 w-10 h-10 rounded-xl text-white flex items-center justify-center transition-transform hover:scale-110"
+                          style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
+                        >
+                          <Plus className="w-5 h-5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         {filteredItems.length === 0 && (

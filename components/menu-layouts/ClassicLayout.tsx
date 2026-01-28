@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { ShoppingCart, Plus, Clock } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, Clock } from 'lucide-react'
 
 interface MenuItem {
   id: string
@@ -35,6 +35,7 @@ interface ClassicLayoutProps {
   categories: Category[]
   cart: { id: string; qty: number }[]
   onAddToCart: (id: string) => void
+  onRemoveFromCart: (id: string) => void
 }
 
 export default function ClassicLayout({
@@ -46,13 +47,15 @@ export default function ClassicLayout({
   menuItems,
   categories,
   cart,
-  onAddToCart
+  onAddToCart,
+  onRemoveFromCart
 }: ClassicLayoutProps) {
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
   const cartTotal = cart.reduce((sum, cartItem) => {
     const item = menuItems.find(m => m.id === cartItem.id)
     return sum + (item ? item.price * cartItem.qty : 0)
   }, 0)
+  const getQty = (id: string) => cart.find(i => i.id === id)?.qty || 0
 
   const getItemsForCategory = (categoryId: string) => {
     return menuItems.filter(item => item.available && item.category === categoryId)
@@ -131,56 +134,80 @@ export default function ClassicLayout({
 
               {/* Menu Items - Classic List */}
               <div className="space-y-1">
-                {items.map(item => (
-                  <div
-                    key={item.id}
-                    className="group flex items-start gap-4 py-4 border-b border-dashed border-gray-200 hover:bg-white/50 px-4 -mx-4 rounded-lg transition-colors"
-                  >
-                    {/* Optional Image */}
-                    {item.image && (
-                      <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 shadow-sm">
-                        <Image
-                          src={item.image}
-                          alt={item.name}
-                          fill
-                          sizes="80px"
-                          className="object-cover"
-                        />
-                      </div>
-                    )}
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <h3 className="text-base font-medium text-gray-900">
-                          {item.name}
-                        </h3>
-                        <div className="flex-shrink-0 flex items-center gap-2">
-                          {/* Dotted line */}
-                          <div className="w-8 border-b border-dotted border-gray-300 hidden sm:block" />
-                          <span 
-                            className="font-serif font-medium"
-                            style={{ color: primaryColor }}
-                          >
-                            ${item.price.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-500 mt-1 leading-relaxed">
-                        {item.description}
-                      </p>
-                    </div>
-
-                    {/* Add Button */}
-                    <button
-                      onClick={() => onAddToCart(item.id)}
-                      className="flex-shrink-0 w-9 h-9 rounded-full border-2 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:scale-105"
-                      style={{ borderColor: primaryColor, color: primaryColor }}
+                {items.map(item => {
+                  const qty = getQty(item.id)
+                  return (
+                    <div
+                      key={item.id}
+                      className="group flex items-start gap-4 py-4 border-b border-dashed border-gray-200 hover:bg-white/50 px-4 -mx-4 rounded-lg transition-colors"
                     >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
+                      {/* Optional Image */}
+                      {item.image && (
+                        <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 shadow-sm">
+                          <Image
+                            src={item.image}
+                            alt={item.name}
+                            fill
+                            sizes="80px"
+                            className="object-cover"
+                          />
+                        </div>
+                      )}
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <h3 className="text-base font-medium text-gray-900">
+                            {item.name}
+                          </h3>
+                          <div className="flex-shrink-0 flex items-center gap-2">
+                            {/* Dotted line */}
+                            <div className="w-8 border-b border-dotted border-gray-300 hidden sm:block" />
+                            <span 
+                              className="font-serif font-medium"
+                              style={{ color: primaryColor }}
+                            >
+                              ${item.price.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+                          {item.description}
+                        </p>
+                      </div>
+
+                      {/* Add/Remove Buttons */}
+                      <div className="flex items-center gap-2">
+                        {qty > 0 ? (
+                          <>
+                            <button
+                              onClick={() => onRemoveFromCart(item.id)}
+                              className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center transition-all hover:bg-gray-200"
+                            >
+                              <Minus className="w-4 h-4 text-gray-600" />
+                            </button>
+                            <span className="w-5 text-center font-medium">{qty}</span>
+                            <button
+                              onClick={() => onAddToCart(item.id)}
+                              className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-105"
+                              style={{ backgroundColor: primaryColor, color: 'white' }}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => onAddToCart(item.id)}
+                            className="flex-shrink-0 w-9 h-9 rounded-full border-2 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:scale-105"
+                            style={{ borderColor: primaryColor, color: primaryColor }}
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </section>
           )

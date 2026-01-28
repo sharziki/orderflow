@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Plus, ShoppingCart, Clock, Star } from 'lucide-react'
+import { Plus, Minus, ShoppingCart, Clock, Star } from 'lucide-react'
 
 interface MenuItem {
   id: string
@@ -35,6 +35,7 @@ interface GridCompactLayoutProps {
   categories: Category[]
   cart: { id: string; qty: number }[]
   onAddToCart: (id: string) => void
+  onRemoveFromCart: (id: string) => void
 }
 
 export default function GridCompactLayout({
@@ -46,7 +47,8 @@ export default function GridCompactLayout({
   menuItems,
   categories,
   cart,
-  onAddToCart
+  onAddToCart,
+  onRemoveFromCart
 }: GridCompactLayoutProps) {
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id || '')
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
@@ -54,6 +56,7 @@ export default function GridCompactLayout({
     const item = menuItems.find(m => m.id === cartItem.id)
     return sum + (item ? item.price * cartItem.qty : 0)
   }, 0)
+  const getQty = (id: string) => cart.find(i => i.id === id)?.qty || 0
 
   const filteredItems = menuItems.filter(item => item.available && item.category === activeCategory)
 
@@ -131,55 +134,76 @@ export default function GridCompactLayout({
       {/* Compact Grid */}
       <div className="p-3">
         <div className="grid grid-cols-2 gap-3">
-          {filteredItems.map(item => (
-            <div
-              key={item.id}
-              className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-            >
-              {/* Image */}
-              <div className="relative aspect-[4/3] bg-gray-100">
-                {item.image ? (
-                  <Image
-                    src={item.image}
-                    alt={item.name}
-                    fill
-                    sizes="(max-width: 640px) 50vw, 200px"
-                    className="object-cover"
-                  />
-                ) : (
-                  <div 
-                    className="w-full h-full flex items-center justify-center"
-                    style={{ backgroundColor: `${primaryColor}10` }}
-                  >
-                    <span className="text-4xl">🍽️</span>
-                  </div>
-                )}
-                {/* Quick Add Button */}
-                <button
-                  onClick={() => onAddToCart(item.id)}
-                  className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
-                >
-                  <Plus className="w-4 h-4" style={{ color: primaryColor }} />
-                </button>
-              </div>
+          {filteredItems.map(item => {
+            const qty = getQty(item.id)
+            return (
+              <div
+                key={item.id}
+                className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+              >
+                {/* Image */}
+                <div className="relative aspect-[4/3] bg-gray-100">
+                  {item.image ? (
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      fill
+                      sizes="(max-width: 640px) 50vw, 200px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div 
+                      className="w-full h-full flex items-center justify-center"
+                      style={{ backgroundColor: `${primaryColor}10` }}
+                    >
+                      <span className="text-4xl">🍽️</span>
+                    </div>
+                  )}
+                  {/* Quantity Badge or Add Button */}
+                  {qty > 0 ? (
+                    <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-white rounded-full shadow-lg px-1">
+                      <button
+                        onClick={() => onRemoveFromCart(item.id)}
+                        className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+                      >
+                        <Minus className="w-3.5 h-3.5 text-gray-600" />
+                      </button>
+                      <span className="w-5 text-center text-sm font-semibold">{qty}</span>
+                      <button
+                        onClick={() => onAddToCart(item.id)}
+                        className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-gray-100 transition-colors"
+                      >
+                        <Plus className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => onAddToCart(item.id)}
+                      className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center hover:scale-110 transition-transform"
+                    >
+                      <Plus className="w-4 h-4" style={{ color: primaryColor }} />
+                    </button>
+                  )}
+                </div>
 
-              {/* Info */}
-              <div className="p-3">
-                <h3 className="font-semibold text-gray-900 text-sm line-clamp-1 mb-1">
-                  {item.name}
-                </h3>
-                <p className="text-xs text-gray-500 line-clamp-2 mb-2 leading-relaxed">
-                  {item.description}
-                </p>
-                <p 
-                  className="font-bold text-sm"
-                  style={{ color: primaryColor }}
-                >
-                  ${item.price.toFixed(2)}
-                </p>
+                {/* Info */}
+                <div className="p-3">
+                  <h3 className="font-semibold text-gray-900 text-sm line-clamp-1 mb-1">
+                    {item.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 line-clamp-2 mb-2 leading-relaxed">
+                    {item.description}
+                  </p>
+                  <p 
+                    className="font-bold text-sm"
+                    style={{ color: primaryColor }}
+                  >
+                    ${item.price.toFixed(2)}
+                  </p>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
 
         {filteredItems.length === 0 && (

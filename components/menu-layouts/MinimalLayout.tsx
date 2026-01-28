@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { Plus, ShoppingBag, Search, Clock } from 'lucide-react'
+import { Plus, Minus, ShoppingBag, Search, Clock } from 'lucide-react'
 
 interface MenuItem {
   id: string
@@ -35,6 +35,7 @@ interface MinimalLayoutProps {
   categories: Category[]
   cart: { id: string; qty: number }[]
   onAddToCart: (id: string) => void
+  onRemoveFromCart: (id: string) => void
 }
 
 export default function MinimalLayout({
@@ -46,11 +47,13 @@ export default function MinimalLayout({
   menuItems,
   categories,
   cart,
-  onAddToCart
+  onAddToCart,
+  onRemoveFromCart
 }: MinimalLayoutProps) {
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id || '')
   const [searchQuery, setSearchQuery] = useState('')
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
+  const getQty = (id: string) => cart.find(i => i.id === id)?.qty || 0
 
   const filteredItems = menuItems.filter(item => {
     const matchesCategory = item.category === activeCategory
@@ -154,53 +157,77 @@ export default function MinimalLayout({
 
         {/* Menu Items - Minimal List Style */}
         <div className="pb-24">
-          {filteredItems.map(item => (
-            <div
-              key={item.id}
-              className="group py-6 border-b border-gray-50 last:border-0"
-            >
-              <div className="flex gap-6">
-                {/* Content */}
-                <div className="flex-1">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-base font-medium text-gray-900 mb-1">
-                        {item.name}
-                      </h3>
-                      <p className="text-sm text-gray-500 leading-relaxed max-w-md">
-                        {item.description}
-                      </p>
+          {filteredItems.map(item => {
+            const qty = getQty(item.id)
+            return (
+              <div
+                key={item.id}
+                className="group py-6 border-b border-gray-50 last:border-0"
+              >
+                <div className="flex gap-6">
+                  {/* Content */}
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h3 className="text-base font-medium text-gray-900 mb-1">
+                          {item.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 leading-relaxed max-w-md">
+                          {item.description}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {qty > 0 ? (
+                          <>
+                            <button
+                              onClick={() => onRemoveFromCart(item.id)}
+                              className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-colors"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </button>
+                            <span className="w-6 text-center font-medium">{qty}</span>
+                            <button
+                              onClick={() => onAddToCart(item.id)}
+                              className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-white transition-colors"
+                              style={{ backgroundColor: primaryColor }}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => onAddToCart(item.id)}
+                            className="flex-shrink-0 w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:border-gray-900 hover:text-gray-900 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <button
-                      onClick={() => onAddToCart(item.id)}
-                      className="flex-shrink-0 w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:border-gray-900 hover:text-gray-900 transition-colors opacity-0 group-hover:opacity-100"
+                    <p 
+                      className="text-sm font-medium mt-3"
+                      style={{ color: primaryColor }}
                     >
-                      <Plus className="w-4 h-4" />
-                    </button>
+                      ${item.price.toFixed(2)}
+                    </p>
                   </div>
-                  <p 
-                    className="text-sm font-medium mt-3"
-                    style={{ color: primaryColor }}
-                  >
-                    ${item.price.toFixed(2)}
-                  </p>
-                </div>
 
-                {/* Optional Image */}
-                {item.image && (
-                  <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                    <Image
-                      src={item.image}
-                      alt={item.name}
-                      fill
-                      sizes="96px"
-                      className="object-cover"
-                    />
-                  </div>
-                )}
+                  {/* Optional Image */}
+                  {item.image && (
+                    <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        fill
+                        sizes="96px"
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {filteredItems.length === 0 && (
             <div className="text-center py-16">
