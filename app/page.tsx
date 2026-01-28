@@ -395,15 +395,15 @@ export default function LandingPage() {
       </motion.nav>
 
       {/* Hero */}
-      <section ref={heroRef} className="pt-32 pb-20 px-4 sm:px-6 relative min-h-screen flex items-center overflow-hidden">
+      <section ref={heroRef} className="pt-32 pb-20 px-4 sm:px-6 relative min-h-screen flex items-center overflow-hidden bg-white">
         {/* Falling Pattern Background */}
-        <div className="absolute inset-0 -z-10">
+        <div className="absolute inset-0 z-0">
           <FallingPattern 
-            color="rgba(37, 99, 235, 0.15)"
-            backgroundColor="white"
-            duration={120}
-            blurIntensity="0.5em"
-            density={1.2}
+            color="rgba(37, 99, 235, 0.25)"
+            backgroundColor="transparent"
+            duration={100}
+            blurIntensity="0.3em"
+            density={1}
           />
         </div>
         
