@@ -112,8 +112,8 @@ export default function CheckGiftCardBalance() {
           <div className="flex items-center gap-4 mb-4">
             <div className="relative w-14 h-14 bg-white rounded-xl p-2">
               <Image
-                src="/bluefishlogo.png"
-                alt="Blu Fish House"
+                src="/logo.svg"
+                alt="OrderFlow"
                 fill
                 className="object-contain"
               />
@@ -250,8 +250,8 @@ export default function CheckGiftCardBalance() {
                   <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 bg-white rounded-xl p-2">
                       <Image
-                        src="/bluefishlogo.png"
-                        alt="Blu Fish House"
+                        src="/logo.svg"
+                        alt="OrderFlow"
                         fill
                         className="object-contain"
                       />

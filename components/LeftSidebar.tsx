@@ -38,8 +38,8 @@ export default function LeftSidebar({
         <div className="pb-6 border-b border-gray-100">
           <div className="flex items-center gap-3 mb-2">
             <Image
-              src="/bluefishlogo.png"
-              alt="Blu Fish House"
+              src="/logo.svg"
+              alt="OrderFlow"
               width={48}
               height={48}
               className="object-contain flex-shrink-0"

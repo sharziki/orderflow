@@ -23,8 +23,8 @@ export const metadata: Metadata = {
   description: 'Give your restaurant a beautiful online ordering system. No coding required. Set up in minutes, start taking orders today.',
   keywords: ['restaurant ordering', 'online ordering', 'food ordering system', 'restaurant software', 'menu management', 'Stripe payments'],
   icons: {
-    icon: '/favicon.ico',
-    apple: '/apple-touch-icon.png',
+    icon: '/icon.svg',
+    apple: '/logo.svg',
   },
   openGraph: {
     title: 'OrderFlow - Online Ordering Made Simple',

@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Gift, Search, DollarSign, CheckCircle, XCircle, ArrowLeft, Minus } from 'lucide-react'
-import Image from 'next/image'
+import { Gift, Search, DollarSign, CheckCircle, XCircle, ArrowLeft, Minus, Utensils } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 
@@ -214,13 +213,8 @@ export default function AdminGiftCards() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-20 items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="relative w-14 h-14 bg-white rounded-lg p-2 shadow-md">
-                <Image
-                  src="/bluefishlogo.png"
-                  alt="Blu Fish House"
-                  fill
-                  className="object-contain"
-                />
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-md">
+                <Utensils className="w-6 h-6 text-blue-600" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">Gift Card Management</h1>

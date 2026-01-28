@@ -256,8 +256,8 @@ export default function PurchaseGiftCard() {
                   <div className="flex items-center gap-3">
                     <div className="relative w-12 h-12 bg-white rounded-xl p-2">
                       <Image
-                        src="/bluefishlogo.png"
-                        alt="Blu Fish House"
+                        src="/logo.svg"
+                        alt="OrderFlow"
                         fill
                         className="object-contain"
                       />
@@ -365,8 +365,8 @@ export default function PurchaseGiftCard() {
           <div className="text-center mb-10">
             <div className="relative w-16 h-16 bg-white rounded-2xl p-3 shadow-lg shadow-slate-200/50 mx-auto mb-6 border border-slate-100">
               <Image
-                src="/bluefishlogo.png"
-                alt="Blu Fish House"
+                src="/logo.svg"
+                alt="OrderFlow"
                 fill
                 className="object-contain"
               />
@@ -441,8 +441,8 @@ export default function PurchaseGiftCard() {
               <div className="flex items-center gap-4 mb-4">
                 <div className="relative w-14 h-14 bg-white rounded-xl p-2">
                   <Image
-                    src="/bluefishlogo.png"
-                    alt="Blu Fish House"
+                    src="/logo.svg"
+                    alt="OrderFlow"
                     fill
                     className="object-contain"
                   />
