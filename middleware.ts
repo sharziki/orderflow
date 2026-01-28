@@ -9,12 +9,16 @@ const JWT_SECRET = new TextEncoder().encode(
 // Check if user is authenticated for protected routes
 async function checkAuth(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get('auth-token')?.value
+  console.log('[Auth Middleware] Token present:', !!token)
+  
   if (!token) return false
   
   try {
-    await jwtVerify(token, JWT_SECRET)
+    const result = await jwtVerify(token, JWT_SECRET)
+    console.log('[Auth Middleware] Token valid, userId:', result.payload.userId)
     return true
-  } catch {
+  } catch (err) {
+    console.log('[Auth Middleware] Token invalid:', err)
     return false
   }
 }
@@ -124,8 +128,11 @@ export async function middleware(request: NextRequest) {
   
   // Protect dashboard routes - redirect to login if not authenticated
   if (path.startsWith('/dashboard')) {
+    console.log('[Middleware] Dashboard route hit:', path)
     const isAuthenticated = await checkAuth(request)
+    console.log('[Middleware] isAuthenticated:', isAuthenticated)
     if (!isAuthenticated) {
+      console.log('[Middleware] Redirecting to login')
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('redirect', path)
       return NextResponse.redirect(loginUrl)
