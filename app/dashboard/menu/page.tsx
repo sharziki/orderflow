@@ -661,6 +661,7 @@ function MenuEditorContent() {
   // Preview state
   const [previewKey, setPreviewKey] = useState(0)
   const [showPreviewMobile, setShowPreviewMobile] = useState(false)
+  const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('desktop')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -1038,68 +1039,107 @@ function MenuEditorContent() {
 
         {/* Right Panel - Live Preview */}
         <div className={`w-full lg:w-1/2 bg-slate-200 overflow-y-auto p-4 ${!showPreviewMobile ? 'hidden lg:block' : ''}`}>
-          <div className="mb-4">
-            <h2 className="font-semibold text-slate-900 mb-1">Live Preview</h2>
-            <p className="text-xs text-slate-600">
-              Uses your branding, layout, and live menu data
-            </p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-semibold text-slate-900 mb-1">Live Preview</h2>
+              <p className="text-xs text-slate-600">
+                Uses your branding, layout, and live menu data
+              </p>
+            </div>
+            {/* Device Toggle */}
+            <div className="flex items-center bg-slate-100 rounded-lg p-1">
+              <button
+                onClick={() => setPreviewDevice('mobile')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  previewDevice === 'mobile'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Smartphone className="w-4 h-4" />
+                Mobile
+              </button>
+              <button
+                onClick={() => setPreviewDevice('desktop')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                  previewDevice === 'desktop'
+                    ? 'bg-white text-slate-900 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Monitor className="w-4 h-4" />
+                Desktop
+              </button>
+            </div>
           </div>
 
-          {/* Preview Frames */}
-          <div className="flex gap-4">
-            {/* Mobile Preview */}
-            <div className="flex-shrink-0">
-              <div className="flex items-center gap-2 mb-2">
-                <Smartphone className="w-4 h-4 text-slate-500" />
-                <span className="text-xs font-medium text-slate-600">Mobile (375px)</span>
-              </div>
-              <div 
-                className="bg-white rounded-2xl shadow-lg overflow-hidden border-4 border-slate-800"
-                style={{ width: 195, height: 420 }}
-              >
-                <div className="w-full h-full overflow-hidden">
-                  <iframe
-                    key={`mobile-${previewKey}`}
-                    src={previewUrl}
-                    className="origin-top-left"
-                    style={{ 
-                      width: 375,
-                      height: 812,
-                      transform: 'scale(0.52)',
-                      border: 'none'
-                    }}
-                    title="Mobile Preview"
-                  />
+          {/* Preview Frame - Only show selected device */}
+          <div className="flex justify-center">
+            {previewDevice === 'mobile' ? (
+              /* Mobile Preview */
+              <div>
+                <div 
+                  className="bg-slate-900 rounded-[2.5rem] p-2 shadow-2xl"
+                >
+                  {/* Notch */}
+                  <div className="w-24 h-5 bg-slate-900 rounded-b-xl mx-auto relative -top-2 z-10" />
+                  <div 
+                    className="bg-white rounded-[2rem] overflow-hidden relative -mt-2"
+                    style={{ width: 375, height: 700 }}
+                  >
+                    <iframe
+                      key={`mobile-${previewKey}`}
+                      src={previewUrl}
+                      className="w-full h-full"
+                      style={{ border: 'none' }}
+                      title="Mobile Preview"
+                    />
+                  </div>
+                  {/* Home indicator */}
+                  <div className="w-32 h-1 bg-slate-700 rounded-full mx-auto mt-2" />
                 </div>
               </div>
-            </div>
-
-            {/* Desktop Preview */}
-            <div className="flex-1 min-w-0 hidden xl:block">
-              <div className="flex items-center gap-2 mb-2">
-                <Monitor className="w-4 h-4 text-slate-500" />
-                <span className="text-xs font-medium text-slate-600">Desktop (1024px)</span>
-              </div>
-              <div 
-                className="bg-white rounded-lg shadow-lg overflow-hidden border border-slate-300"
-                style={{ height: 420 }}
-              >
-                <div className="w-full h-full overflow-hidden">
-                  <iframe
-                    key={`desktop-${previewKey}`}
-                    src={previewUrl}
-                    className="origin-top-left w-full"
-                    style={{ 
-                      width: '192%',
-                      height: '192%',
-                      transform: 'scale(0.52)',
-                      border: 'none'
-                    }}
-                    title="Desktop Preview"
-                  />
+            ) : (
+              /* Desktop Preview (1440px) */
+              <div className="w-full" style={{ maxWidth: '100%' }}>
+                <div className="bg-slate-800 rounded-lg overflow-hidden shadow-2xl">
+                  {/* Browser chrome */}
+                  <div className="flex items-center gap-2 px-4 py-2 bg-slate-700">
+                    <div className="flex gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-500" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                    </div>
+                    <div className="flex-1 mx-4">
+                      <div className="bg-slate-600 rounded px-3 py-1 text-slate-400 text-xs text-center">
+                        {tenant?.slug ? `orderflow.co/${tenant.slug}` : 'your-store.orderflow.co'}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Content - scaled to fit */}
+                  <div 
+                    className="bg-white overflow-hidden"
+                    style={{ height: 600 }}
+                  >
+                    <div className="w-full h-full overflow-hidden">
+                      <iframe
+                        key={`desktop-${previewKey}`}
+                        src={previewUrl}
+                        className="origin-top-left"
+                        style={{ 
+                          width: 1440,
+                          height: 900,
+                          transform: 'scale(0.5)',
+                          transformOrigin: 'top left',
+                          border: 'none'
+                        }}
+                        title="Desktop Preview"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Preview Info */}

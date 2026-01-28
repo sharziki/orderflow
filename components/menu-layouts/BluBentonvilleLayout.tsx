@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import Image from 'next/image'
-import { Plus, ShoppingCart } from 'lucide-react'
+import { Plus, ShoppingCart, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface MenuItem {
@@ -20,8 +20,16 @@ interface Category {
   name: string
 }
 
+interface StoreHours {
+  open: string
+  close: string
+  isOpen?: boolean
+}
+
 interface BluBentonvilleLayoutProps {
   restaurantName: string
+  logoUrl?: string
+  storeHours?: StoreHours
   primaryColor: string
   secondaryColor: string
   menuItems: MenuItem[]
@@ -159,6 +167,8 @@ function MenuCard({
 
 export default function BluBentonvilleLayout({
   restaurantName,
+  logoUrl,
+  storeHours,
   primaryColor,
   secondaryColor,
   menuItems,
@@ -179,9 +189,21 @@ export default function BluBentonvilleLayout({
       >
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-white font-bold text-lg">
-              {restaurantName.charAt(0)}
-            </div>
+            {logoUrl ? (
+              <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/20 flex-shrink-0">
+                <Image
+                  src={logoUrl}
+                  alt={restaurantName}
+                  width={40}
+                  height={40}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-white font-bold text-lg">
+                {restaurantName.charAt(0)}
+              </div>
+            )}
             <span className="text-white font-semibold text-xl">{restaurantName}</span>
           </div>
           <button 
@@ -200,8 +222,31 @@ export default function BluBentonvilleLayout({
         style={{ background: `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}15)` }}
       >
         <div className="text-center">
+          {logoUrl && (
+            <div className="w-20 h-20 mx-auto mb-4 rounded-2xl overflow-hidden shadow-lg bg-white">
+              <Image
+                src={logoUrl}
+                alt={restaurantName}
+                width={80}
+                height={80}
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
           <h1 className="text-4xl font-bold text-gray-900 mb-2">{restaurantName}</h1>
-          <p className="text-gray-600">Fresh food, made with love</p>
+          {storeHours && (
+            <div className="flex items-center justify-center gap-2 text-gray-600">
+              <Clock className="w-4 h-4" />
+              <span className="text-sm">
+                {storeHours.isOpen !== false ? (
+                  <span className="text-green-600 font-medium">Open</span>
+                ) : (
+                  <span className="text-red-500 font-medium">Closed</span>
+                )}
+                {' · '}{storeHours.open} - {storeHours.close}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import toast, { Toaster } from 'react-hot-toast'
 import { 
   Save,
   Upload,
@@ -11,7 +12,8 @@ import {
   AlertTriangle,
   Pause,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Loader2
 } from 'lucide-react'
 
 interface Tenant {
@@ -176,24 +178,58 @@ export default function SettingsPage() {
     }
   }
 
+  const [uploading, setUploading] = useState(false)
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Invalid file type. Use JPEG, PNG, WebP, or GIF.')
+      return
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File too large. Maximum size is 5MB.')
+      return
+    }
+
+    setUploading(true)
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('type', 'logo')
 
     try {
       const res = await fetch('/api/upload', {
         method: 'POST',
         body: formData
       })
-      if (res.ok) {
-        const data = await res.json()
-        setLogo(data.url)
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        toast.error(data.error || 'Upload failed')
+        return
+      }
+      
+      setLogo(data.url)
+      
+      if (data.storage === 'placeholder') {
+        toast('Logo uploaded (placeholder mode)\nConfigure S3 or Supabase for production', {
+          icon: '⚠️',
+          duration: 5000,
+        })
+      } else {
+        toast.success('Logo uploaded!')
       }
     } catch (error) {
       console.error('Upload failed:', error)
+      toast.error('Failed to upload logo')
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -234,6 +270,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Toaster position="top-right" />
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -285,11 +322,38 @@ export default function SettingsPage() {
                       {name.charAt(0)}
                     </div>
                   )}
-                  <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 cursor-pointer">
-                    <Upload className="w-4 h-4" />
-                    Upload
-                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                  <label className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-colors ${
+                    uploading 
+                      ? 'bg-gray-200 text-gray-500 cursor-wait' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}>
+                    {uploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Uploading...
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-4 h-4" />
+                        Upload
+                      </>
+                    )}
+                    <input 
+                      type="file" 
+                      accept="image/jpeg,image/png,image/webp,image/gif" 
+                      onChange={handleLogoUpload} 
+                      className="hidden" 
+                      disabled={uploading}
+                    />
                   </label>
+                  {logo && (
+                    <button 
+                      onClick={() => setLogo(null)} 
+                      className="text-sm text-red-600 hover:text-red-700"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
               </div>
 

@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { ShoppingCart, ChevronDown, ChevronUp } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { ShoppingCart, ChevronDown, ChevronUp, Clock } from 'lucide-react'
 
 interface MenuItem {
   id: string
@@ -20,8 +19,16 @@ interface Category {
   name: string
 }
 
+interface StoreHours {
+  open: string
+  close: string
+  isOpen?: boolean
+}
+
 interface SliceLayoutProps {
   restaurantName: string
+  logoUrl?: string
+  storeHours?: StoreHours
   primaryColor: string
   secondaryColor: string
   menuItems: MenuItem[]
@@ -120,6 +127,8 @@ function CategorySection({
 
 export default function SliceLayout({
   restaurantName,
+  logoUrl,
+  storeHours,
   primaryColor,
   secondaryColor,
   menuItems,
@@ -142,9 +151,22 @@ export default function SliceLayout({
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">{restaurantName}</h1>
-            <p className="text-sm text-gray-500">Online Ordering</p>
+          <div className="flex items-center gap-3">
+            {logoUrl ? (
+              <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
+                <Image
+                  src={logoUrl}
+                  alt={restaurantName}
+                  width={40}
+                  height={40}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : null}
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">{restaurantName}</h1>
+              <p className="text-sm text-gray-500">Online Ordering</p>
+            </div>
           </div>
           <button 
             className="flex items-center gap-2 px-4 py-2 rounded-full text-white transition-colors"
@@ -158,17 +180,41 @@ export default function SliceLayout({
 
       {/* Restaurant Banner */}
       <div 
-        className="h-32 flex items-end"
+        className="h-36 flex items-end"
         style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
       >
         <div className="max-w-4xl mx-auto px-4 py-4 w-full">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-white rounded-xl shadow-lg flex items-center justify-center text-2xl font-bold" style={{ color: primaryColor }}>
-              {restaurantName.charAt(0)}
-            </div>
+            {logoUrl ? (
+              <div className="w-16 h-16 bg-white rounded-xl shadow-lg overflow-hidden flex-shrink-0">
+                <Image
+                  src={logoUrl}
+                  alt={restaurantName}
+                  width={64}
+                  height={64}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="w-16 h-16 bg-white rounded-xl shadow-lg flex items-center justify-center text-2xl font-bold" style={{ color: primaryColor }}>
+                {restaurantName.charAt(0)}
+              </div>
+            )}
             <div className="text-white">
               <h2 className="text-2xl font-bold">{restaurantName}</h2>
-              <p className="text-white/80 text-sm">🕐 Open Now • 25-40 min delivery</p>
+              {storeHours ? (
+                <p className="text-white/80 text-sm flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  {storeHours.isOpen !== false ? (
+                    <span className="text-green-300">Open</span>
+                  ) : (
+                    <span className="text-red-300">Closed</span>
+                  )}
+                  {' · '}{storeHours.open} - {storeHours.close}
+                </p>
+              ) : (
+                <p className="text-white/80 text-sm">🕐 Open Now • 25-40 min delivery</p>
+              )}
             </div>
           </div>
         </div>

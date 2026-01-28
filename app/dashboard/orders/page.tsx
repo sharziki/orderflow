@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -101,8 +102,10 @@ const statusConfig: Record<string, { label: string; color: string; icon: any }> 
 const NOTIFICATION_SOUND_URL = '/sounds/new-order.mp3'
 
 export default function OrdersPage() {
+  const router = useRouter()
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [authChecked, setAuthChecked] = useState(false)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<OrderStatus | 'all'>('all')
   const [filterType, setFilterType] = useState<OrderType | 'all'>('all')
@@ -114,6 +117,23 @@ export default function OrdersPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const previousOrderIdsRef = useRef<Set<string>>(new Set())
   const isFirstLoadRef = useRef(true)
+  
+  // Auth check
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/auth/me')
+        if (!res.ok) {
+          router.push('/login')
+          return
+        }
+        setAuthChecked(true)
+      } catch {
+        router.push('/login')
+      }
+    }
+    checkAuth()
+  }, [router])
   
   // Initialize audio element
   useEffect(() => {
@@ -205,17 +225,19 @@ export default function OrdersPage() {
     }
   }, [filterStatus, filterType, selectedOrder, playNotificationSound])
   
-  // Initial fetch
+  // Initial fetch (only after auth check)
   useEffect(() => {
-    fetchOrders(true)
-  }, []) // Only on mount
+    if (authChecked) {
+      fetchOrders(true)
+    }
+  }, [authChecked]) // Only on mount after auth
   
   // Refetch when filters change
   useEffect(() => {
-    if (!isFirstLoadRef.current) {
+    if (authChecked && !isFirstLoadRef.current) {
       fetchOrders(false)
     }
-  }, [filterStatus, filterType])
+  }, [filterStatus, filterType, authChecked])
   
   // Auto-refresh every 30 seconds (fallback for realtime)
   useEffect(() => {

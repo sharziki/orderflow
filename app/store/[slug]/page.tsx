@@ -59,18 +59,13 @@ export default function StorePage() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [categories])
 
-  // Load cart from localStorage
+  // Clear cart on page load (fresh start on every visit/refresh)
   useEffect(() => {
-    const savedCart = localStorage.getItem(`cart_${slug}`)
-    const savedOrderType = localStorage.getItem(`orderType_${slug}`)
-    if (savedCart) {
-      try {
-        setCart(JSON.parse(savedCart))
-      } catch {}
-    }
-    if (savedOrderType === 'delivery' || savedOrderType === 'pickup') {
-      setOrderType(savedOrderType)
-    }
+    // Clear any persisted cart data on refresh
+    localStorage.removeItem(`cart_${slug}`)
+    localStorage.removeItem(`orderType_${slug}`)
+    setCart([])
+    setOrderType('pickup')
   }, [slug])
 
   const fetchStore = async () => {
@@ -136,13 +131,9 @@ export default function StorePage() {
     setCart(prev => prev.filter(c => c.menuItem.id !== itemId))
   }
 
-  // Save cart to localStorage whenever it changes
-  useEffect(() => {
-    if (cart.length > 0) {
-      localStorage.setItem(`cart_${slug}`, JSON.stringify(cart))
-      localStorage.setItem(`orderType_${slug}`, orderType)
-    }
-  }, [cart, orderType, slug])
+  // Note: Cart is intentionally NOT persisted to localStorage
+  // It clears on page refresh for a fresh start each visit
+  // Only saved when going to checkout
 
   const goToCheckout = () => {
     localStorage.setItem(`cart_${slug}`, JSON.stringify(cart))
