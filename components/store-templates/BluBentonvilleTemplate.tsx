@@ -16,73 +16,7 @@ import {
   Store as StoreIcon
 } from 'lucide-react'
 import { StoreTemplateProps } from './types'
-
-// Google Places Autocomplete for delivery address
-function AddressPicker({ 
-  value, 
-  onChange,
-  primaryColor 
-}: { 
-  value: string
-  onChange: (address: string, lat?: number, lng?: number) => void
-  primaryColor: string
-}) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [isLoaded, setIsLoaded] = useState(false)
-
-  useEffect(() => {
-    // Check if Google Maps is loaded
-    if (typeof window !== 'undefined' && window.google?.maps?.places) {
-      setIsLoaded(true)
-      initAutocomplete()
-    } else {
-      // Load Google Maps script
-      const script = document.createElement('script')
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}&libraries=places`
-      script.async = true
-      script.onload = () => {
-        setIsLoaded(true)
-        initAutocomplete()
-      }
-      document.head.appendChild(script)
-    }
-  }, [])
-
-  const initAutocomplete = () => {
-    if (!inputRef.current || !window.google?.maps?.places) return
-
-    const autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
-      types: ['address'],
-      componentRestrictions: { country: 'us' },
-    })
-
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace()
-      if (place.formatted_address) {
-        onChange(
-          place.formatted_address,
-          place.geometry?.location?.lat(),
-          place.geometry?.location?.lng()
-        )
-      }
-    })
-  }
-
-  return (
-    <div className="relative">
-      <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Enter delivery address"
-        className="w-full pl-12 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:outline-none text-gray-900 placeholder-gray-400"
-        style={{ borderColor: value ? primaryColor : undefined }}
-      />
-    </div>
-  )
-}
+import AddressPicker from '@/components/AddressPicker'
 
 export function BluBentonvilleTemplate({
   store,
@@ -255,13 +189,21 @@ export function BluBentonvilleTemplate({
             </div>
           </div>
 
-          {/* Delivery Address Input */}
+          {/* Delivery Address Input - Uses DoorDash API for validation */}
           {orderType === 'delivery' && store.deliveryEnabled && (
-            <div className="mt-6 max-w-xl">
+            <div className="mt-6 max-w-xl bg-white/10 backdrop-blur-sm rounded-2xl p-4">
+              <label className="block text-white/80 text-sm font-medium mb-2">
+                Delivery Address
+              </label>
               <AddressPicker
-                value={deliveryAddress}
-                onChange={handleAddressChange}
-                primaryColor={primaryColor}
+                onAddressSelect={(address, country, coords) => {
+                  setDeliveryAddress(address)
+                  setDeliveryLat(coords.lat)
+                  setDeliveryLng(coords.lng)
+                }}
+                initialValue={deliveryAddress}
+                placeholder="Enter your delivery address"
+                showValidationMessage={false}
               />
             </div>
           )}
@@ -498,15 +440,4 @@ export function BluBentonvilleTemplate({
   )
 }
 
-// Add type declaration for Google Maps
-declare global {
-  interface Window {
-    google?: {
-      maps?: {
-        places?: {
-          Autocomplete: new (input: HTMLInputElement, options?: any) => any
-        }
-      }
-    }
-  }
-}
+// Uses existing AddressPicker component with DoorDash API integration
