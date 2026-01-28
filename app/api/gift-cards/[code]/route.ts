@@ -1,89 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
-import { handleApiError, AppError, logRequest } from '@/lib/api-utils'
+import { prisma } from '@/lib/db'
 
-type RouteContext = {
-  params: { code: string }
-}
-
-export async function GET(request: NextRequest, context: RouteContext) {
-  const code = context.params.code.toUpperCase()
-  
+// GET /api/gift-cards/[code] - Check gift card balance
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ code: string }> }
+) {
   try {
-    logRequest('GET', `/api/gift-cards/${code}`)
+    const { code } = await params
+    const upperCode = code.toUpperCase()
 
-    const { data: giftCard, error } = await supabase
-      .from('gift_cards')
-      .select(`
-        *,
-        customer:customers(
-          id,
-          name,
-          email,
-          phone
-        )
-      `)
-      .eq('code', code)
-      .single()
+    const giftCard = await prisma.giftCard.findUnique({
+      where: { code: upperCode },
+    })
 
-    if (error || !giftCard) {
-      throw new AppError('Gift card not found', 404, 'GIFT_CARD_NOT_FOUND')
+    if (!giftCard) {
+      return NextResponse.json(
+        { error: 'Gift card not found' },
+        { status: 404 }
+      )
     }
 
-    const card = giftCard as any
-
-    if (card.status !== 'ACTIVE') {
+    if (!giftCard.isActive) {
       return NextResponse.json({
         valid: false,
-        message: `This gift card is ${card.status.toLowerCase()} and cannot be used.`,
-        status: card.status
+        message: 'This gift card is inactive and cannot be used.',
+        code: giftCard.code,
+        currentBalance: giftCard.currentBalance,
       })
     }
 
-    if (card.current_balance <= 0) {
+    if (giftCard.expiresAt && new Date() > giftCard.expiresAt) {
+      return NextResponse.json({
+        valid: false,
+        message: 'This gift card has expired.',
+        code: giftCard.code,
+        currentBalance: giftCard.currentBalance,
+        expiresAt: giftCard.expiresAt,
+      })
+    }
+
+    if (giftCard.currentBalance <= 0) {
       return NextResponse.json({
         valid: false,
         message: 'This gift card has been fully redeemed (balance: $0.00).',
+        code: giftCard.code,
         currentBalance: 0,
-        status: card.status
       })
     }
 
-    const { data: transactions } = await supabase
-      .from('gift_card_transactions')
-      .select('*')
-      .eq('gift_card_id', card.id)
-      .order('created_at', { ascending: false })
-
-    const transformedTransactions = (transactions || []).map((t: any) => ({
-      id: t.id,
-      giftCardId: t.gift_card_id,
-      orderId: t.order_id,
-      amount: t.amount,
-      balanceBefore: t.balance_before,
-      balanceAfter: t.balance_after,
-      transactionType: t.transaction_type,
-      notes: t.notes,
-      createdBy: t.created_by,
-      createdAt: t.created_at
-    }))
-
     return NextResponse.json({
       valid: true,
-      giftCard: {
-        code: card.code,
-        initialAmount: card.initial_amount,
-        currentBalance: card.current_balance,
-        purchasedAt: card.purchased_at,
-        lastUsedAt: card.last_used_at,
-        status: card.status,
-        customer: card.customer
-      },
-      transactions: transformedTransactions,
-      message: `Gift card balance: $${card.current_balance.toFixed(2)}`
+      code: giftCard.code,
+      currentBalance: giftCard.currentBalance,
+      initialBalance: giftCard.initialBalance,
+      recipientName: giftCard.recipientName,
+      expiresAt: giftCard.expiresAt,
     })
-
   } catch (error) {
-    return handleApiError(error, `GET /api/gift-cards/${code}`)
+    console.error('[GiftCard] Error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch gift card' },
+      { status: 500 }
+    )
   }
 }

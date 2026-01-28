@@ -345,13 +345,34 @@ export async function POST(req: NextRequest) {
     
     // Calculate loyalty points to earn (based on subtotal after discounts)
     let loyaltyPointsEarned = 0
-    if (tenant.loyaltyEnabled && customerId) {
+    if (tenant.loyaltyEnabled && (customerId || customerPhone)) {
       const earnableAmount = subtotal - promoCodeDiscount
       loyaltyPointsEarned = Math.floor(earnableAmount * tenant.loyaltyPointsPerDollar)
     }
     
     const totalDiscount = promoCodeDiscount + loyaltyDiscount
     const total = subtotal + tax + deliveryFee + tipAmount - totalDiscount - giftCardAmount
+    
+    // Create or update customer record by phone number
+    let resolvedCustomerId = customerId
+    if (customerPhone && !resolvedCustomerId) {
+      const customer = await prisma.customer.upsert({
+        where: {
+          tenantId_phone: { tenantId: tenant.id, phone: customerPhone },
+        },
+        create: {
+          tenantId: tenant.id,
+          phone: customerPhone,
+          email: customerEmail || null,
+          name: customerName,
+        },
+        update: {
+          email: customerEmail || undefined,
+          name: customerName || undefined,
+        },
+      })
+      resolvedCustomerId = customer.id
+    }
     
     // Generate order number
     const orderNumber = await generateOrderNumber(tenant.id)
@@ -378,7 +399,7 @@ export async function POST(req: NextRequest) {
       const newOrder = await tx.order.create({
         data: {
           tenantId: tenant.id,
-          customerId: customerId || null,
+          customerId: resolvedCustomerId || null,
           orderNumber,
           status: 'pending',
           type,
@@ -425,9 +446,9 @@ export async function POST(req: NextRequest) {
       }
       
       // Update customer loyalty and stats
-      if (customerId) {
+      if (resolvedCustomerId) {
         await tx.customer.update({
-          where: { id: customerId },
+          where: { id: resolvedCustomerId },
           data: {
             loyaltyPoints: {
               increment: loyaltyPointsEarned - loyaltyPointsRedeemed,
