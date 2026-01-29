@@ -308,7 +308,7 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* Right - Demo Screenshot & Features */}
+      {/* Right - Features */}
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-600 to-indigo-700 items-center justify-center p-8 relative overflow-hidden">
         {/* Background decoration */}
         <div className="absolute inset-0 opacity-10">
@@ -317,63 +317,9 @@ export default function OnboardingPage() {
         </div>
         
         <div className="relative z-10 max-w-lg">
-          {/* Demo phone mockup */}
-          <div className="mb-8 flex justify-center">
-            <div className="bg-slate-900 rounded-[2.5rem] p-2 shadow-2xl transform -rotate-2 hover:rotate-0 transition-transform duration-300">
-              <div className="bg-white rounded-[2rem] overflow-hidden w-[280px]">
-                {/* Status bar */}
-                <div className="h-6 bg-slate-100 flex items-center justify-center">
-                  <div className="w-16 h-1 bg-slate-300 rounded-full" />
-                </div>
-                
-                {/* Demo store screenshot representation */}
-                <div className="p-4 space-y-3">
-                  {/* Header */}
-                  <div className="bg-blue-600 rounded-lg p-3 text-white">
-                    <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-lg font-bold">J</div>
-                      <div>
-                        <div className="font-bold text-sm">Joe's Pizza</div>
-                        <div className="text-white/70 text-xs">Open until 10pm</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Order type */}
-                  <div className="flex gap-2">
-                    <div className="flex-1 bg-blue-50 border-2 border-blue-500 rounded-lg p-2 text-center">
-                      <div className="font-semibold text-xs text-slate-900">Pickup</div>
-                    </div>
-                    <div className="flex-1 bg-slate-50 rounded-lg p-2 text-center">
-                      <div className="font-semibold text-xs text-slate-400">Delivery</div>
-                    </div>
-                  </div>
-                  
-                  {/* Menu items */}
-                  <div className="space-y-2">
-                    {[
-                      { name: 'Margherita Pizza', price: '$14.99' },
-                      { name: 'Garlic Knots', price: '$6.99' },
-                    ].map((item) => (
-                      <div key={item.name} className="bg-slate-50 rounded-lg p-2 flex justify-between items-center">
-                        <div>
-                          <div className="font-medium text-xs text-slate-900">{item.name}</div>
-                          <div className="text-blue-600 font-semibold text-xs">{item.price}</div>
-                        </div>
-                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                          <span className="text-white text-xs">+</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          
           {/* Feature highlights */}
           <div className="space-y-4 text-white">
-            <h2 className="text-2xl font-bold text-center mb-6">Everything you need to sell online</h2>
+            <h2 className="text-3xl font-bold text-center mb-8">Everything you need to sell online</h2>
             <div className="grid grid-cols-2 gap-4">
               {[
                 { icon: Sparkles, title: 'Beautiful Menus', desc: 'Mobile-first design' },
@@ -381,15 +327,15 @@ export default function OnboardingPage() {
                 { icon: Clock, title: 'Real-time Orders', desc: 'Instant notifications' },
                 { icon: BarChart3, title: 'Analytics', desc: 'Track your growth' },
               ].map((feature) => (
-                <div key={feature.title} className="bg-white/10 backdrop-blur rounded-xl p-4">
-                  <feature.icon className="w-6 h-6 mb-2 text-blue-200" />
-                  <div className="font-semibold text-sm">{feature.title}</div>
-                  <div className="text-white/70 text-xs">{feature.desc}</div>
+                <div key={feature.title} className="bg-white/10 backdrop-blur rounded-xl p-5">
+                  <feature.icon className="w-8 h-8 mb-3 text-blue-200" />
+                  <div className="font-semibold text-base">{feature.title}</div>
+                  <div className="text-white/70 text-sm">{feature.desc}</div>
                 </div>
               ))}
             </div>
             
-            <p className="text-center text-white/70 text-sm mt-6">
+            <p className="text-center text-white/70 text-sm mt-8">
               No credit card required • Free to start • Cancel anytime
             </p>
           </div>

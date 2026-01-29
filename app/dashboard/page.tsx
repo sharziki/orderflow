@@ -619,40 +619,55 @@ export default function DashboardHome() {
         <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
-            <CardDescription>Common tasks and shortcuts</CardDescription>
+            <CardDescription>Manage your restaurant</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild>
-                <Link href="/dashboard/menu">
-                  <Edit className="w-4 h-4 mr-2" />
-                  Edit Menu
-                </Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/dashboard/orders">
-                  <ShoppingBag className="w-4 h-4 mr-2" />
-                  View Orders
-                </Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href={`/store/${tenant?.slug}`} target="_blank">
-                  <ExternalLink className="w-4 h-4 mr-2" />
-                  View Store
-                </Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/api/qr-code?format=png" target="_blank">
-                  <QrCode className="w-4 h-4 mr-2" />
-                  Download QR
-                </Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/dashboard/settings">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </Link>
-              </Button>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              <Link href="/dashboard/orders" className="group">
+                <div className="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl p-4 text-center transition-all hover:shadow-md">
+                  <div className="w-12 h-12 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors">
+                    <ShoppingBag className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <p className="font-semibold text-slate-900 text-sm">Orders</p>
+                  <p className="text-xs text-slate-500 mt-1">View & manage</p>
+                </div>
+              </Link>
+              <Link href="/dashboard/menu" className="group">
+                <div className="bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl p-4 text-center transition-all hover:shadow-md">
+                  <div className="w-12 h-12 bg-purple-100 group-hover:bg-purple-200 rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors">
+                    <Menu className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <p className="font-semibold text-slate-900 text-sm">Menu</p>
+                  <p className="text-xs text-slate-500 mt-1">Edit items</p>
+                </div>
+              </Link>
+              <Link href="/admin/gift-cards" className="group">
+                <div className="bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl p-4 text-center transition-all hover:shadow-md">
+                  <div className="w-12 h-12 bg-amber-100 group-hover:bg-amber-200 rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors">
+                    <Gift className="w-6 h-6 text-amber-600" />
+                  </div>
+                  <p className="font-semibold text-slate-900 text-sm">Gift Cards</p>
+                  <p className="text-xs text-slate-500 mt-1">Create & track</p>
+                </div>
+              </Link>
+              <Link href="/dashboard/settings" className="group">
+                <div className="bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl p-4 text-center transition-all hover:shadow-md">
+                  <div className="w-12 h-12 bg-slate-100 group-hover:bg-slate-200 rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors">
+                    <Settings className="w-6 h-6 text-slate-600" />
+                  </div>
+                  <p className="font-semibold text-slate-900 text-sm">Settings</p>
+                  <p className="text-xs text-slate-500 mt-1">Store options</p>
+                </div>
+              </Link>
+              <Link href={`/store/${tenant?.slug}`} target="_blank" className="group">
+                <div className="bg-green-50 hover:bg-green-100 border border-green-200 rounded-xl p-4 text-center transition-all hover:shadow-md">
+                  <div className="w-12 h-12 bg-green-100 group-hover:bg-green-200 rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors">
+                    <ExternalLink className="w-6 h-6 text-green-600" />
+                  </div>
+                  <p className="font-semibold text-slate-900 text-sm">View Store</p>
+                  <p className="text-xs text-slate-500 mt-1">Customer view</p>
+                </div>
+              </Link>
             </div>
           </CardContent>
         </Card>

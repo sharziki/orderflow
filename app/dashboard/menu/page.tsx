@@ -44,7 +44,8 @@ import {
   RefreshCw,
   ImagePlus,
   Check,
-  Settings2
+  Settings2,
+  Package
 } from 'lucide-react'
 
 interface MenuItem {
@@ -83,6 +84,8 @@ interface Tenant {
   name: string
   primaryColor: string
   menuLayout: string
+  deliveryEnabled?: boolean
+  pickupEnabled?: boolean
 }
 
 // Sortable Category Component
@@ -1041,7 +1044,15 @@ function MenuEditorContent() {
         <div className={`w-full lg:w-1/2 bg-slate-200 overflow-y-auto p-4 ${!showPreviewMobile ? 'hidden lg:block' : ''}`}>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="font-semibold text-slate-900 mb-1">Live Preview</h2>
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="font-semibold text-slate-900">Live Preview</h2>
+                {tenant && !tenant.deliveryEnabled && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-medium rounded-full">
+                    <Package className="w-3 h-3" />
+                    Pickup Only
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-600">
                 Uses your branding, layout, and live menu data
               </p>
@@ -1143,11 +1154,27 @@ function MenuEditorContent() {
           </div>
 
           {/* Preview Info */}
-          <div className="mt-4 bg-blue-50 rounded-lg p-3 text-sm text-blue-800">
-            <p className="font-medium mb-1">💡 Preview updates live</p>
-            <p className="text-xs text-blue-600">
-              Changes reflect within 1-2 seconds after saving.
-            </p>
+          <div className="mt-4 space-y-3">
+            {tenant && !tenant.deliveryEnabled && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+                <p className="font-medium mb-1 flex items-center gap-2">
+                  <Package className="w-4 h-4" />
+                  Pickup Only Mode
+                </p>
+                <p className="text-xs text-amber-600">
+                  Delivery is disabled. Customers can only order for pickup.
+                  <Link href="/dashboard/settings" className="ml-1 underline hover:no-underline">
+                    Enable delivery →
+                  </Link>
+                </p>
+              </div>
+            )}
+            <div className="bg-blue-50 rounded-lg p-3 text-sm text-blue-800">
+              <p className="font-medium mb-1">💡 Preview updates live</p>
+              <p className="text-xs text-blue-600">
+                Changes reflect within 1-2 seconds after saving.
+              </p>
+            </div>
           </div>
         </div>
       </div>
