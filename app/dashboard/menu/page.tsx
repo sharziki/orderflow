@@ -1119,7 +1119,7 @@ function MenuEditorContent() {
                   {/* Content - scaled to fit */}
                   <div 
                     className="bg-white overflow-hidden"
-                    style={{ height: 600 }}
+                    style={{ height: 450 }}
                   >
                     <div className="w-full h-full overflow-hidden">
                       <iframe
