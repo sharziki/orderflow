@@ -85,6 +85,15 @@ interface Tenant {
   menuLayout: string
 }
 
+// Layout options for preview (must match store page layout param)
+const PREVIEW_LAYOUTS = [
+  { id: 'wide', name: 'Modern Cards' },
+  { id: 'blu-bentonville', name: 'Sidebar' },
+  { id: 'slice', name: 'Slice' },
+  { id: 'modern', name: 'Modern' },
+  { id: 'classic', name: 'Classic' },
+] as const
+
 // Sortable Category Component
 function SortableCategory({ 
   category, 
@@ -662,6 +671,7 @@ function MenuEditorContent() {
   const [previewKey, setPreviewKey] = useState(0)
   const [showPreviewMobile, setShowPreviewMobile] = useState(false)
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('desktop')
+  const [previewLayout, setPreviewLayout] = useState<string>('blu-bentonville')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -690,7 +700,9 @@ function MenuEditorContent() {
       }
       
       const authData = await authRes.json()
-      setTenant(authData.tenant)
+      const t = authData.tenant
+      setTenant(t)
+      setPreviewLayout(t?.menuLayout || 'blu-bentonville')
       
       if (!catRes.ok || !itemsRes.ok) {
         throw new Error('Failed to load menu data')
@@ -935,7 +947,7 @@ function MenuEditorContent() {
     )
   }
 
-  const previewUrl = tenant?.slug ? `/store/${tenant.slug}?preview=true` : ''
+  const previewUrl = tenant?.slug ? `/store/${tenant.slug}?preview=true&layout=${previewLayout}` : ''
 
   return (
     <div className="h-screen flex flex-col bg-slate-100">
@@ -1039,15 +1051,28 @@ function MenuEditorContent() {
 
         {/* Right Panel - Live Preview */}
         <div className={`w-full lg:w-1/2 bg-slate-200 overflow-y-auto p-4 ${!showPreviewMobile ? 'hidden lg:block' : ''}`}>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
               <h2 className="font-semibold text-slate-900 mb-1">Live Preview</h2>
               <p className="text-xs text-slate-600">
                 Uses your branding, layout, and live menu data
               </p>
             </div>
-            {/* Device Toggle */}
-            <div className="flex items-center bg-slate-100 rounded-lg p-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Layout style picker */}
+              <select
+                value={previewLayout}
+                onChange={(e) => setPreviewLayout(e.target.value)}
+                className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]"
+              >
+                {PREVIEW_LAYOUTS.map((layout) => (
+                  <option key={layout.id} value={layout.id}>
+                    {layout.name}
+                  </option>
+                ))}
+              </select>
+              {/* Device Toggle */}
+              <div className="flex items-center bg-slate-100 rounded-lg p-1">
               <button
                 onClick={() => setPreviewDevice('mobile')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${

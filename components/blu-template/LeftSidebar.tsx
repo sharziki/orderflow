@@ -137,7 +137,7 @@ export default function LeftSidebar({
           <label className="block text-sm font-semibold text-gray-700 mb-3">
             Order Type
           </label>
-          <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg">
+          <div className={`grid gap-2 p-1 bg-gray-100 rounded-lg ${store.deliveryEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <button
               onClick={() => onOrderTypeChange('pickup')}
               className={`flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-semibold transition-all duration-200 ${

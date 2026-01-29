@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -308,91 +309,162 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* Right - Demo Screenshot & Features */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-600 to-indigo-700 items-center justify-center p-8 relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-white rounded-full blur-3xl" />
+      {/* Right - Live preview that updates as they fill the form */}
+      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 items-center justify-center p-8 relative overflow-hidden">
+        {/* Background */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-indigo-500 rounded-full blur-3xl" />
         </div>
-        
-        <div className="relative z-10 max-w-lg">
-          {/* Demo phone mockup */}
-          <div className="mb-8 flex justify-center">
-            <div className="bg-slate-900 rounded-[2.5rem] p-2 shadow-2xl transform -rotate-2 hover:rotate-0 transition-transform duration-300">
-              <div className="bg-white rounded-[2rem] overflow-hidden w-[280px]">
-                {/* Status bar */}
-                <div className="h-6 bg-slate-100 flex items-center justify-center">
-                  <div className="w-16 h-1 bg-slate-300 rounded-full" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(59,130,246,0.15),transparent)]" />
+
+        <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-8">
+          <motion.p
+            key={slug ? 'with-slug' : 'no-slug'}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-white/80 text-sm font-medium"
+          >
+            {slug ? (
+              <>Your store will live at <span className="text-white font-semibold">orderflow.co/{slug}</span></>
+            ) : (
+              'Fill in your details to see your store preview'
+            )}
+          </motion.p>
+
+          {/* Live-updating phone mockup */}
+          <motion.div
+            layout
+            className="bg-slate-800 rounded-[2.5rem] p-2.5 shadow-2xl ring-1 ring-white/10"
+            whileHover={{ scale: 1.02 }}
+            transition={{ type: 'spring', stiffness: 300 }}
+          >
+            <div className="bg-white rounded-[2rem] overflow-hidden w-[280px]">
+              <div className="h-7 bg-slate-100 flex items-center justify-center gap-1">
+                <div className="w-14 h-1.5 bg-slate-300 rounded-full" />
+              </div>
+              <div className="p-4 space-y-3 min-h-[320px]">
+                {/* Header - updates with name & logo */}
+                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl p-3 text-white shadow-lg">
+                  <div className="flex items-center gap-3">
+                    <AnimatePresence mode="wait">
+                      {logoPreview ? (
+                        <motion.div
+                          key="logo"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.8, opacity: 0 }}
+                          className="w-11 h-11 rounded-lg overflow-hidden bg-white/20 flex-shrink-0 ring-2 ring-white/30"
+                        >
+                          <img src={logoPreview} alt="" className="w-full h-full object-cover" />
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="initial"
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0.8, opacity: 0 }}
+                          className="w-11 h-11 rounded-lg bg-white/20 flex items-center justify-center text-lg font-bold flex-shrink-0"
+                        >
+                          {form.name ? form.name.charAt(0).toUpperCase() : '?'}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    <div className="min-w-0 flex-1">
+                      <AnimatePresence mode="wait">
+                        <motion.div
+                          key={form.name || 'placeholder'}
+                          initial={{ opacity: 0, y: 4 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -4 }}
+                          className="font-bold text-sm truncate"
+                        >
+                          {form.name || 'Your Restaurant'}
+                        </motion.div>
+                      </AnimatePresence>
+                      <div className="text-white/80 text-xs">Open • Add hours in dashboard</div>
+                    </div>
+                  </div>
                 </div>
-                
-                {/* Demo store screenshot representation */}
-                <div className="p-4 space-y-3">
-                  {/* Header */}
-                  <div className="bg-blue-600 rounded-lg p-3 text-white">
-                    <div className="flex items-center gap-2">
-                      <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-lg font-bold">J</div>
-                      <div>
-                        <div className="font-bold text-sm">Joe's Pizza</div>
-                        <div className="text-white/70 text-xs">Open until 10pm</div>
-                      </div>
-                    </div>
+
+                {/* Store URL bar - only show when slug exists */}
+                <AnimatePresence>
+                  {slug && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="bg-slate-100 rounded-lg px-3 py-2 overflow-hidden"
+                    >
+                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Store URL</div>
+                      <div className="text-xs font-medium text-blue-600 truncate">orderflow.co/{slug}</div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Order types */}
+                <div className="flex gap-2">
+                  <div className="flex-1 bg-blue-50 border-2 border-blue-500 rounded-lg py-2.5 text-center">
+                    <span className="font-semibold text-xs text-slate-900">Pickup</span>
                   </div>
-                  
-                  {/* Order type */}
-                  <div className="flex gap-2">
-                    <div className="flex-1 bg-blue-50 border-2 border-blue-500 rounded-lg p-2 text-center">
-                      <div className="font-semibold text-xs text-slate-900">Pickup</div>
-                    </div>
-                    <div className="flex-1 bg-slate-50 rounded-lg p-2 text-center">
-                      <div className="font-semibold text-xs text-slate-400">Delivery</div>
-                    </div>
+                  <div className="flex-1 bg-slate-50 rounded-lg py-2.5 text-center">
+                    <span className="font-semibold text-xs text-slate-400">Delivery</span>
                   </div>
-                  
-                  {/* Menu items */}
-                  <div className="space-y-2">
-                    {[
-                      { name: 'Margherita Pizza', price: '$14.99' },
-                      { name: 'Garlic Knots', price: '$6.99' },
-                    ].map((item) => (
-                      <div key={item.name} className="bg-slate-50 rounded-lg p-2 flex justify-between items-center">
-                        <div>
-                          <div className="font-medium text-xs text-slate-900">{item.name}</div>
-                          <div className="text-blue-600 font-semibold text-xs">{item.price}</div>
-                        </div>
-                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
-                          <span className="text-white text-xs">+</span>
-                        </div>
-                      </div>
-                    ))}
+                </div>
+
+                {/* Sample menu - static but gives “real store” feel */}
+                <div className="space-y-2 pt-1">
+                  <div className="bg-slate-50 rounded-lg p-2.5 flex justify-between items-center">
+                    <div>
+                      <div className="font-medium text-xs text-slate-900">Sample item</div>
+                      <div className="text-blue-600 font-semibold text-xs">$0.00</div>
+                    </div>
+                    <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs">+</div>
+                  </div>
+                  <div className="bg-slate-50 rounded-lg p-2.5 flex justify-between items-center opacity-70">
+                    <div>
+                      <div className="font-medium text-xs text-slate-600">Add your menu in dashboard</div>
+                      <div className="text-slate-400 text-xs">After signup</div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          </motion.div>
+
+          {/* Progress checklist - updates as they fill fields */}
+          <div className="w-full max-w-sm space-y-3">
+            <h3 className="text-white font-semibold text-sm text-center mb-4">Setup progress</h3>
+            {[
+              { done: !!form.name, label: 'Restaurant name' },
+              { done: !!form.address, label: 'Address' },
+              { done: !!form.email, label: 'Email' },
+              { done: !!form.password && form.password.length >= 6, label: 'Password (6+ chars)' },
+            ].map((item, i) => (
+              <motion.div
+                key={item.label}
+                initial={false}
+                animate={{ opacity: 1 }}
+                className="flex items-center gap-3 text-sm"
+              >
+                <motion.div
+                  initial={false}
+                  animate={{
+                    scale: item.done ? 1 : 0.9,
+                    backgroundColor: item.done ? 'rgb(34, 197, 94)' : 'rgba(255,255,255,0.2)',
+                  }}
+                  className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                >
+                  {item.done && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                </motion.div>
+                <span className={item.done ? 'text-white' : 'text-white/60'}>{item.label}</span>
+              </motion.div>
+            ))}
           </div>
-          
-          {/* Feature highlights */}
-          <div className="space-y-4 text-white">
-            <h2 className="text-2xl font-bold text-center mb-6">Everything you need to sell online</h2>
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { icon: Sparkles, title: 'Beautiful Menus', desc: 'Mobile-first design' },
-                { icon: CreditCard, title: 'Easy Payments', desc: 'Stripe integration' },
-                { icon: Clock, title: 'Real-time Orders', desc: 'Instant notifications' },
-                { icon: BarChart3, title: 'Analytics', desc: 'Track your growth' },
-              ].map((feature) => (
-                <div key={feature.title} className="bg-white/10 backdrop-blur rounded-xl p-4">
-                  <feature.icon className="w-6 h-6 mb-2 text-blue-200" />
-                  <div className="font-semibold text-sm">{feature.title}</div>
-                  <div className="text-white/70 text-xs">{feature.desc}</div>
-                </div>
-              ))}
-            </div>
-            
-            <p className="text-center text-white/70 text-sm mt-6">
-              No credit card required • Free to start • Cancel anytime
-            </p>
-          </div>
+
+          <p className="text-white/50 text-xs text-center">
+            No credit card required • Free to start
+          </p>
         </div>
       </div>
     </div>
