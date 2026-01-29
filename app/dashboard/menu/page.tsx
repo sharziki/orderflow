@@ -45,7 +45,11 @@ import {
   ImagePlus,
   Check,
   Settings2,
-  Package
+  Package,
+  Store,
+  Clock,
+  Camera,
+  Palette
 } from 'lucide-react'
 
 interface MenuItem {
@@ -86,6 +90,16 @@ interface Tenant {
   menuLayout: string
   deliveryEnabled?: boolean
   pickupEnabled?: boolean
+  logo?: string | null
+  phone?: string | null
+  address?: string | null
+  businessHours?: Record<string, { open: string; close: string; closed: boolean }>
+}
+
+const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
+const DAY_LABELS: Record<string, string> = {
+  monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu',
+  friday: 'Fri', saturday: 'Sat', sunday: 'Sun'
 }
 
 // Layout options for preview (must match store page layout param)
@@ -675,6 +689,18 @@ function MenuEditorContent() {
   const [showPreviewMobile, setShowPreviewMobile] = useState(false)
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'desktop'>('desktop')
   const [previewLayout, setPreviewLayout] = useState<string>('blu-bentonville')
+  
+  // Store settings state
+  const [showStoreSettings, setShowStoreSettings] = useState(false)
+  const [storeName, setStoreName] = useState('')
+  const [storePhone, setStorePhone] = useState('')
+  const [storeAddress, setStoreAddress] = useState('')
+  const [storeLogo, setStoreLogo] = useState<string | null>(null)
+  const [primaryColor, setPrimaryColor] = useState('#2563eb')
+  const [businessHours, setBusinessHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({})
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const logoInputRef = useRef<HTMLInputElement>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -707,6 +733,14 @@ function MenuEditorContent() {
       setTenant(t)
       setPreviewLayout(t?.menuLayout || 'blu-bentonville')
       
+      // Populate store settings
+      setStoreName(t?.name || '')
+      setStorePhone(t?.phone || '')
+      setStoreAddress(t?.address || '')
+      setStoreLogo(t?.logo || null)
+      setPrimaryColor(t?.primaryColor || '#2563eb')
+      setBusinessHours(t?.businessHours || {})
+      
       if (!catRes.ok || !itemsRes.ok) {
         throw new Error('Failed to load menu data')
       }
@@ -729,6 +763,94 @@ function MenuEditorContent() {
   const refreshPreview = useCallback(() => {
     setPreviewKey(k => k + 1)
   }, [])
+
+  // Store settings functions
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Logo must be less than 5MB', 'error')
+      return
+    }
+    
+    setUploadingLogo(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'logo')
+      
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      })
+      
+      if (res.ok) {
+        const { url } = await res.json()
+        setStoreLogo(url)
+        // Auto-save logo
+        await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ logo: url })
+        })
+        showToast('Logo updated')
+        refreshPreview()
+      } else {
+        showToast('Failed to upload logo', 'error')
+      }
+    } catch (err) {
+      showToast('Upload failed', 'error')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  const saveStoreSettings = async () => {
+    setSavingSettings(true)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: storeName,
+          phone: storePhone,
+          address: storeAddress,
+          primaryColor,
+          businessHours
+        })
+      })
+      
+      if (res.ok) {
+        showToast('Settings saved')
+        setTenant(prev => prev ? { 
+          ...prev, 
+          name: storeName, 
+          phone: storePhone, 
+          address: storeAddress,
+          primaryColor,
+          businessHours 
+        } : null)
+        refreshPreview()
+      } else {
+        showToast('Failed to save settings', 'error')
+      }
+    } catch (err) {
+      showToast('Save failed', 'error')
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  const updateBusinessHour = (day: string, field: 'open' | 'close' | 'closed', value: string | boolean) => {
+    setBusinessHours(prev => ({
+      ...prev,
+      [day]: {
+        ...prev[day] || { open: '09:00', close: '21:00', closed: false },
+        [field]: value
+      }
+    }))
+  }
 
   const getItemsInCategory = (categoryId: string) => {
     return menuItems
@@ -995,9 +1117,202 @@ function MenuEditorContent() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - Editor */}
         <div className={`w-full lg:w-1/2 border-r border-slate-200 bg-white overflow-y-auto ${showPreviewMobile ? 'hidden lg:block' : ''}`}>
-          <div className="p-4">
+          <div className="p-4 space-y-4">
+            {/* Store Settings Section */}
+            <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+              <button
+                onClick={() => setShowStoreSettings(!showStoreSettings)}
+                className="w-full flex items-center justify-between p-3 hover:bg-slate-100 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Store className="w-4 h-4 text-slate-500" />
+                  <span className="font-semibold text-slate-900">Store Settings</span>
+                </div>
+                {showStoreSettings ? (
+                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                )}
+              </button>
+              
+              {showStoreSettings && (
+                <div className="p-4 border-t border-slate-200 space-y-4">
+                  {/* Logo */}
+                  <div>
+                    <Label className="text-sm font-medium text-slate-700">Logo</Label>
+                    <div className="mt-2 flex items-center gap-4">
+                      <input
+                        type="file"
+                        ref={logoInputRef}
+                        onChange={handleLogoUpload}
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                      />
+                      {storeLogo ? (
+                        <div className="relative">
+                          <img
+                            src={storeLogo}
+                            alt="Logo"
+                            className="w-16 h-16 rounded-lg object-cover border-2 border-slate-200"
+                          />
+                          <button
+                            onClick={() => {
+                              setStoreLogo(null)
+                              fetch('/api/settings', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ logo: null })
+                              }).then(() => {
+                                showToast('Logo removed')
+                                refreshPreview()
+                              })
+                            }}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => logoInputRef.current?.click()}
+                          disabled={uploadingLogo}
+                          className="w-16 h-16 rounded-lg border-2 border-dashed border-slate-300 flex flex-col items-center justify-center gap-0.5 hover:border-blue-400 hover:bg-blue-50 transition-colors"
+                        >
+                          {uploadingLogo ? (
+                            <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                          ) : (
+                            <>
+                              <Camera className="w-5 h-5 text-slate-400" />
+                              <span className="text-[10px] text-slate-500">Upload</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => logoInputRef.current?.click()}
+                        className="text-sm text-blue-600 hover:text-blue-700"
+                      >
+                        {storeLogo ? 'Change' : 'Add logo'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Store Name */}
+                  <div>
+                    <Label className="text-sm font-medium text-slate-700">Store Name</Label>
+                    <Input
+                      value={storeName}
+                      onChange={(e) => setStoreName(e.target.value)}
+                      placeholder="Your Restaurant"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <Label className="text-sm font-medium text-slate-700">Phone</Label>
+                    <Input
+                      value={storePhone}
+                      onChange={(e) => setStorePhone(e.target.value)}
+                      placeholder="(555) 123-4567"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  {/* Address */}
+                  <div>
+                    <Label className="text-sm font-medium text-slate-700">Address</Label>
+                    <Input
+                      value={storeAddress}
+                      onChange={(e) => setStoreAddress(e.target.value)}
+                      placeholder="123 Main St, City, State"
+                      className="mt-1"
+                    />
+                  </div>
+
+                  {/* Brand Color */}
+                  <div>
+                    <Label className="text-sm font-medium text-slate-700">Brand Color</Label>
+                    <div className="mt-1 flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer"
+                      />
+                      <Input
+                        value={primaryColor}
+                        onChange={(e) => setPrimaryColor(e.target.value)}
+                        className="flex-1 font-mono text-sm"
+                        placeholder="#2563eb"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Business Hours */}
+                  <div>
+                    <Label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                      <Clock className="w-4 h-4" />
+                      Business Hours
+                    </Label>
+                    <div className="mt-2 space-y-2">
+                      {DAYS.map(day => {
+                        const hours = businessHours[day] || { open: '09:00', close: '21:00', closed: false }
+                        return (
+                          <div key={day} className="flex items-center gap-2 text-sm">
+                            <span className="w-10 text-slate-600 font-medium">{DAY_LABELS[day]}</span>
+                            <label className="flex items-center gap-1 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={!hours.closed}
+                                onChange={(e) => updateBusinessHour(day, 'closed', !e.target.checked)}
+                                className="w-4 h-4 rounded border-slate-300 text-blue-600"
+                              />
+                            </label>
+                            {!hours.closed ? (
+                              <>
+                                <input
+                                  type="time"
+                                  value={hours.open}
+                                  onChange={(e) => updateBusinessHour(day, 'open', e.target.value)}
+                                  className="px-2 py-1 border border-slate-200 rounded text-xs"
+                                />
+                                <span className="text-slate-400">-</span>
+                                <input
+                                  type="time"
+                                  value={hours.close}
+                                  onChange={(e) => updateBusinessHour(day, 'close', e.target.value)}
+                                  className="px-2 py-1 border border-slate-200 rounded text-xs"
+                                />
+                              </>
+                            ) : (
+                              <span className="text-slate-400 text-xs">Closed</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Save Button */}
+                  <Button
+                    onClick={saveStoreSettings}
+                    disabled={savingSettings}
+                    className="w-full gap-2"
+                  >
+                    {savingSettings ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    Save Settings
+                  </Button>
+                </div>
+              )}
+            </div>
+
             {/* Categories Header */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between">
               <h2 className="font-semibold text-slate-900">Categories</h2>
               <Button 
                 size="sm" 
