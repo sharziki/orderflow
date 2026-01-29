@@ -15,6 +15,7 @@ const menuData = {
     state: 'AR',
     zip: '72712',
     timezone: 'America/Chicago',
+    logo: 'https://images.unsplash.com/photo-1559339352-11d035aa65de?w=200&h=200&fit=crop',
     primaryColor: '#1e3a5f',
     secondaryColor: '#0ea5e9',
     template: 'modern',
