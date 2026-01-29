@@ -14,7 +14,19 @@ import {
   Trash2,
   RefreshCw,
   Loader2,
-  Truck
+  Truck,
+  Store,
+  Clock,
+  Palette,
+  DollarSign,
+  Settings,
+  Link2,
+  AlertCircle,
+  ChevronRight,
+  CheckCircle2,
+  XCircle,
+  CreditCard,
+  Rocket
 } from 'lucide-react'
 
 interface Tenant {
@@ -44,28 +56,41 @@ interface Tenant {
   isActive: boolean
   stripeOnboardingComplete: boolean
   platformFeePercent: number
-  // DoorDash configuration
   doordashDeveloperId: string | null
   doordashKeyId: string | null
   doordashSigningSecret: string | null
 }
 
 const LAYOUTS = [
-  { id: 'sidebar', name: 'Sidebar', description: 'Left sidebar with categories' },
-  { id: 'modern', name: 'Modern', description: 'Centered narrow layout' },
-  { id: 'wide', name: 'Wide', description: 'Full-width with cart sidebar' },
-  { id: 'slice', name: 'Slice', description: 'Pizza-shop card style' },
+  { id: 'blu-bentonville', name: 'Modern Cards', description: 'Vertical cards with hover effects' },
+  { id: 'slice', name: 'Slice', description: 'Horizontal cards, collapsible' },
+  { id: 'minimal', name: 'Minimal', description: 'Clean, text-focused' },
+  { id: 'grid-compact', name: 'Compact Grid', description: 'Mobile-first grid' },
+  { id: 'classic', name: 'Classic', description: 'Elegant traditional' },
+  { id: 'dark-mode', name: 'Dark Mode', description: 'Modern dark theme' },
 ]
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+
+const SECTIONS = [
+  { id: 'store', label: 'Store Info', icon: Store, required: true },
+  { id: 'hours', label: 'Hours', icon: Clock, required: true },
+  { id: 'layout', label: 'Appearance', icon: Palette, required: false },
+  { id: 'fees', label: 'Fees & Taxes', icon: DollarSign, required: true },
+  { id: 'features', label: 'Features', icon: Settings, required: false },
+  { id: 'integrations', label: 'Integrations', icon: Link2, required: true },
+  { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, required: false },
+]
 
 export default function SettingsPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [tenant, setTenant] = useState<Tenant | null>(null)
-  const [activeTab, setActiveTab] = useState('store')
+  const [activeSection, setActiveSection] = useState('store')
   const [previewKey, setPreviewKey] = useState(0)
+  const [errors, setErrors] = useState<Record<string, string>>({})
   
   // Form state
   const [name, setName] = useState('')
@@ -76,7 +101,7 @@ export default function SettingsPage() {
   const [zip, setZip] = useState('')
   const [logo, setLogo] = useState<string | null>(null)
   const [primaryColor, setPrimaryColor] = useState('#2563eb')
-  const [menuLayout, setMenuLayout] = useState('sidebar')
+  const [menuLayout, setMenuLayout] = useState('blu-bentonville')
   const [taxRate, setTaxRate] = useState(0)
   const [deliveryEnabled, setDeliveryEnabled] = useState(false)
   const [deliveryFee, setDeliveryFee] = useState(0)
@@ -87,8 +112,6 @@ export default function SettingsPage() {
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
   const [isActive, setIsActive] = useState(true)
   const [businessHours, setBusinessHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({})
-  const [gaId, setGaId] = useState('')
-  const [fbPixelId, setFbPixelId] = useState('')
 
   useEffect(() => {
     fetchSettings()
@@ -105,7 +128,6 @@ export default function SettingsPage() {
       const t = data.tenant
       setTenant(t)
       
-      // Populate form
       setName(t.name || '')
       setPhone(t.phone || '')
       setAddress(t.address || '')
@@ -114,7 +136,7 @@ export default function SettingsPage() {
       setZip(t.zip || '')
       setLogo(t.logo)
       setPrimaryColor(t.primaryColor || '#2563eb')
-      setMenuLayout(t.menuLayout || 'sidebar')
+      setMenuLayout(t.menuLayout || 'blu-bentonville')
       setTaxRate(t.taxRate || 0)
       setDeliveryEnabled(t.deliveryEnabled || false)
       setDeliveryFee(t.deliveryFee || 0)
@@ -125,7 +147,6 @@ export default function SettingsPage() {
       setLoyaltyEnabled(t.loyaltyEnabled || false)
       setIsActive(t.isActive !== false)
       
-      // Business hours
       const hours = t.businessHours || {}
       const defaultHours: Record<string, { open: string; close: string; closed: boolean }> = {}
       DAYS.forEach(day => {
@@ -140,564 +161,803 @@ export default function SettingsPage() {
     }
   }
 
+  // Validation
+  const validateForm = () => {
+    const newErrors: Record<string, string> = {}
+    
+    if (!name.trim()) newErrors.name = 'Restaurant name is required'
+    if (!phone.trim()) newErrors.phone = 'Phone number is required'
+    if (!address.trim()) newErrors.address = 'Address is required'
+    if (!city.trim()) newErrors.city = 'City is required'
+    if (!state.trim()) newErrors.state = 'State is required'
+    if (!zip.trim()) newErrors.zip = 'ZIP code is required'
+    
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  // Check if ready to launch
+  const getReadinessChecks = () => {
+    return [
+      { id: 'name', label: 'Restaurant name', passed: !!name.trim() },
+      { id: 'phone', label: 'Phone number', passed: !!phone.trim() },
+      { id: 'address', label: 'Complete address', passed: !!(address.trim() && city.trim() && state.trim() && zip.trim()) },
+      { id: 'hours', label: 'Business hours set', passed: Object.values(businessHours).some(h => !h.closed) },
+      { id: 'stripe', label: 'Stripe payments connected', passed: !!tenant?.stripeOnboardingComplete },
+      { id: 'orderType', label: 'At least one order type enabled', passed: pickupEnabled || deliveryEnabled },
+    ]
+  }
+
+  const isReadyToLaunch = () => getReadinessChecks().every(c => c.passed)
+
   const handleSave = async () => {
+    if (!validateForm()) {
+      toast.error('Please fill in all required fields')
+      setActiveSection('store')
+      return
+    }
+
     setSaving(true)
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name,
-          phone,
-          address,
-          city,
-          state,
-          zip,
-          logo,
-          primaryColor,
-          menuLayout,
-          taxRate,
-          deliveryEnabled,
-          deliveryFee,
-          minOrderAmount,
-          pickupEnabled,
-          scheduledOrdersEnabled,
-          giftCardsEnabled,
-          loyaltyEnabled,
-          isActive,
-          businessHours,
-        })
+          name, phone, address, city, state, zip, logo, primaryColor, menuLayout,
+          taxRate, deliveryEnabled, deliveryFee, minOrderAmount, pickupEnabled,
+          scheduledOrdersEnabled, giftCardsEnabled, loyaltyEnabled, isActive, businessHours
+        }),
       })
-      
+
       if (res.ok) {
-        setPreviewKey(k => k + 1) // Refresh preview
-        alert('Settings saved!')
+        toast.success('Settings saved!')
+        setPreviewKey(k => k + 1)
+        // Refresh tenant data
+        const meRes = await fetch('/api/auth/me')
+        if (meRes.ok) {
+          const data = await meRes.json()
+          setTenant(data.tenant)
+        }
       } else {
-        const data = await res.json()
-        alert(data.error || 'Failed to save settings')
+        toast.error('Failed to save settings')
       }
     } catch (error) {
-      alert('Failed to save settings')
+      toast.error('Failed to save settings')
     } finally {
       setSaving(false)
     }
   }
 
-  const [uploading, setUploading] = useState(false)
-
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Invalid file type. Use JPEG, PNG, WebP, or GIF.')
-      return
-    }
-
-    // Validate file size (5MB max)
+    
     if (file.size > 5 * 1024 * 1024) {
-      toast.error('File too large. Maximum size is 5MB.')
+      toast.error('Image must be under 5MB')
       return
     }
 
     setUploading(true)
-    const formData = new FormData()
-    formData.append('file', file)
-    formData.append('type', 'logo')
-
     try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData
-      })
-      
-      const data = await res.json()
-      
-      if (!res.ok) {
-        toast.error(data.error || 'Upload failed')
-        return
-      }
-      
-      setLogo(data.url)
-      
-      if (data.storage === 'placeholder') {
-        toast('Logo uploaded (placeholder mode)\nConfigure S3 or Supabase for production', {
-          icon: '⚠️',
-          duration: 5000,
-        })
-      } else {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'logo')
+
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      if (res.ok) {
+        const data = await res.json()
+        setLogo(data.url)
         toast.success('Logo uploaded!')
+      } else {
+        toast.error('Failed to upload logo')
       }
     } catch (error) {
-      console.error('Upload failed:', error)
       toast.error('Failed to upload logo')
     } finally {
       setUploading(false)
     }
   }
 
-  const updateHours = (day: string, field: 'open' | 'close' | 'closed', value: string | boolean) => {
+  const updateHours = (day: string, field: string, value: any) => {
     setBusinessHours(prev => ({
       ...prev,
       [day]: { ...prev[day], [field]: value }
     }))
   }
 
-  const handlePauseStore = async () => {
-    if (!confirm('This will temporarily disable ordering. Continue?')) return
-    setIsActive(false)
-    await handleSave()
+  const handlePauseStore = () => {
+    setIsActive(!isActive)
+    toast.success(isActive ? 'Store will be paused after saving' : 'Store will be active after saving')
   }
 
   const handleDeleteStore = async () => {
-    const confirmText = prompt('Type "DELETE" to permanently delete this store:')
-    if (confirmText !== 'DELETE') return
+    const confirmed = window.confirm('Are you sure you want to delete this store? This action cannot be undone.')
+    if (!confirmed) return
     
+    const doubleConfirm = window.prompt('Type "DELETE" to confirm:')
+    if (doubleConfirm !== 'DELETE') {
+      toast.error('Deletion cancelled')
+      return
+    }
+
     try {
-      const res = await fetch('/api/tenants', { method: 'DELETE' })
+      const res = await fetch('/api/settings', { method: 'DELETE' })
       if (res.ok) {
-        router.push('/login')
+        toast.success('Store deleted')
+        router.push('/')
+      } else {
+        toast.error('Failed to delete store')
       }
     } catch (error) {
-      alert('Failed to delete store')
+      toast.error('Failed to delete store')
+    }
+  }
+
+  const getSectionStatus = (sectionId: string) => {
+    switch (sectionId) {
+      case 'store':
+        return !!(name && phone && address && city && state && zip)
+      case 'hours':
+        return Object.values(businessHours).some(h => !h.closed)
+      case 'fees':
+        return true // Always valid
+      case 'integrations':
+        return !!tenant?.stripeOnboardingComplete
+      default:
+        return true
     }
   }
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     )
   }
 
+  const readinessChecks = getReadinessChecks()
+  const passedChecks = readinessChecks.filter(c => c.passed).length
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Toaster position="top-right" />
+      
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-8">
+            <div className="flex items-center gap-4">
               <Link href="/dashboard" className="text-xl font-bold text-blue-600">OrderFlow</Link>
-              <nav className="hidden md:flex items-center gap-1">
-                <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Dashboard</Link>
-                <Link href="/dashboard/orders" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Orders</Link>
-                <Link href="/dashboard/menu" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Menu</Link>
-                <Link href="/admin/gift-cards" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Gift Cards</Link>
-                <Link href="/dashboard/settings" className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">Store Settings</Link>
-              </nav>
+              <span className="text-gray-300">|</span>
+              <h1 className="text-lg font-semibold text-gray-900">Store Settings</h1>
             </div>
-            <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              <Save className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save Changes'}
-            </button>
+            <div className="flex items-center gap-3">
+              <Link 
+                href={`/store/${tenant?.slug}`} 
+                target="_blank"
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-100"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Preview Store
+              </Link>
+              <button 
+                onClick={handleSave} 
+                disabled={saving}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-2 mb-8 border-b border-gray-200 overflow-x-auto">
-          {['store', 'hours', 'layout', 'fees', 'features', 'integrations', 'danger'].map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px whitespace-nowrap capitalize ${
-                activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tab === 'danger' ? '⚠️ Danger' : tab}
-            </button>
-          ))}
-        </div>
-
-        {/* Store Info Tab */}
-        {activeTab === 'store' && (
-          <div className="grid lg:grid-cols-2 gap-8">
-            <div className="space-y-6">
-              {/* Logo */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border">
-                <h2 className="text-lg font-semibold mb-4">Logo</h2>
-                <div className="flex items-center gap-6">
-                  {logo ? (
-                    <img src={logo} alt="Logo" className="w-20 h-20 rounded-xl object-cover" />
-                  ) : (
-                    <div className="w-20 h-20 rounded-xl flex items-center justify-center text-white text-2xl font-bold" style={{ backgroundColor: primaryColor }}>
-                      {name.charAt(0)}
-                    </div>
-                  )}
-                  <label className={`flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-colors ${
-                    uploading 
-                      ? 'bg-gray-200 text-gray-500 cursor-wait' 
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}>
-                    {uploading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Uploading...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4" />
-                        Upload
-                      </>
-                    )}
-                    <input 
-                      type="file" 
-                      accept="image/jpeg,image/png,image/webp,image/gif" 
-                      onChange={handleLogoUpload} 
-                      className="hidden" 
-                      disabled={uploading}
-                    />
-                  </label>
-                  {logo && (
-                    <button 
-                      onClick={() => setLogo(null)} 
-                      className="text-sm text-red-600 hover:text-red-700"
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Basic Info */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border">
-                <h2 className="text-lg font-semibold mb-4">Basic Info</h2>
-                <div className="grid gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Restaurant Name</label>
-                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                    <input type="text" value={address} onChange={e => setAddress(e.target.value)} className="w-full px-4 py-2 border rounded-lg" />
-                  </div>
-                  <div className="grid grid-cols-3 gap-3">
-                    <input type="text" placeholder="City" value={city} onChange={e => setCity(e.target.value)} className="px-4 py-2 border rounded-lg" />
-                    <input type="text" placeholder="State" value={state} onChange={e => setState(e.target.value)} className="px-4 py-2 border rounded-lg" />
-                    <input type="text" placeholder="ZIP" value={zip} onChange={e => setZip(e.target.value)} className="px-4 py-2 border rounded-lg" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Brand Color */}
-              <div className="bg-white rounded-xl p-6 shadow-sm border">
-                <h2 className="text-lg font-semibold mb-4">Brand Color</h2>
-                <div className="flex items-center gap-4">
-                  <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="w-12 h-12 rounded-lg cursor-pointer border-0" />
-                  <input type="text" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="w-28 px-3 py-2 border rounded-lg font-mono text-sm" />
-                  <div className="px-4 py-2 rounded-lg text-white text-sm font-medium" style={{ backgroundColor: primaryColor }}>Preview</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Live Preview */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Live Preview</h2>
-                <button onClick={() => setPreviewKey(k => k + 1)} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                  <RefreshCw className="w-4 h-4" /> Refresh
-                </button>
-              </div>
-              <div className="border rounded-lg overflow-hidden bg-gray-100" style={{ height: '500px' }}>
-                <iframe
-                  key={previewKey}
-                  src={`/store/${tenant?.slug}?preview=1`}
-                  className="w-full h-full"
-                  title="Store Preview"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Hours Tab */}
-        {activeTab === 'hours' && (
-          <div className="bg-white rounded-xl p-6 shadow-sm border max-w-2xl">
-            <h2 className="text-lg font-semibold mb-4">Business Hours</h2>
-            <div className="space-y-3">
-              {DAYS.map(day => (
-                <div key={day} className="flex items-center gap-4 py-2 border-b last:border-0">
-                  <div className="w-24 font-medium capitalize">{day}</div>
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" checked={!businessHours[day]?.closed} onChange={e => updateHours(day, 'closed', !e.target.checked)} className="rounded text-blue-600" />
-                    <span className="text-sm">Open</span>
-                  </label>
-                  {!businessHours[day]?.closed && (
-                    <>
-                      <input type="time" value={businessHours[day]?.open || '09:00'} onChange={e => updateHours(day, 'open', e.target.value)} className="px-2 py-1 border rounded text-sm" />
-                      <span>to</span>
-                      <input type="time" value={businessHours[day]?.close || '21:00'} onChange={e => updateHours(day, 'close', e.target.value)} className="px-2 py-1 border rounded text-sm" />
-                    </>
-                  )}
-                  {businessHours[day]?.closed && <span className="text-gray-400 text-sm">Closed</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Layout Tab */}
-        {activeTab === 'layout' && (
-          <div className="space-y-8">
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-              <h2 className="text-lg font-semibold mb-4">Choose Layout</h2>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                {LAYOUTS.map(layout => (
-                  <button
-                    key={layout.id}
-                    onClick={() => { setMenuLayout(layout.id); setPreviewKey(k => k + 1) }}
-                    className={`p-4 rounded-xl border-2 text-left transition-all ${
-                      menuLayout === layout.id ? 'border-blue-600 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {/* Mini layout icon */}
-                    <div className="w-full h-16 bg-gray-100 rounded-lg mb-3 flex items-center justify-center text-gray-400 text-xs">
-                      {layout.id === 'sidebar' && <div className="flex w-full h-full"><div className="w-1/4 bg-gray-300 rounded-l"></div><div className="w-3/4 p-1"><div className="w-full h-full bg-gray-200 rounded"></div></div></div>}
-                      {layout.id === 'modern' && <div className="w-1/2 h-full bg-gray-300 rounded"></div>}
-                      {layout.id === 'wide' && <div className="flex w-full h-full"><div className="w-3/4 p-1"><div className="w-full h-full bg-gray-300 rounded"></div></div><div className="w-1/4 bg-gray-200 rounded-r"></div></div>}
-                      {layout.id === 'slice' && <div className="grid grid-cols-2 gap-1 p-1 w-full h-full"><div className="bg-gray-300 rounded"></div><div className="bg-gray-300 rounded"></div><div className="bg-gray-300 rounded"></div><div className="bg-gray-300 rounded"></div></div>}
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{layout.name}</span>
-                      {menuLayout === layout.id && <Check className="w-5 h-5 text-blue-600" />}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">{layout.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Side-by-side preview */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-              <h2 className="text-lg font-semibold mb-4">Preview with YOUR store</h2>
-              <div className="grid lg:grid-cols-2 gap-6">
-                {/* Phone Preview */}
-                <div>
-                  <div className="text-sm font-medium text-gray-500 mb-2 text-center">📱 Phone</div>
-                  <div className="mx-auto w-[375px] h-[667px] border-8 border-gray-800 rounded-[3rem] overflow-hidden bg-white shadow-xl">
-                    <iframe key={`phone-${previewKey}-${menuLayout}`} src={`/store/${tenant?.slug}?layout=${menuLayout}`} className="w-full h-full" title="Phone Preview" />
-                  </div>
-                </div>
-                {/* Desktop Preview */}
-                <div>
-                  <div className="text-sm font-medium text-gray-500 mb-2 text-center">🖥️ Desktop</div>
-                  <div className="border rounded-lg overflow-hidden bg-white shadow-lg" style={{ height: '667px' }}>
-                    <iframe key={`desktop-${previewKey}-${menuLayout}`} src={`/store/${tenant?.slug}?layout=${menuLayout}`} className="w-full h-full" style={{ transform: 'scale(0.6)', transformOrigin: 'top left', width: '166.67%', height: '166.67%' }} title="Desktop Preview" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Fees Tab */}
-        {activeTab === 'fees' && (
-          <div className="bg-white rounded-xl p-6 shadow-sm border max-w-lg">
-            <h2 className="text-lg font-semibold mb-4">Fees & Taxes</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tax Rate (%)</label>
-                <input type="number" step="0.01" value={taxRate} onChange={e => setTaxRate(parseFloat(e.target.value) || 0)} className="w-32 px-4 py-2 border rounded-lg" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Fee ($)</label>
-                <input type="number" step="0.01" value={deliveryFee} onChange={e => setDeliveryFee(parseFloat(e.target.value) || 0)} className="w-32 px-4 py-2 border rounded-lg" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Order for Delivery ($)</label>
-                <input type="number" step="0.01" value={minOrderAmount} onChange={e => setMinOrderAmount(parseFloat(e.target.value) || 0)} className="w-32 px-4 py-2 border rounded-lg" />
-              </div>
-              <div className="pt-4 border-t">
-                <label className="block text-sm font-medium text-gray-500 mb-1">Platform Fee (read-only)</label>
-                <div className="text-lg font-semibold text-gray-700">{tenant?.platformFeePercent || 2.9}%</div>
-                <p className="text-xs text-gray-400 mt-1">Contact support to discuss enterprise pricing</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Features Tab */}
-        {activeTab === 'features' && (
-          <div className="space-y-6 max-w-lg">
-            {/* Order Types */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-              <h2 className="text-lg font-semibold mb-4">Order Types</h2>
-              <div className="space-y-4">
-                <label className="flex items-center gap-3 py-2">
-                  <input type="checkbox" checked={pickupEnabled} onChange={e => setPickupEnabled(e.target.checked)} className="rounded text-blue-600 w-5 h-5" />
-                  <span className="font-medium">Enable Pickup</span>
-                </label>
-                
-                {/* Delivery with DoorDash status */}
-                <div className="border-t pt-4">
-                  <label className="flex items-center gap-3">
-                    <input 
-                      type="checkbox" 
-                      checked={deliveryEnabled} 
-                      onChange={e => setDeliveryEnabled(e.target.checked)} 
-                      className="rounded text-blue-600 w-5 h-5" 
-                    />
-                    <span className="font-medium">Enable Delivery</span>
-                  </label>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex gap-8">
+          {/* Sidebar */}
+          <div className="w-64 flex-shrink-0">
+            <div className="bg-white rounded-xl border shadow-sm sticky top-24">
+              <nav className="p-2">
+                {SECTIONS.map((section) => {
+                  const Icon = section.icon
+                  const isComplete = getSectionStatus(section.id)
+                  const isActive = activeSection === section.id
                   
-                  {/* DoorDash status indicator */}
-                  {deliveryEnabled && (
-                    <div className={`mt-3 ml-8 p-3 rounded-lg text-sm ${
-                      tenant?.doordashDeveloperId && tenant?.doordashKeyId && tenant?.doordashSigningSecret
-                        ? 'bg-green-50 border border-green-200'
-                        : 'bg-amber-50 border border-amber-200'
-                    }`}>
-                      {tenant?.doordashDeveloperId && tenant?.doordashKeyId && tenant?.doordashSigningSecret ? (
-                        <div className="flex items-center gap-2 text-green-700">
-                          <Check className="w-4 h-4" />
-                          <span>DoorDash is configured — delivery is available to customers</span>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="flex items-center gap-2 text-amber-700 font-medium">
-                            <AlertTriangle className="w-4 h-4" />
-                            <span>DoorDash not configured</span>
-                          </div>
-                          <p className="text-amber-600 mt-1">
-                            Delivery requires DoorDash Drive integration. Customers won't see delivery option until configured.
-                          </p>
-                          <Link 
-                            href="/dashboard/settings/doordash" 
-                            className="inline-flex items-center gap-1 text-amber-800 font-medium mt-2 hover:underline"
-                          >
-                            Configure DoorDash →
-                          </Link>
-                        </div>
+                  return (
+                    <button
+                      key={section.id}
+                      onClick={() => setActiveSection(section.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                        isActive 
+                          ? 'bg-blue-50 text-blue-700' 
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      }`}
+                    >
+                      <Icon className={`w-5 h-5 ${section.id === 'danger' ? 'text-red-500' : ''}`} />
+                      <span className="flex-1 font-medium text-sm">{section.label}</span>
+                      {section.required && (
+                        isComplete ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <div className="w-2 h-2 rounded-full bg-amber-400" />
+                        )
                       )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            {/* Other Features */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-              <h2 className="text-lg font-semibold mb-4">Additional Features</h2>
-              <div className="space-y-4">
-                {[
-                  { id: 'scheduled', label: 'Enable Scheduled Orders', desc: 'Let customers order ahead', value: scheduledOrdersEnabled, setter: setScheduledOrdersEnabled },
-                  { id: 'giftcards', label: 'Enable Gift Cards', desc: 'Sell and redeem gift cards', value: giftCardsEnabled, setter: setGiftCardsEnabled },
-                  { id: 'loyalty', label: 'Enable Loyalty Program', desc: 'Reward repeat customers', value: loyaltyEnabled, setter: setLoyaltyEnabled },
-                ].map(feature => (
-                  <label key={feature.id} className="flex items-start gap-3 py-2">
-                    <input type="checkbox" checked={feature.value} onChange={e => feature.setter(e.target.checked)} className="rounded text-blue-600 w-5 h-5 mt-0.5" />
-                    <div>
-                      <span className="font-medium block">{feature.label}</span>
-                      <span className="text-sm text-gray-500">{feature.desc}</span>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+                    </button>
+                  )
+                })}
+              </nav>
 
-        {/* Integrations Tab */}
-        {activeTab === 'integrations' && (
-          <div className="space-y-6 max-w-2xl">
-            {/* Stripe */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold">Stripe Payments</h3>
-                  <p className="text-sm text-gray-500">Accept credit card payments</p>
+              {/* Launch Readiness */}
+              <div className="border-t p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-gray-700">Launch Ready</span>
+                  <span className="text-xs text-gray-500">{passedChecks}/{readinessChecks.length}</span>
                 </div>
-                {tenant?.stripeOnboardingComplete ? (
-                  <span className="flex items-center gap-2 text-green-600"><Check className="w-5 h-5" /> Connected</span>
-                ) : (
-                  <Link href="/api/stripe/connect/onboard" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Connect Stripe</Link>
+                <div className="w-full bg-gray-200 rounded-full h-2 mb-3">
+                  <div 
+                    className={`h-2 rounded-full transition-all ${isReadyToLaunch() ? 'bg-green-500' : 'bg-amber-400'}`}
+                    style={{ width: `${(passedChecks / readinessChecks.length) * 100}%` }}
+                  />
+                </div>
+                {!isReadyToLaunch() && (
+                  <div className="space-y-1.5">
+                    {readinessChecks.filter(c => !c.passed).slice(0, 3).map(check => (
+                      <div key={check.id} className="flex items-center gap-2 text-xs text-amber-600">
+                        <XCircle className="w-3 h-3" />
+                        <span>{check.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {isReadyToLaunch() && (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <Rocket className="w-4 h-4" />
+                    <span className="font-medium">Ready to launch!</span>
+                  </div>
                 )}
               </div>
             </div>
+          </div>
 
-            {/* DoorDash */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center flex-shrink-0">
-                    <Truck className="w-5 h-5 text-red-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">DoorDash Drive</h3>
-                    <p className="text-sm text-gray-500">On-demand delivery for your orders</p>
-                    {tenant?.doordashDeveloperId && tenant?.doordashKeyId && tenant?.doordashSigningSecret ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs text-green-600 mt-1">
-                        <Check className="w-3.5 h-3.5" /> Configured
-                      </span>
+          {/* Main Content */}
+          <div className="flex-1 min-w-0">
+            {/* Store Info Section */}
+            {activeSection === 'store' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Store Information</h2>
+                  <p className="text-gray-500 mt-1">Basic details about your restaurant</p>
+                </div>
+
+                {/* Logo */}
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <h3 className="font-medium text-gray-900 mb-4">Logo</h3>
+                  <div className="flex items-center gap-6">
+                    {logo ? (
+                      <img src={logo} alt="Logo" className="w-20 h-20 rounded-xl object-cover border" />
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 mt-1">
-                        <AlertTriangle className="w-3.5 h-3.5" /> Not configured
-                      </span>
+                      <div className="w-20 h-20 rounded-xl flex items-center justify-center text-white text-2xl font-bold border" style={{ backgroundColor: primaryColor }}>
+                        {name.charAt(0) || '?'}
+                      </div>
+                    )}
+                    <div>
+                      <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-colors ${
+                        uploading ? 'bg-gray-200 text-gray-500' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}>
+                        {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                        {uploading ? 'Uploading...' : 'Upload Logo'}
+                        <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" disabled={uploading} />
+                      </label>
+                      {logo && (
+                        <button onClick={() => setLogo(null)} className="ml-3 text-sm text-red-600 hover:text-red-700">
+                          Remove
+                        </button>
+                      )}
+                      <p className="text-xs text-gray-500 mt-2">Recommended: 200x200px, max 5MB</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Basic Info */}
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <h3 className="font-medium text-gray-900 mb-4">Basic Info</h3>
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Restaurant Name <span className="text-red-500">*</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        value={name} 
+                        onChange={e => setName(e.target.value)} 
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.name ? 'border-red-300 bg-red-50' : ''}`}
+                        placeholder="e.g. Joe's Pizza"
+                      />
+                      {errors.name && <p className="text-sm text-red-600 mt-1">{errors.name}</p>}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone <span className="text-red-500">*</span>
+                      </label>
+                      <input 
+                        type="tel" 
+                        value={phone} 
+                        onChange={e => setPhone(e.target.value)} 
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.phone ? 'border-red-300 bg-red-50' : ''}`}
+                        placeholder="(555) 123-4567"
+                      />
+                      {errors.phone && <p className="text-sm text-red-600 mt-1">{errors.phone}</p>}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <h3 className="font-medium text-gray-900 mb-4">Address</h3>
+                  <div className="grid gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Street Address <span className="text-red-500">*</span>
+                      </label>
+                      <input 
+                        type="text" 
+                        value={address} 
+                        onChange={e => setAddress(e.target.value)} 
+                        className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.address ? 'border-red-300 bg-red-50' : ''}`}
+                        placeholder="123 Main Street"
+                      />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+                        <input 
+                          type="text" 
+                          value={city} 
+                          onChange={e => setCity(e.target.value)} 
+                          className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.city ? 'border-red-300 bg-red-50' : ''}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
+                        <input 
+                          type="text" 
+                          value={state} 
+                          onChange={e => setState(e.target.value)} 
+                          className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.state ? 'border-red-300 bg-red-50' : ''}`}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">ZIP <span className="text-red-500">*</span></label>
+                        <input 
+                          type="text" 
+                          value={zip} 
+                          onChange={e => setZip(e.target.value)} 
+                          className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 ${errors.zip ? 'border-red-300 bg-red-50' : ''}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Hours Section */}
+            {activeSection === 'hours' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Business Hours</h2>
+                  <p className="text-gray-500 mt-1">Set when customers can place orders</p>
+                </div>
+
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <div className="space-y-4">
+                    {DAYS.map(day => (
+                      <div key={day} className="flex items-center gap-4 py-3 border-b last:border-0">
+                        <div className="w-28 font-medium capitalize text-gray-900">{day}</div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            checked={!businessHours[day]?.closed} 
+                            onChange={e => updateHours(day, 'closed', !e.target.checked)} 
+                            className="w-5 h-5 rounded text-blue-600 focus:ring-blue-500" 
+                          />
+                          <span className="text-sm text-gray-600">Open</span>
+                        </label>
+                        {!businessHours[day]?.closed ? (
+                          <div className="flex items-center gap-2 ml-4">
+                            <input 
+                              type="time" 
+                              value={businessHours[day]?.open || '09:00'} 
+                              onChange={e => updateHours(day, 'open', e.target.value)} 
+                              className="px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500" 
+                            />
+                            <span className="text-gray-400">to</span>
+                            <input 
+                              type="time" 
+                              value={businessHours[day]?.close || '21:00'} 
+                              onChange={e => updateHours(day, 'close', e.target.value)} 
+                              className="px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500" 
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm ml-4">Closed</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 pt-4 border-t flex gap-3">
+                    <button 
+                      onClick={() => {
+                        const newHours = { ...businessHours }
+                        DAYS.forEach(day => { newHours[day] = { open: '09:00', close: '21:00', closed: false } })
+                        setBusinessHours(newHours)
+                      }}
+                      className="text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      Set all to 9am-9pm
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const newHours = { ...businessHours }
+                        DAYS.forEach(day => { newHours[day] = { open: '11:00', close: '22:00', closed: false } })
+                        setBusinessHours(newHours)
+                      }}
+                      className="text-sm text-blue-600 hover:text-blue-700"
+                    >
+                      Set all to 11am-10pm
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Appearance Section */}
+            {activeSection === 'layout' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Appearance</h2>
+                  <p className="text-gray-500 mt-1">Customize how your store looks</p>
+                </div>
+
+                {/* Brand Color */}
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <h3 className="font-medium text-gray-900 mb-4">Brand Color</h3>
+                  <div className="flex items-center gap-4">
+                    <input 
+                      type="color" 
+                      value={primaryColor} 
+                      onChange={e => setPrimaryColor(e.target.value)} 
+                      className="w-14 h-14 rounded-lg cursor-pointer border-2 border-gray-200" 
+                    />
+                    <div>
+                      <input 
+                        type="text" 
+                        value={primaryColor} 
+                        onChange={e => setPrimaryColor(e.target.value)} 
+                        className="w-28 px-3 py-2 border rounded-lg font-mono text-sm" 
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Used for buttons, links, and accents</p>
+                    </div>
+                    <div className="px-6 py-2.5 rounded-lg text-white font-medium" style={{ backgroundColor: primaryColor }}>
+                      Preview Button
+                    </div>
+                  </div>
+                </div>
+
+                {/* Menu Layout */}
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <h3 className="font-medium text-gray-900 mb-4">Menu Layout</h3>
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    {LAYOUTS.map(layout => (
+                      <button
+                        key={layout.id}
+                        onClick={() => setMenuLayout(layout.id)}
+                        className={`p-4 rounded-xl border-2 text-left transition-all ${
+                          menuLayout === layout.id 
+                            ? 'border-blue-600 bg-blue-50' 
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium text-gray-900">{layout.name}</span>
+                          {menuLayout === layout.id && <Check className="w-5 h-5 text-blue-600" />}
+                        </div>
+                        <p className="text-sm text-gray-500">{layout.description}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Preview */}
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-medium text-gray-900">Live Preview</h3>
+                    <button onClick={() => setPreviewKey(k => k + 1)} className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
+                      <RefreshCw className="w-4 h-4" /> Refresh
+                    </button>
+                  </div>
+                  <div className="border rounded-lg overflow-hidden bg-gray-100" style={{ height: '500px' }}>
+                    <iframe
+                      key={previewKey}
+                      src={`/store/${tenant?.slug}?layout=${menuLayout}&preview=1`}
+                      className="w-full h-full"
+                      title="Store Preview"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Fees Section */}
+            {activeSection === 'fees' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Fees & Taxes</h2>
+                  <p className="text-gray-500 mt-1">Configure pricing for your orders</p>
+                </div>
+
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <div className="grid gap-6 max-w-md">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Tax Rate</label>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="number" 
+                          step="0.01" 
+                          value={taxRate} 
+                          onChange={e => setTaxRate(parseFloat(e.target.value) || 0)} 
+                          className="w-24 px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500" 
+                        />
+                        <span className="text-gray-500">%</span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Applied to all orders</p>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Fee</label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500">$</span>
+                        <input 
+                          type="number" 
+                          step="0.01" 
+                          value={deliveryFee} 
+                          onChange={e => setDeliveryFee(parseFloat(e.target.value) || 0)} 
+                          className="w-24 px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500" 
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Charged on delivery orders</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Order (Delivery)</label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-gray-500">$</span>
+                        <input 
+                          type="number" 
+                          step="0.01" 
+                          value={minOrderAmount} 
+                          onChange={e => setMinOrderAmount(parseFloat(e.target.value) || 0)} 
+                          className="w-24 px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500" 
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Minimum subtotal for delivery orders</p>
+                    </div>
+
+                    <div className="pt-4 border-t">
+                      <label className="block text-sm font-medium text-gray-500 mb-1">Platform Fee</label>
+                      <div className="text-xl font-semibold text-gray-700">{tenant?.platformFeePercent || 2.9}%</div>
+                      <p className="text-xs text-gray-400 mt-1">Contact support for enterprise pricing</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Features Section */}
+            {activeSection === 'features' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Features</h2>
+                  <p className="text-gray-500 mt-1">Enable or disable store features</p>
+                </div>
+
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <h3 className="font-medium text-gray-900 mb-4">Order Types</h3>
+                  <div className="space-y-4">
+                    <label className="flex items-start gap-4 p-4 rounded-lg border cursor-pointer hover:bg-gray-50">
+                      <input 
+                        type="checkbox" 
+                        checked={pickupEnabled} 
+                        onChange={e => setPickupEnabled(e.target.checked)} 
+                        className="w-5 h-5 rounded text-blue-600 mt-0.5" 
+                      />
+                      <div>
+                        <span className="font-medium text-gray-900">Pickup</span>
+                        <p className="text-sm text-gray-500">Customers order ahead and pick up at your location</p>
+                      </div>
+                    </label>
+
+                    <label className="flex items-start gap-4 p-4 rounded-lg border cursor-pointer hover:bg-gray-50">
+                      <input 
+                        type="checkbox" 
+                        checked={deliveryEnabled} 
+                        onChange={e => setDeliveryEnabled(e.target.checked)} 
+                        className="w-5 h-5 rounded text-blue-600 mt-0.5" 
+                      />
+                      <div className="flex-1">
+                        <span className="font-medium text-gray-900">Delivery</span>
+                        <p className="text-sm text-gray-500">Deliver orders to customers via DoorDash Drive</p>
+                        {deliveryEnabled && !(tenant?.doordashDeveloperId && tenant?.doordashKeyId && tenant?.doordashSigningSecret) && (
+                          <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="flex items-center gap-2 text-amber-700 text-sm font-medium">
+                              <AlertTriangle className="w-4 h-4" />
+                              DoorDash not configured
+                            </div>
+                            <p className="text-xs text-amber-600 mt-1">Customers won't see delivery until DoorDash is set up.</p>
+                            <Link href="#" onClick={() => setActiveSection('integrations')} className="text-xs text-amber-800 font-medium hover:underline">
+                              Configure in Integrations →
+                            </Link>
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <h3 className="font-medium text-gray-900 mb-4">Additional Features</h3>
+                  <div className="space-y-4">
+                    {[
+                      { id: 'scheduled', label: 'Scheduled Orders', desc: 'Let customers order ahead for a specific time', value: scheduledOrdersEnabled, setter: setScheduledOrdersEnabled },
+                      { id: 'giftcards', label: 'Gift Cards', desc: 'Sell and redeem digital gift cards', value: giftCardsEnabled, setter: setGiftCardsEnabled },
+                      { id: 'loyalty', label: 'Loyalty Program', desc: 'Reward repeat customers with points', value: loyaltyEnabled, setter: setLoyaltyEnabled },
+                    ].map(feature => (
+                      <label key={feature.id} className="flex items-start gap-4 p-4 rounded-lg border cursor-pointer hover:bg-gray-50">
+                        <input 
+                          type="checkbox" 
+                          checked={feature.value} 
+                          onChange={e => feature.setter(e.target.checked)} 
+                          className="w-5 h-5 rounded text-blue-600 mt-0.5" 
+                        />
+                        <div>
+                          <span className="font-medium text-gray-900">{feature.label}</span>
+                          <p className="text-sm text-gray-500">{feature.desc}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Integrations Section */}
+            {activeSection === 'integrations' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Integrations</h2>
+                  <p className="text-gray-500 mt-1">Connect third-party services</p>
+                </div>
+
+                {/* Stripe */}
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                        <CreditCard className="w-6 h-6 text-purple-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Stripe Payments</h3>
+                        <p className="text-sm text-gray-500 mt-1">Accept credit card payments securely</p>
+                        {tenant?.stripeOnboardingComplete ? (
+                          <span className="inline-flex items-center gap-1.5 text-sm text-green-600 mt-2">
+                            <CheckCircle2 className="w-4 h-4" /> Connected
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-sm text-red-600 mt-2">
+                            <XCircle className="w-4 h-4" /> Required to accept payments
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    {tenant?.stripeOnboardingComplete ? (
+                      <span className="px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium">Active</span>
+                    ) : (
+                      <Link 
+                        href="/api/stripe/connect/onboard" 
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700"
+                      >
+                        Connect Stripe
+                      </Link>
                     )}
                   </div>
                 </div>
-                <Link href="/dashboard/settings/doordash" className="px-4 py-2 border rounded-lg text-sm hover:bg-gray-50">
-                  {tenant?.doordashDeveloperId ? 'Manage' : 'Set Up'}
-                </Link>
-              </div>
-            </div>
 
-            {/* Analytics */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border">
-              <h3 className="font-semibold mb-4">Analytics</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Google Analytics ID</label>
-                  <input type="text" placeholder="G-XXXXXXXXXX" value={gaId} onChange={e => setGaId(e.target.value)} className="w-full px-4 py-2 border rounded-lg" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Facebook Pixel ID</label>
-                  <input type="text" placeholder="123456789" value={fbPixelId} onChange={e => setFbPixelId(e.target.value)} className="w-full px-4 py-2 border rounded-lg" />
+                {/* DoorDash */}
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center">
+                        <Truck className="w-6 h-6 text-red-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">DoorDash Drive</h3>
+                        <p className="text-sm text-gray-500 mt-1">On-demand delivery for your orders</p>
+                        {tenant?.doordashDeveloperId && tenant?.doordashKeyId && tenant?.doordashSigningSecret ? (
+                          <span className="inline-flex items-center gap-1.5 text-sm text-green-600 mt-2">
+                            <CheckCircle2 className="w-4 h-4" /> Configured
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-sm text-gray-500 mt-2">
+                            <AlertCircle className="w-4 h-4" /> Optional - for delivery orders
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Link 
+                      href="/dashboard/settings/doordash" 
+                      className="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50"
+                    >
+                      {tenant?.doordashDeveloperId ? 'Manage' : 'Set Up'}
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Danger Zone */}
+            {activeSection === 'danger' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-red-600">Danger Zone</h2>
+                  <p className="text-gray-500 mt-1">Irreversible actions</p>
+                </div>
+
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+                  <div className="flex items-start gap-4">
+                    <Pause className="w-6 h-6 text-amber-600 mt-1 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-amber-800">Pause Store</h3>
+                      <p className="text-sm text-amber-700 mt-1">
+                        Temporarily stop accepting orders. Your menu stays intact and you can resume anytime.
+                      </p>
+                      <button 
+                        onClick={handlePauseStore} 
+                        className="mt-4 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700"
+                      >
+                        {isActive ? 'Pause Store' : 'Resume Store'}
+                      </button>
+                      {!isActive && (
+                        <p className="text-xs text-amber-600 mt-2">Store is paused. Click Save to apply changes.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-red-50 border border-red-200 rounded-xl p-6">
+                  <div className="flex items-start gap-4">
+                    <Trash2 className="w-6 h-6 text-red-600 mt-1 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-red-800">Delete Store</h3>
+                      <p className="text-sm text-red-700 mt-1">
+                        Permanently delete this store and all associated data. This cannot be undone.
+                      </p>
+                      <button 
+                        onClick={handleDeleteStore} 
+                        className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700"
+                      >
+                        Delete Store
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Danger Zone Tab */}
-        {activeTab === 'danger' && (
-          <div className="space-y-6 max-w-lg">
-            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
-              <div className="flex items-start gap-4">
-                <Pause className="w-6 h-6 text-yellow-600 mt-1" />
-                <div>
-                  <h3 className="font-semibold text-yellow-800">Pause Store</h3>
-                  <p className="text-sm text-yellow-700 mt-1">Temporarily disable ordering. Customers will see "Closed" but your menu stays intact.</p>
-                  <button onClick={handlePauseStore} className="mt-4 px-4 py-2 bg-yellow-600 text-white rounded-lg text-sm hover:bg-yellow-700">
-                    {isActive ? 'Pause Store' : 'Store is Paused — Click Save to Unpause'}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-red-50 border border-red-200 rounded-xl p-6">
-              <div className="flex items-start gap-4">
-                <Trash2 className="w-6 h-6 text-red-600 mt-1" />
-                <div>
-                  <h3 className="font-semibold text-red-800">Delete Store</h3>
-                  <p className="text-sm text-red-700 mt-1">Permanently delete this store and all data. This cannot be undone.</p>
-                  <button onClick={handleDeleteStore} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">
-                    Delete Store
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
+        </div>
+      </div>
     </div>
   )
 }
