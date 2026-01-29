@@ -1106,6 +1106,7 @@ function MenuEditorContent() {
                 <Monitor className="w-4 h-4" />
                 Desktop
               </button>
+              </div>
             </div>
           </div>
 
