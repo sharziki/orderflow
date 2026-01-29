@@ -15,9 +15,7 @@ import {
   ChevronDown,
   Play,
   Menu,
-  X,
-  Monitor,
-  Smartphone
+  X
 } from 'lucide-react'
 import { MenuLayoutRenderer, MENU_LAYOUTS, type MenuLayoutId } from '@/components/menu-layouts'
 import { FallingPattern } from '@/components/ui/falling-pattern'
@@ -257,7 +255,6 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(null)
   const [selectedLayout, setSelectedLayout] = useState<MenuLayoutId>('blu-bentonville')
-  const [deviceView, setDeviceView] = useState<'mobile' | 'desktop'>('desktop')
   const [demoModalOpen, setDemoModalOpen] = useState(false)
   
   const heroRef = useRef(null)
@@ -627,28 +624,6 @@ export default function LandingPage() {
             </motion.div>
           </ScrollReveal>
 
-          {/* Device Toggle */}
-          <ScrollReveal delay={0.3} className="flex justify-center mb-8">
-            <div className="inline-flex items-center bg-slate-100 rounded-xl p-1">
-              {['mobile', 'desktop'].map((device) => (
-                <motion.button
-                  key={device}
-                  onClick={() => setDeviceView(device as 'mobile' | 'desktop')}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${
-                    deviceView === device
-                      ? 'bg-white text-slate-900 shadow-sm'
-                      : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {device === 'mobile' ? <Smartphone className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
-                  {device}
-                </motion.button>
-              ))}
-            </div>
-          </ScrollReveal>
-
           {/* Layout Info */}
           <AnimatePresence mode="wait">
             <motion.p 
@@ -663,104 +638,94 @@ export default function LandingPage() {
             </motion.p>
           </AnimatePresence>
 
-          {/* Preview Container - Static with click to open modal */}
+          {/* Preview Container - Desktop on md+, mobile on smaller screens */}
           <div className="flex justify-center">
-            <AnimatePresence mode="wait">
-              {deviceView === 'mobile' ? (
-                <motion.div 
-                  key="mobile"
-                  initial={{ opacity: 0, x: -100, rotateY: -15 }}
-                  animate={{ opacity: 1, x: 0, rotateY: 0 }}
-                  exit={{ opacity: 0, x: 100, rotateY: 15 }}
-                  transition={{ duration: 0.5, type: "spring" }}
-                  className="relative group cursor-pointer"
-                  onClick={() => setDemoModalOpen(true)}
-                >
-                  <div className="relative bg-slate-900 rounded-[3rem] p-3 shadow-2xl">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-slate-900 rounded-b-2xl z-10" />
-                    <div className="w-[375px] h-[700px] bg-white rounded-[2.5rem] overflow-hidden relative">
-                      <div className="absolute top-0 left-0 right-0 h-12 bg-black/5 z-10 flex items-center justify-between px-8 pt-2">
-                        <span className="text-xs font-medium">9:41</span>
-                        <div className="flex items-center gap-1">
-                          <div className="w-4 h-2.5 border border-current rounded-sm relative">
-                            <div className="absolute inset-0.5 bg-current rounded-sm" style={{ width: '70%' }} />
-                          </div>
-                        </div>
-                      </div>
-                      {/* Non-interactive preview */}
-                      <div className="h-full overflow-hidden pt-8 pointer-events-none">
-                        <MenuLayoutRenderer
-                          layout={selectedLayout}
-                          restaurantName="Demo Kitchen"
-                          logoUrl="https://images.unsplash.com/photo-1567521464027-f127ff144326?w=200&h=200&fit=crop"
-                          storeHours={{ open: '11:00 AM', close: '10:00 PM', isOpen: true }}
-                          primaryColor="#2563eb"
-                          secondaryColor="#4f46e5"
-                          menuItems={DEMO_ITEMS}
-                          categories={DEMO_CATEGORIES}
-                        />
-                      </div>
-                      {/* Hover overlay */}
-                      <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/10 transition-colors flex items-center justify-center rounded-[2.5rem]">
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-xl flex items-center gap-2">
-                          <Play className="w-5 h-5" />
-                          Try Interactive Demo
-                        </div>
+            {/* Mobile demo - visible only on small screens */}
+            <motion.div
+              initial={{ opacity: 0, x: -100, rotateY: -15 }}
+              animate={{ opacity: 1, x: 0, rotateY: 0 }}
+              transition={{ duration: 0.5, type: "spring" }}
+              className="relative group cursor-pointer md:hidden"
+              onClick={() => setDemoModalOpen(true)}
+            >
+              <div className="relative bg-slate-900 rounded-[3rem] p-3 shadow-2xl">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-7 bg-slate-900 rounded-b-2xl z-10" />
+                <div className="w-[375px] max-w-[calc(100vw-2rem)] h-[700px] bg-white rounded-[2.5rem] overflow-hidden relative mx-auto">
+                  <div className="absolute top-0 left-0 right-0 h-12 bg-black/5 z-10 flex items-center justify-between px-8 pt-2">
+                    <span className="text-xs font-medium">9:41</span>
+                    <div className="flex items-center gap-1">
+                      <div className="w-4 h-2.5 border border-current rounded-sm relative">
+                        <div className="absolute inset-0.5 bg-current rounded-sm" style={{ width: '70%' }} />
                       </div>
                     </div>
                   </div>
-                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-slate-700 rounded-full" />
-                </motion.div>
-              ) : (
-                <motion.div 
-                  key="desktop"
-                  initial={{ opacity: 0, x: 100, rotateY: 15 }}
-                  animate={{ opacity: 1, x: 0, rotateY: 0 }}
-                  exit={{ opacity: 0, x: -100, rotateY: -15 }}
-                  transition={{ duration: 0.5, type: "spring" }}
-                  className="w-full group cursor-pointer"
-                  style={{ maxWidth: '1440px' }}
-                  onClick={() => setDemoModalOpen(true)}
-                >
-                  <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 shadow-2xl relative">
-                    <div className="bg-slate-800 rounded-xl overflow-hidden">
-                      <div className="flex items-center gap-2 px-4 py-3 bg-slate-700">
-                        <div className="flex gap-2">
-                          <div className="w-3 h-3 rounded-full bg-red-500" />
-                          <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                          <div className="w-3 h-3 rounded-full bg-green-500" />
-                        </div>
-                        <div className="flex-1 mx-4">
-                          <div className="bg-slate-600 rounded-lg px-4 py-1.5 text-slate-400 text-sm text-center">
-                            orderflow.co/demo-kitchen
-                          </div>
-                        </div>
-                      </div>
-                      {/* Non-interactive preview */}
-                      <div className="h-[800px] overflow-hidden bg-white pointer-events-none">
-                        <MenuLayoutRenderer
-                          layout={selectedLayout}
-                          restaurantName="Demo Kitchen"
-                          logoUrl="https://images.unsplash.com/photo-1567521464027-f127ff144326?w=200&h=200&fit=crop"
-                          storeHours={{ open: '11:00 AM', close: '10:00 PM', isOpen: true }}
-                          primaryColor="#2563eb"
-                          secondaryColor="#4f46e5"
-                          menuItems={DEMO_ITEMS}
-                          categories={DEMO_CATEGORIES}
-                        />
-                      </div>
+                  <div className="h-full overflow-hidden pt-8 pointer-events-none">
+                    <MenuLayoutRenderer
+                      layout={selectedLayout}
+                      restaurantName="Demo Kitchen"
+                      logoUrl="https://images.unsplash.com/photo-1567521464027-f127ff144326?w=200&h=200&fit=crop"
+                      storeHours={{ open: '11:00 AM', close: '10:00 PM', isOpen: true }}
+                      primaryColor="#2563eb"
+                      secondaryColor="#4f46e5"
+                      menuItems={DEMO_ITEMS}
+                      categories={DEMO_CATEGORIES}
+                    />
+                  </div>
+                  <div className="absolute inset-0 bg-blue-600/0 group-hover:bg-blue-600/10 transition-colors flex items-center justify-center rounded-[2.5rem]">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold shadow-xl flex items-center gap-2">
+                      <Play className="w-5 h-5" />
+                      Try Interactive Demo
                     </div>
-                    {/* Hover overlay */}
-                    <div className="absolute inset-4 bg-blue-600/0 group-hover:bg-blue-600/10 transition-colors flex items-center justify-center rounded-xl">
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold shadow-xl flex items-center gap-2 text-lg">
-                        <Play className="w-6 h-6" />
-                        Try Interactive Demo
+                  </div>
+                </div>
+              </div>
+              <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-32 h-1 bg-slate-700 rounded-full" />
+            </motion.div>
+
+            {/* Desktop demo - visible only on md and up */}
+            <motion.div
+              initial={{ opacity: 0, x: 100, rotateY: 15 }}
+              animate={{ opacity: 1, x: 0, rotateY: 0 }}
+              transition={{ duration: 0.5, type: "spring" }}
+              className="hidden md:block w-full group cursor-pointer"
+              style={{ maxWidth: '1440px' }}
+              onClick={() => setDemoModalOpen(true)}
+            >
+              <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-4 shadow-2xl relative">
+                <div className="bg-slate-800 rounded-xl overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 bg-slate-700">
+                    <div className="flex gap-2">
+                      <div className="w-3 h-3 rounded-full bg-red-500" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500" />
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                    </div>
+                    <div className="flex-1 mx-4">
+                      <div className="bg-slate-600 rounded-lg px-4 py-1.5 text-slate-400 text-sm text-center">
+                        orderflow.co/demo-kitchen
                       </div>
                     </div>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                  <div className="h-[800px] overflow-hidden bg-white pointer-events-none">
+                    <MenuLayoutRenderer
+                      layout={selectedLayout}
+                      restaurantName="Demo Kitchen"
+                      logoUrl="https://images.unsplash.com/photo-1567521464027-f127ff144326?w=200&h=200&fit=crop"
+                      storeHours={{ open: '11:00 AM', close: '10:00 PM', isOpen: true }}
+                      primaryColor="#2563eb"
+                      secondaryColor="#4f46e5"
+                      menuItems={DEMO_ITEMS}
+                      categories={DEMO_CATEGORIES}
+                    />
+                  </div>
+                </div>
+                <div className="absolute inset-4 bg-blue-600/0 group-hover:bg-blue-600/10 transition-colors flex items-center justify-center rounded-xl">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold shadow-xl flex items-center gap-2 text-lg">
+                    <Play className="w-6 h-6" />
+                    Try Interactive Demo
+                  </div>
+                </div>
+              </div>
+            </motion.div>
           </div>
 
           {/* CTA */}

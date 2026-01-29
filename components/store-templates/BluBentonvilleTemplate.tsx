@@ -158,7 +158,7 @@ export function BluBentonvilleTemplate({
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-2 flex gap-2">
               <button
                 onClick={() => setOrderType('pickup')}
-                className={`flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition-all ${
+                className={`flex-1 flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition-all ${
                   orderType === 'pickup'
                     ? 'bg-white text-gray-900 shadow-lg'
                     : 'text-white hover:bg-white/10'
@@ -173,7 +173,7 @@ export function BluBentonvilleTemplate({
               {store.deliveryEnabled && (
                 <button
                   onClick={() => setOrderType('delivery')}
-                  className={`flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition-all ${
+                  className={`flex-1 flex items-center gap-2 px-5 py-3 rounded-xl font-semibold transition-all ${
                     orderType === 'delivery'
                       ? 'bg-white text-gray-900 shadow-lg'
                       : 'text-white hover:bg-white/10'

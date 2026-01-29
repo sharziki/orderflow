@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -24,7 +25,7 @@ export default function OnboardingPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  
+
   const [form, setForm] = useState({
     name: '',
     address: '',
@@ -91,7 +92,7 @@ export default function OnboardingPage() {
       })
 
       const data = await res.json()
-      
+
       if (!res.ok) {
         setError(data.error || 'Something went wrong')
         setLoading(false)
@@ -104,12 +105,12 @@ export default function OnboardingPage() {
           const formData = new FormData()
           formData.append('file', logoFile)
           formData.append('type', 'logo')
-          
+
           const uploadRes = await fetch('/api/upload', {
             method: 'POST',
             body: formData,
           })
-          
+
           if (uploadRes.ok) {
             const uploadData = await uploadRes.json()
             await fetch('/api/settings', {
@@ -255,7 +256,7 @@ export default function OnboardingPage() {
 
             <div className="border-t border-slate-200 pt-5 mt-6">
               <p className="text-sm font-medium text-slate-700 mb-4">Create your account</p>
-              
+
               {/* Email */}
               <div className="mb-4">
                 <Label className="text-sm font-medium text-slate-700">Email *</Label>
@@ -281,9 +282,9 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            <Button 
-              type="submit" 
-              size="lg" 
+            <Button
+              type="submit"
+              size="lg"
               className="w-full h-12 text-base bg-blue-600 hover:bg-blue-700"
               disabled={loading}
             >
@@ -308,18 +309,36 @@ export default function OnboardingPage() {
         </div>
       </div>
 
-      {/* Right - Features */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-600 to-indigo-700 items-center justify-center p-8 relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-white rounded-full blur-3xl" />
+      {/* Right - Features & Progress */}
+      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 items-center justify-center p-8 relative overflow-hidden">
+        {/* Background */}
+        <div className="absolute inset-0 opacity-20">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-blue-500 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-indigo-500 rounded-full blur-3xl" />
         </div>
-        
-        <div className="relative z-10 max-w-lg">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(59,130,246,0.15),transparent)]" />
+
+        <div className="relative z-10 w-full max-w-lg flex flex-col items-center gap-10">
+          {/* Store URL preview */}
+          <motion.div
+            key={slug ? 'with-slug' : 'no-slug'}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-center"
+          >
+            {slug ? (
+              <div className="bg-white/10 backdrop-blur rounded-xl px-6 py-3">
+                <p className="text-white/60 text-xs mb-1">Your store will live at</p>
+                <p className="text-white font-semibold text-lg">orderflow.co/{slug}</p>
+              </div>
+            ) : (
+              <p className="text-white/60 text-sm">Fill in your details to get started</p>
+            )}
+          </motion.div>
+
           {/* Feature highlights */}
-          <div className="space-y-4 text-white">
-            <h2 className="text-3xl font-bold text-center mb-8">Everything you need to sell online</h2>
+          <div className="w-full space-y-4 text-white">
+            <h2 className="text-2xl font-bold text-center mb-6">Everything you need to sell online</h2>
             <div className="grid grid-cols-2 gap-4">
               {[
                 { icon: Sparkles, title: 'Beautiful Menus', desc: 'Mobile-first design' },
@@ -327,18 +346,48 @@ export default function OnboardingPage() {
                 { icon: Clock, title: 'Real-time Orders', desc: 'Instant notifications' },
                 { icon: BarChart3, title: 'Analytics', desc: 'Track your growth' },
               ].map((feature) => (
-                <div key={feature.title} className="bg-white/10 backdrop-blur rounded-xl p-5">
-                  <feature.icon className="w-8 h-8 mb-3 text-blue-200" />
-                  <div className="font-semibold text-base">{feature.title}</div>
-                  <div className="text-white/70 text-sm">{feature.desc}</div>
+                <div key={feature.title} className="bg-white/10 backdrop-blur rounded-xl p-4">
+                  <feature.icon className="w-7 h-7 mb-2 text-blue-300" />
+                  <div className="font-semibold text-sm">{feature.title}</div>
+                  <div className="text-white/60 text-xs">{feature.desc}</div>
                 </div>
               ))}
             </div>
-            
-            <p className="text-center text-white/70 text-sm mt-8">
-              No credit card required • Free to start • Cancel anytime
-            </p>
           </div>
+
+          {/* Progress checklist */}
+          <div className="w-full max-w-sm space-y-3">
+            <h3 className="text-white font-semibold text-sm text-center mb-4">Setup progress</h3>
+            {[
+              { done: !!form.name, label: 'Restaurant name' },
+              { done: !!form.address, label: 'Address' },
+              { done: !!form.email, label: 'Email' },
+              { done: !!form.password && form.password.length >= 6, label: 'Password (6+ chars)' },
+            ].map((item) => (
+              <motion.div
+                key={item.label}
+                initial={false}
+                animate={{ opacity: 1 }}
+                className="flex items-center gap-3 text-sm"
+              >
+                <motion.div
+                  initial={false}
+                  animate={{
+                    scale: item.done ? 1 : 0.9,
+                    backgroundColor: item.done ? 'rgb(34, 197, 94)' : 'rgba(255,255,255,0.2)',
+                  }}
+                  className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                >
+                  {item.done && <Check className="w-3 h-3 text-white" strokeWidth={3} />}
+                </motion.div>
+                <span className={item.done ? 'text-white' : 'text-white/60'}>{item.label}</span>
+              </motion.div>
+            ))}
+          </div>
+
+          <p className="text-white/50 text-xs text-center">
+            No credit card required • Free to start • Cancel anytime
+          </p>
         </div>
       </div>
     </div>

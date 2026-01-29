@@ -416,10 +416,10 @@ export function BluOriginalTemplate({
 
         {/* Main Content */}
         <main className="p-4 sm:p-6 md:p-8 md:ml-80">
-          {/* Section Header */}
+          {/* Section Header - show store name when viewing full menu, category name when filtered */}
           <div className="mb-8 sticky top-0 bg-gray-50 py-4 z-30 border-b border-gray-200 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 shadow-sm">
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-              {selectedCategory === 'All' ? (activeSection !== 'All' ? activeSection : 'Menu') : selectedCategory}
+              {selectedCategory === 'All' ? store.name : selectedCategory}
             </h2>
             <p className="text-sm text-gray-600">
               {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'}
