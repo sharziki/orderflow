@@ -468,7 +468,7 @@ export default function KanbanOrdersPage() {
       <div className="min-h-screen flex items-center justify-center bg-slate-100">
         <div className="text-center">
           <RefreshCw className="w-12 h-12 text-blue-600 mx-auto mb-4 animate-spin" />
-          <p className="text-slate-600 font-semibold">Loading Kitchen...</p>
+          <p className="text-slate-600 font-semibold">Loading Orders...</p>
         </div>
       </div>
     )
@@ -487,7 +487,7 @@ export default function KanbanOrdersPage() {
                 <ArrowLeft className="w-5 h-5" />
               </Link>
               <div>
-                <h1 className="text-xl font-bold">Kitchen Orders</h1>
+                <h1 className="text-xl font-bold">Orders</h1>
                 <p className="text-xs text-blue-200 flex items-center gap-1">
                   <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                   {demoMode ? 'Demo Mode' : 'Real-time updates'}

@@ -284,9 +284,10 @@ export default function SettingsPage() {
               <Link href="/dashboard" className="text-xl font-bold text-blue-600">OrderFlow</Link>
               <nav className="hidden md:flex items-center gap-1">
                 <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Dashboard</Link>
-                <Link href="/dashboard/menu" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Menu</Link>
                 <Link href="/dashboard/orders" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Orders</Link>
-                <Link href="/dashboard/settings" className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">Settings</Link>
+                <Link href="/dashboard/menu" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Menu</Link>
+                <Link href="/admin/gift-cards" className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-lg">Gift Cards</Link>
+                <Link href="/dashboard/settings" className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">Store Settings</Link>
               </nav>
             </div>
             <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">

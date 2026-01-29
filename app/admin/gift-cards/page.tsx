@@ -222,11 +222,11 @@ export default function AdminGiftCards() {
               </div>
             </div>
             <button
-              onClick={() => router.push('/admin')}
+              onClick={() => router.push('/dashboard')}
               className="px-4 py-2 rounded-md bg-white/10 hover:bg-white/20 text-white flex items-center gap-2 transition-colors border border-white/20 backdrop-blur-sm font-medium text-sm"
             >
               <ArrowLeft className="w-4 h-4" />
-              Back to Orders
+              Back to Dashboard
             </button>
           </div>
         </div>
