@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import Stripe from 'stripe'
 
-// Check if we're in demo mode (no Stripe configured)
+// Check if we're in demo mode (explicit flag OR no Stripe configured)
 function isDemoMode(): boolean {
-  return !process.env.STRIPE_SECRET_KEY || !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  return process.env.DEMO_MODE === 'true' || !process.env.STRIPE_SECRET_KEY || !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 }
 
 // Lazy-init Stripe to avoid build-time errors

@@ -200,8 +200,8 @@ export async function GET(
       tenant.doordashSigningSecret
     )
     
-    // Check if we're in demo mode (no Stripe configured = demo)
-    const isDemoMode = !process.env.STRIPE_SECRET_KEY
+    // Check if we're in demo mode (explicit flag OR no Stripe configured)
+    const isDemoMode = process.env.DEMO_MODE === 'true' || !process.env.STRIPE_SECRET_KEY
     
     // In demo mode, allow delivery even without DoorDash (orders work, just no driver dispatch)
     // In production, require DoorDash for delivery
