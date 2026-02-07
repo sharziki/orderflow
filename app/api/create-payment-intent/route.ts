@@ -49,36 +49,48 @@ export async function POST(req: NextRequest) {
       })
     }
     
-    // Check if tenant has Stripe connected (only in production mode)
-    if (!tenant.stripeAccountId || !tenant.stripeOnboardingComplete) {
-      return NextResponse.json(
-        { error: 'This restaurant is not set up to accept payments yet.' },
-        { status: 400 }
-      )
-    }
-    
     const stripe = getStripe()
     
     // Calculate amounts in cents
     const totalCents = Math.round(order.total * 100)
     const platformFeeCents = PLATFORM_FEE_CENTS // Flat $1 platform fee
     
-    // Create payment intent with transfer to connected account
-    const paymentIntent = await stripe.paymentIntents.create({
+    // Check if we're in test/sandbox mode
+    const isTestMode = process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_')
+    
+    // Check if tenant has Stripe connected
+    const hasStripeConnect = tenant.stripeAccountId && tenant.stripeOnboardingComplete
+    
+    // In production, require Stripe Connect
+    if (!isTestMode && !hasStripeConnect) {
+      return NextResponse.json(
+        { error: 'This restaurant is not set up to accept payments yet.' },
+        { status: 400 }
+      )
+    }
+    
+    // Create payment intent - with or without transfer based on Connect status
+    const paymentIntentParams: any = {
       amount: totalCents,
       currency: 'usd',
       automatic_payment_methods: { enabled: true },
-      application_fee_amount: platformFeeCents,
-      transfer_data: {
-        destination: tenant.stripeAccountId,
-      },
       metadata: {
         orderId: order.id,
         orderNumber: order.orderNumber,
         tenantId: tenant.id,
         tenantSlug: tenant.slug,
       },
-    })
+    }
+    
+    // Only add transfer if restaurant has Stripe Connect set up
+    if (hasStripeConnect) {
+      paymentIntentParams.application_fee_amount = platformFeeCents
+      paymentIntentParams.transfer_data = {
+        destination: tenant.stripeAccountId,
+      }
+    }
+    
+    const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams)
     
     // Update order with payment intent ID
     await prisma.order.update({
