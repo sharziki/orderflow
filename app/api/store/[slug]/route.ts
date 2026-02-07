@@ -200,8 +200,14 @@ export async function GET(
       tenant.doordashSigningSecret
     )
     
-    // Only enable delivery if both the setting is on AND DoorDash is configured
-    const actualDeliveryEnabled = tenant.deliveryEnabled && doordashConfigured
+    // Check if we're in demo mode (no Stripe configured = demo)
+    const isDemoMode = !process.env.STRIPE_SECRET_KEY
+    
+    // In demo mode, allow delivery even without DoorDash (orders work, just no driver dispatch)
+    // In production, require DoorDash for delivery
+    const actualDeliveryEnabled = isDemoMode 
+      ? tenant.deliveryEnabled 
+      : (tenant.deliveryEnabled && doordashConfigured)
     
     // Remove sensitive DoorDash credentials from response
     const { doordashDeveloperId, doordashKeyId, doordashSigningSecret, ...safeStore } = tenant

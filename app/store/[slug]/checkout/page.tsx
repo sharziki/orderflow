@@ -220,11 +220,21 @@ export default function CheckoutPage() {
       })
 
       if (!paymentRes.ok) {
-        throw new Error('Failed to create payment')
+        const errorData = await paymentRes.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to create payment')
       }
 
-      const { clientSecret: secret } = await paymentRes.json()
-      setClientSecret(secret)
+      const paymentData = await paymentRes.json()
+      
+      // Demo mode: skip Stripe payment, go directly to confirmation
+      if (paymentData.demoMode) {
+        localStorage.removeItem(`cart_${slug}`)
+        localStorage.removeItem(`orderType_${slug}`)
+        router.push(`/store/${slug}/order-confirmed?orderId=${order.id}`)
+        return
+      }
+      
+      setClientSecret(paymentData.clientSecret)
       setStep('payment')
     } catch (err) {
       console.error(err)

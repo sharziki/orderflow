@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import Stripe from 'stripe'
 
+// Check if we're in demo mode (no Stripe configured)
+function isDemoMode(): boolean {
+  return !process.env.STRIPE_SECRET_KEY || !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+}
+
 // Lazy-init Stripe to avoid build-time errors
 function getStripe() {
   return new Stripe(process.env.STRIPE_SECRET_KEY!)
@@ -11,7 +16,6 @@ function getStripe() {
 const PLATFORM_FEE_CENTS = parseInt(process.env.PLATFORM_FEE_CENTS || '100', 10)
 
 export async function POST(req: NextRequest) {
-  const stripe = getStripe()
   try {
     const { orderId, tenantSlug } = await req.json()
     
@@ -27,13 +31,33 @@ export async function POST(req: NextRequest) {
     
     const tenant = order.tenant
     
-    // Check if tenant has Stripe connected
+    // Demo mode: skip Stripe entirely
+    if (isDemoMode()) {
+      // Update order status to confirmed (simulating successful payment)
+      await prisma.order.update({
+        where: { id: orderId },
+        data: { 
+          status: 'confirmed',
+          paymentIntentId: `demo_${Date.now()}_${orderId}`,
+        },
+      })
+      
+      return NextResponse.json({
+        demoMode: true,
+        orderId: order.id,
+        message: 'Demo mode - payment simulated successfully',
+      })
+    }
+    
+    // Check if tenant has Stripe connected (only in production mode)
     if (!tenant.stripeAccountId || !tenant.stripeOnboardingComplete) {
       return NextResponse.json(
         { error: 'This restaurant is not set up to accept payments yet.' },
         { status: 400 }
       )
     }
+    
+    const stripe = getStripe()
     
     // Calculate amounts in cents
     const totalCents = Math.round(order.total * 100)
