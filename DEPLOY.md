@@ -1,6 +1,6 @@
-# OrderFlow Deployment Guide
+# DerbyFlow Deployment Guide
 
-This guide will help you deploy OrderFlow to production and start accepting restaurant signups.
+This guide will help you deploy DerbyFlow to production and start accepting restaurant signups.
 
 ## Prerequisites
 
@@ -56,7 +56,7 @@ NEXT_PUBLIC_BASE_URL="https://orderflow.io"
 
 ## 3. Stripe Connect Setup
 
-OrderFlow uses Stripe Connect to split payments between the platform and restaurants.
+DerbyFlow uses Stripe Connect to split payments between the platform and restaurants.
 
 ### Enable Connect
 
@@ -251,6 +251,6 @@ npx prisma migrate dev --name your_migration_name
 
 ---
 
-**Built with ❤️ by OrderFlow**
+**Built with ❤️ by DerbyFlow**
 
 Questions? support@orderflow.io

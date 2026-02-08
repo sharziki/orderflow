@@ -196,7 +196,7 @@ export default function TrackOrderPage() {
           <div className="relative w-24 h-24 mx-auto mb-6 bg-white rounded-2xl p-4 shadow-2xl">
             <Image
               src="/logo.svg"
-              alt="OrderFlow"
+              alt="DerbyFlow"
               fill
               className="object-contain animate-pulse"
             />
@@ -216,7 +216,7 @@ export default function TrackOrderPage() {
             <div className="relative w-20 h-20 mx-auto mb-4 bg-white rounded-2xl p-3 shadow-lg">
               <Image
                 src="/logo.svg"
-                alt="OrderFlow"
+                alt="DerbyFlow"
                 fill
                 className="object-contain"
               />
@@ -249,7 +249,7 @@ export default function TrackOrderPage() {
           <div className="relative w-24 h-24 mx-auto mb-4 bg-white rounded-2xl p-4 shadow-lg">
             <Image
               src="/logo.svg"
-              alt="OrderFlow"
+              alt="DerbyFlow"
               fill
               className="object-contain"
             />

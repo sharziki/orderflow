@@ -1,6 +1,6 @@
-# OrderFlow API Reference
+# DerbyFlow API Reference
 
-Complete documentation for all API endpoints in OrderFlow.
+Complete documentation for all API endpoints in DerbyFlow.
 
 ## 📋 Table of Contents
 
@@ -69,7 +69,7 @@ Production:  https://yourdomain.com/api
 
 ### Session-Based Auth
 
-OrderFlow uses JWT tokens stored in httpOnly cookies.
+DerbyFlow uses JWT tokens stored in httpOnly cookies.
 
 ```typescript
 // Token is automatically sent with requests

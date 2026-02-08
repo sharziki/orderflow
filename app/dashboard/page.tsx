@@ -230,7 +230,7 @@ export default function DashboardHome() {
                 <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
                   <ChefHat className="w-4 h-4 text-white" />
                 </div>
-                <span className="text-xl font-bold text-gray-900">OrderFlow</span>
+                <span className="text-xl font-bold text-gray-900">DerbyFlow</span>
               </Link>
               <nav className="hidden md:flex items-center gap-1">
                 <Link href="/dashboard" className="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
@@ -273,7 +273,7 @@ export default function DashboardHome() {
                   <Sparkles className="w-6 h-6 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h2 className="text-xl font-bold mb-2">Welcome to OrderFlow! 🎉</h2>
+                  <h2 className="text-xl font-bold mb-2">Welcome to DerbyFlow! 🎉</h2>
                   <p className="text-blue-100 mb-4">
                     Your restaurant is all set up. Here's how to start receiving orders:
                   </p>

@@ -18,7 +18,7 @@ interface LogEntry {
 }
 
 /**
- * Simple structured logger for OrderFlow
+ * Simple structured logger for DerbyFlow
  * Outputs JSON format for easy parsing by log aggregators
  */
 class Logger {

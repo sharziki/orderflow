@@ -1,10 +1,10 @@
 /**
- * OrderFlow Middleware
+ * DerbyFlow Middleware
  * 
  * This middleware handles:
  * 1. Authentication checks for protected routes (/dashboard, /admin)
  * 2. CSRF protection for API mutations (POST, PUT, DELETE, PATCH)
- * 3. Subdomain routing for restaurant storefronts (joes-pizza.orderflow.io → /store/joes-pizza)
+ * 3. Subdomain routing for restaurant storefronts (joes-pizza.derbydigital.us → /store/joes-pizza)
  * 4. Main domain slug routing (/joes-pizza → /store/joes-pizza)
  * 
  * @see https://nextjs.org/docs/app/building-your-application/routing/middleware
@@ -83,12 +83,12 @@ function checkCsrf(request: NextRequest): NextResponse | null {
       return null
     }
     
-    // Allow orderflow.io domains (including subdomains)
+    // Allow derbydigital.us domains (including subdomains)
     if (
-      originUrl.hostname.endsWith('.orderflow.io') ||
-      originUrl.hostname === 'orderflow.io'
+      originUrl.hostname.endsWith('.derbydigital.us') ||
+      originUrl.hostname === 'derbydigital.us'
     ) {
-      const hostIsOrderflow = hostParts.endsWith('.orderflow.io') || hostParts === 'orderflow.io'
+      const hostIsOrderflow = hostParts.endsWith('.derbydigital.us') || hostParts === 'derbydigital.us'
       if (hostIsOrderflow) {
         return null
       }
@@ -174,8 +174,8 @@ export async function middleware(request: NextRequest) {
     'localhost:3000',
     'localhost:3001',
     'localhost:3456',
-    'orderflow.io',
-    'www.orderflow.io',
+    'derbydigital.us',
+    'www.derbydigital.us',
     'orderflow-silk.vercel.app',
     '187.77.3.154',
     '187.77.3.154:3000',
@@ -186,7 +186,7 @@ export async function middleware(request: NextRequest) {
   const isVercelPreview = hostname.endsWith('.vercel.app')
   const isMainDomain = isVercelPreview || mainDomains.some(d => hostname.includes(d as string))
   
-  // If we're on a subdomain (e.g., joes-pizza.orderflow.io)
+  // If we're on a subdomain (e.g., joes-pizza.derbydigital.us)
   if (!isMainDomain) {
     // Extract subdomain
     const subdomain = hostname.split('.')[0]

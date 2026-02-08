@@ -1275,13 +1275,13 @@ export default function AdminDashboard() {
           <div className="relative w-24 h-24 mx-auto mb-6 bg-white rounded-2xl p-4 shadow-2xl">
             <Image
               src="/logo.svg"
-              alt="OrderFlow"
+              alt="DerbyFlow"
               fill
               className="object-contain animate-pulse"
             />
           </div>
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white text-lg font-semibold">Loading OrderFlow Kitchen...</p>
+          <p className="text-white text-lg font-semibold">Loading DerbyFlow Kitchen...</p>
         </div>
       </div>
     )
@@ -1298,13 +1298,13 @@ export default function AdminDashboard() {
               <div className="relative w-14 h-14 bg-white rounded-lg p-2 shadow-md">
                 <Image
                   src="/logo.svg"
-                  alt="OrderFlow"
+                  alt="DerbyFlow"
                   fill
                   className="object-contain"
                 />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">OrderFlow Kitchen</h1>
+                <h1 className="text-2xl font-bold text-white">DerbyFlow Kitchen</h1>
                 <p className="text-sm text-blue-100 flex items-center gap-2">
                   <span className="inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
                   Real-time updates enabled

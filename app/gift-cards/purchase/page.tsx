@@ -257,7 +257,7 @@ export default function PurchaseGiftCard() {
                     <div className="relative w-12 h-12 bg-white rounded-xl p-2">
                       <Image
                         src="/logo.svg"
-                        alt="OrderFlow"
+                        alt="DerbyFlow"
                         fill
                         className="object-contain"
                       />
@@ -366,7 +366,7 @@ export default function PurchaseGiftCard() {
             <div className="relative w-16 h-16 bg-white rounded-2xl p-3 shadow-lg shadow-slate-200/50 mx-auto mb-6 border border-slate-100">
               <Image
                 src="/logo.svg"
-                alt="OrderFlow"
+                alt="DerbyFlow"
                 fill
                 className="object-contain"
               />
@@ -442,7 +442,7 @@ export default function PurchaseGiftCard() {
                 <div className="relative w-14 h-14 bg-white rounded-xl p-2">
                   <Image
                     src="/logo.svg"
-                    alt="OrderFlow"
+                    alt="DerbyFlow"
                     fill
                     className="object-contain"
                   />

@@ -11,7 +11,7 @@ function getResend(): Resend | null {
   return resendInstance
 }
 
-const FROM_EMAIL = process.env.FROM_EMAIL || 'OrderFlow <noreply@orderflow.io>'
+const FROM_EMAIL = process.env.FROM_EMAIL || 'DerbyFlow <noreply@orderflow.io>'
 const APP_URL = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 
 // ============================================
@@ -29,12 +29,12 @@ export async function sendWelcomeEmail(to: string, restaurantName: string) {
     await resend.emails.send({
       from: FROM_EMAIL,
       to,
-      subject: `Welcome to OrderFlow, ${restaurantName}!`,
+      subject: `Welcome to DerbyFlow, ${restaurantName}!`,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #2563eb;">Welcome to OrderFlow! 🎉</h1>
+          <h1 style="color: #2563eb;">Welcome to DerbyFlow! 🎉</h1>
           <p>Hi there,</p>
-          <p>Thanks for signing up <strong>${restaurantName}</strong> with OrderFlow. You're just a few steps away from accepting online orders!</p>
+          <p>Thanks for signing up <strong>${restaurantName}</strong> with DerbyFlow. You're just a few steps away from accepting online orders!</p>
           
           <h2 style="color: #1e40af;">Next Steps:</h2>
           <ol>
@@ -221,7 +221,7 @@ export async function sendPasswordResetEmail(to: string, resetToken: string) {
     await resend.emails.send({
       from: FROM_EMAIL,
       to,
-      subject: 'Reset Your Password - OrderFlow',
+      subject: 'Reset Your Password - DerbyFlow',
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
           <h1 style="color: #2563eb;">Reset Your Password</h1>

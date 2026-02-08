@@ -162,7 +162,7 @@ export default function OnboardingPage() {
             <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
               <Utensils className="w-5 h-5 text-white" />
             </div>
-            <span className="text-2xl font-bold text-slate-900">OrderFlow</span>
+            <span className="text-2xl font-bold text-slate-900">DerbyFlow</span>
           </div>
 
           <h1 className="text-3xl font-bold text-slate-900 mb-2">

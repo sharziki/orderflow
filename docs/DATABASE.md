@@ -1,4 +1,4 @@
-# OrderFlow Database Schema
+# DerbyFlow Database Schema
 
 Complete documentation of the PostgreSQL database schema and model relationships.
 
@@ -30,7 +30,7 @@ Complete documentation of the PostgreSQL database schema and model relationships
 
 ## Overview
 
-OrderFlow uses PostgreSQL with Prisma ORM. The database is designed for multi-tenancy where all data is scoped by `tenantId`.
+DerbyFlow uses PostgreSQL with Prisma ORM. The database is designed for multi-tenancy where all data is scoped by `tenantId`.
 
 ### Key Design Decisions
 

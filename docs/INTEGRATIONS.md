@@ -1,4 +1,4 @@
-# OrderFlow Integrations Guide
+# DerbyFlow Integrations Guide
 
 Complete setup instructions for all third-party integrations.
 
@@ -224,7 +224,7 @@ Resend provides transactional email delivery.
 
 ```env
 RESEND_API_KEY="re_..."
-FROM_EMAIL="OrderFlow <noreply@yourdomain.com>"
+FROM_EMAIL="DerbyFlow <noreply@yourdomain.com>"
 ```
 
 #### 2. Verify Domain (Optional but Recommended)
@@ -236,7 +236,7 @@ FROM_EMAIL="OrderFlow <noreply@yourdomain.com>"
 
 #### 3. Email Templates
 
-OrderFlow sends these emails:
+DerbyFlow sends these emails:
 
 | Email | Trigger |
 |-------|---------|
@@ -595,7 +595,7 @@ export async function checkRateLimit(req: NextRequest, identifier: string) {
 
 ## Integration Checklist
 
-Use this checklist when setting up a new OrderFlow instance:
+Use this checklist when setting up a new DerbyFlow instance:
 
 ### Required
 - [ ] PostgreSQL database configured

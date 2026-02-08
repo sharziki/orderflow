@@ -60,7 +60,7 @@ export default function LoginPage() {
             <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
               <Utensils className="w-6 h-6 text-white" />
             </div>
-            <span className="text-2xl font-bold text-slate-900">OrderFlow</span>
+            <span className="text-2xl font-bold text-slate-900">DerbyFlow</span>
           </Link>
         </div>
 

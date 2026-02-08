@@ -18,8 +18,8 @@ const openSans = Open_Sans({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://orderflow.io'),
-  title: 'OrderFlow - Online Ordering for Restaurants | Launch in 5 Minutes',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'https://derbyflow.io'),
+  title: 'DerbyFlow - Online Ordering for Restaurants | Launch in 5 Minutes',
   description: 'Give your restaurant a beautiful online ordering system. No coding required. Set up in minutes, start taking orders today.',
   keywords: ['restaurant ordering', 'online ordering', 'food ordering system', 'restaurant software', 'menu management', 'Stripe payments'],
   icons: {
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     apple: '/logo.svg',
   },
   openGraph: {
-    title: 'OrderFlow - Online Ordering Made Simple',
+    title: 'DerbyFlow - Online Ordering Made Simple',
     description: 'Give your restaurant a beautiful online ordering system. No coding required.',
     type: 'website',
     images: ['/og-image.png'],

@@ -80,7 +80,7 @@ async function getNominatimDetails(placeId: string) {
 
   const res = await fetch(url.toString(), {
     headers: {
-      'User-Agent': 'OrderFlow/1.0 (Restaurant Ordering Platform)'
+      'User-Agent': 'DerbyFlow/1.0 (Restaurant Ordering Platform)'
     }
   })
   

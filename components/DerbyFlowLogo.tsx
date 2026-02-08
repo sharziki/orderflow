@@ -2,13 +2,13 @@
 
 import { Utensils } from 'lucide-react'
 
-interface OrderFlowLogoProps {
+interface DerbyFlowLogoProps {
   size?: number
   className?: string
   showText?: boolean
 }
 
-export default function OrderFlowLogo({ size = 40, className = '', showText = false }: OrderFlowLogoProps) {
+export default function DerbyFlowLogo({ size = 40, className = '', showText = false }: DerbyFlowLogoProps) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <div 
@@ -18,7 +18,7 @@ export default function OrderFlowLogo({ size = 40, className = '', showText = fa
         <Utensils className="text-white" style={{ width: size * 0.5, height: size * 0.5 }} />
       </div>
       {showText && (
-        <span className="font-bold text-xl text-slate-900">OrderFlow</span>
+        <span className="font-bold text-xl text-slate-900">DerbyFlow</span>
       )}
     </div>
   )

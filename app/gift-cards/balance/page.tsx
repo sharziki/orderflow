@@ -113,7 +113,7 @@ export default function CheckGiftCardBalance() {
             <div className="relative w-14 h-14 bg-white rounded-xl p-2">
               <Image
                 src="/logo.svg"
-                alt="OrderFlow"
+                alt="DerbyFlow"
                 fill
                 className="object-contain"
               />
@@ -251,7 +251,7 @@ export default function CheckGiftCardBalance() {
                     <div className="relative w-12 h-12 bg-white rounded-xl p-2">
                       <Image
                         src="/logo.svg"
-                        alt="OrderFlow"
+                        alt="DerbyFlow"
                         fill
                         className="object-contain"
                       />

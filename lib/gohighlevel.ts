@@ -78,8 +78,8 @@ export async function createOrUpdateContact(
         state: customerData.state || '',
         postalCode: customerData.postalCode || '',
         country: customerData.country || 'US',
-        source: 'OrderFlow',
-        tags: ['OrderFlow Customer'],
+        source: 'DerbyFlow',
+        tags: ['DerbyFlow Customer'],
       }),
     })
 

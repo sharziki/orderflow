@@ -30,7 +30,7 @@ interface OrderItem {
   price: number
 }
 
-// Flexible Order type that works with both OrderFlow and legacy admin formats
+// Flexible Order type that works with both DerbyFlow and legacy admin formats
 interface Order {
   id: string
   orderNumber?: string
@@ -189,7 +189,7 @@ export function formatOrderTicket(order: Order, restaurantName: string = 'ORDER 
   ticket += `Status: ${order.status}` + COMMANDS.LINE_FEED
   ticket += COMMANDS.LINE_FEED
   ticket += COMMANDS.BOLD_ON
-  ticket += 'Powered By OrderFlow' + COMMANDS.LINE_FEED
+  ticket += 'Powered By DerbyFlow' + COMMANDS.LINE_FEED
   ticket += COMMANDS.BOLD_OFF
   ticket += COMMANDS.LEFT
 
@@ -366,7 +366,7 @@ export function formatHTMLTicket(order: Order, restaurantName: string = 'ORDER F
       <div class="double-separator"></div>
       <div class="footer">
         <div>Status: ${order.status}</div>
-        <div style="margin-top: 4mm;"><strong>Powered By OrderFlow</strong></div>
+        <div style="margin-top: 4mm;"><strong>Powered By DerbyFlow</strong></div>
       </div>
     </body>
     </html>

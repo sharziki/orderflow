@@ -510,7 +510,7 @@ export function BluOriginalTemplate({
               </span>
             </div>
             <p className="text-center text-sm text-gray-500">
-              © {new Date().getFullYear()} {store.name}. Powered by OrderFlow.
+              © {new Date().getFullYear()} {store.name}. Powered by DerbyFlow.
             </p>
           </div>
         </div>

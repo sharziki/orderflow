@@ -168,7 +168,7 @@ const PRICING = [
       'Delivery with DoorDash',
       'Priority support',
       'Custom domain',
-      'Remove OrderFlow branding',
+      'Remove DerbyFlow branding',
     ],
     cta: 'Start Free Trial',
     highlighted: true,
@@ -288,7 +288,7 @@ export default function LandingPage() {
               >
                 <Utensils className="w-5 h-5 text-white" />
               </motion.div>
-              <span className="font-bold text-xl text-slate-900">OrderFlow</span>
+              <span className="font-bold text-xl text-slate-900">DerbyFlow</span>
             </motion.div>
 
             {/* Desktop Nav */}
@@ -701,7 +701,7 @@ export default function LandingPage() {
                     </div>
                     <div className="flex-1 mx-4">
                       <div className="bg-slate-600 rounded-lg px-4 py-1.5 text-slate-400 text-sm text-center">
-                        orderflow.co/demo-kitchen
+                        derbyflow.co/demo-kitchen
                       </div>
                     </div>
                   </div>
@@ -932,7 +932,7 @@ export default function LandingPage() {
           </ScrollReveal>
           <ScrollReveal delay={0.1}>
             <p className="text-xl text-slate-600 mb-8">
-              Join thousands of restaurants already using OrderFlow.
+              Join thousands of restaurants already using DerbyFlow.
             </p>
           </ScrollReveal>
           <ScrollReveal delay={0.2}>
@@ -970,7 +970,7 @@ export default function LandingPage() {
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
                     <Utensils className="w-5 h-5 text-white" />
                   </div>
-                  <span className="font-bold text-2xl">OrderFlow</span>
+                  <span className="font-bold text-2xl">DerbyFlow</span>
                 </motion.div>
                 <p className="text-slate-400 mb-6 max-w-sm">
                   The easiest way for restaurants to accept online orders. Launch in minutes, not months.
@@ -1090,7 +1090,7 @@ export default function LandingPage() {
           <div className="border-t border-slate-800 pt-8">
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
               <p className="text-slate-400 text-sm">
-                © {new Date().getFullYear()} OrderFlow. All rights reserved.
+                © {new Date().getFullYear()} DerbyFlow by Derby Digital. All rights reserved.
               </p>
               <div className="flex flex-wrap justify-center gap-6 text-sm">
                 {[

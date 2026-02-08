@@ -100,6 +100,6 @@ export async function sendVerificationSMS(
   code: string,
   config: SMSConfig
 ): Promise<{ success: boolean; error?: string }> {
-  const message = `Your OrderFlow verification code is: ${code}. Valid for 10 minutes.`
+  const message = `Your DerbyFlow verification code is: ${code}. Valid for 10 minutes.`
   return sendSMS(phone, message, config)
 }

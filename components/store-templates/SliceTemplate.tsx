@@ -45,7 +45,7 @@ export function SliceTemplate({
         
         {/* Back button / branding */}
         <div className="absolute top-4 left-4">
-          <span className="text-white/80 text-sm font-medium">Powered by OrderFlow</span>
+          <span className="text-white/80 text-sm font-medium">Powered by DerbyFlow</span>
         </div>
 
         {/* Discount Badge */}

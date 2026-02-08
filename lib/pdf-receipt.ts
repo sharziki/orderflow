@@ -171,7 +171,7 @@ export function generateReceipt(data: ReceiptData): jsPDF {
   // Footer
   doc.setFont('helvetica', 'normal')
   centerText('Thank you for your order!', 10)
-  centerText('Powered by OrderFlow', 7)
+  centerText('Powered by DerbyFlow', 7)
 
   return doc
 }

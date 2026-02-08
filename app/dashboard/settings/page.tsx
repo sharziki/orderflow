@@ -531,7 +531,7 @@ export default function SettingsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="text-xl font-bold text-blue-600">OrderFlow</Link>
+              <Link href="/dashboard" className="text-xl font-bold text-blue-600">DerbyFlow</Link>
               <span className="text-gray-300">|</span>
               <h1 className="text-lg font-semibold text-gray-900">Store Settings</h1>
             </div>

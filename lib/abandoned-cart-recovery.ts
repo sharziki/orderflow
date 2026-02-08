@@ -2,7 +2,7 @@ import { prisma } from './db'
 import { Resend } from 'resend'
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
-const FROM_EMAIL = process.env.FROM_EMAIL || 'OrderFlow <noreply@orderflow.io>'
+const FROM_EMAIL = process.env.FROM_EMAIL || 'DerbyFlow <noreply@orderflow.io>'
 const APP_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://orderflow.io'
 
 interface CartItem {

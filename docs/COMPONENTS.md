@@ -1,6 +1,6 @@
-# OrderFlow Components Guide
+# DerbyFlow Components Guide
 
-This document explains the key React components in OrderFlow and how they work together.
+This document explains the key React components in DerbyFlow and how they work together.
 
 ## 📋 Table of Contents
 
@@ -19,7 +19,7 @@ This document explains the key React components in OrderFlow and how they work t
 
 ### Server vs Client Components
 
-OrderFlow follows Next.js 14 patterns for server and client components:
+DerbyFlow follows Next.js 14 patterns for server and client components:
 
 ```
 Server Components (default):

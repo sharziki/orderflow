@@ -1,6 +1,6 @@
-# OrderFlow Architecture
+# DerbyFlow Architecture
 
-This document describes the system architecture, design decisions, and data flow in OrderFlow.
+This document describes the system architecture, design decisions, and data flow in DerbyFlow.
 
 ## 📋 Table of Contents
 
@@ -19,7 +19,7 @@ This document describes the system architecture, design decisions, and data flow
 
 ## Overview
 
-OrderFlow is a multi-tenant SaaS platform built with Next.js 14 using the App Router. It follows a serverless architecture optimized for Vercel deployment.
+DerbyFlow is a multi-tenant SaaS platform built with Next.js 14 using the App Router. It follows a serverless architecture optimized for Vercel deployment.
 
 ### Key Design Principles
 
@@ -294,7 +294,7 @@ Tenant (Restaurant)
 
 ### Stripe Connect Flow
 
-OrderFlow uses Stripe Connect in "Direct Charges" mode with platform fees.
+DerbyFlow uses Stripe Connect in "Direct Charges" mode with platform fees.
 
 ```
 Customer ($100 order)
@@ -370,7 +370,7 @@ interface FeeBreakdown {
 
 ### Current Implementation
 
-OrderFlow uses polling for order updates:
+DerbyFlow uses polling for order updates:
 
 ```typescript
 // Dashboard polls every 30 seconds

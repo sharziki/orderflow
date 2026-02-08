@@ -39,7 +39,7 @@ export default function LeftSidebar({
           <div className="flex items-center gap-3 mb-2">
             <Image
               src="/logo.svg"
-              alt="OrderFlow"
+              alt="DerbyFlow"
               width={48}
               height={48}
               className="object-contain flex-shrink-0"

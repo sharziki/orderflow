@@ -1,4 +1,4 @@
-# OrderFlow 🍔
+# DerbyFlow 🍔
 
 **Production-ready restaurant online ordering SaaS** — a modern Owner.com alternative you can self-host or deploy to Vercel.
 
@@ -28,13 +28,13 @@
 
 ## 🎯 Overview
 
-OrderFlow is a multi-tenant SaaS platform that allows restaurants to accept online orders. Each restaurant gets their own branded storefront, dashboard, and Stripe-connected payment processing.
+DerbyFlow is a multi-tenant SaaS platform that allows restaurants to accept online orders. Each restaurant gets their own branded storefront, dashboard, and Stripe-connected payment processing.
 
 ### How It Works
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                       OrderFlow Platform                            │
+│                       DerbyFlow Platform                            │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Landing Page      │  Restaurant Dashboard   │  Platform Admin      │
 │  (orderflow.io)    │  (/dashboard)           │  (/admin/dashboard)  │
@@ -259,7 +259,7 @@ STRIPE_WEBHOOK_SECRET="whsec_..."
 # EMAIL (Required for notifications)
 # ==========================================
 RESEND_API_KEY="re_..."
-FROM_EMAIL="OrderFlow <noreply@yourdomain.com>"
+FROM_EMAIL="DerbyFlow <noreply@yourdomain.com>"
 
 # ==========================================
 # ADMIN ACCESS (Required)
