@@ -70,6 +70,12 @@ interface Tenant {
   demoModeEnabled?: boolean
   demoModeCompletedAt?: string | null
   demoOrderCount?: number
+  // CTA fields
+  ctaEnabled?: boolean
+  ctaText?: string | null
+  ctaSubtext?: string | null
+  ctaLink?: string | null
+  ctaButtonText?: string | null
 }
 
 const LAYOUTS = [
@@ -87,6 +93,7 @@ const SECTIONS = [
   { id: 'store', label: 'Store Info', icon: Store, required: true },
   { id: 'hours', label: 'Hours', icon: Clock, required: true },
   { id: 'layout', label: 'Appearance', icon: Palette, required: false },
+  { id: 'cta', label: 'CTA Banner', icon: Megaphone, required: false },
   { id: 'fees', label: 'Fees & Taxes', icon: DollarSign, required: true },
   { id: 'features', label: 'Features', icon: Settings, required: false },
   { id: 'integrations', label: 'Integrations', icon: Link2, required: true },
@@ -139,6 +146,13 @@ export default function SettingsPage() {
   const [demoTestLoading, setDemoTestLoading] = useState(false)
   const [demoTestResult, setDemoTestResult] = useState<any>(null)
 
+  // CTA Banner state
+  const [ctaEnabled, setCtaEnabled] = useState(false)
+  const [ctaText, setCtaText] = useState('')
+  const [ctaSubtext, setCtaSubtext] = useState('')
+  const [ctaLink, setCtaLink] = useState('')
+  const [ctaButtonText, setCtaButtonText] = useState('')
+
   // Fetch demo mode status (defined before useEffect so it's available)
   const fetchDemoModeStatus = async () => {
     try {
@@ -188,6 +202,13 @@ export default function SettingsPage() {
       setGiftCardsEnabled(t.giftCardsEnabled || false)
       setLoyaltyEnabled(t.loyaltyEnabled || false)
       setIsActive(t.isActive !== false)
+      
+      // CTA settings
+      setCtaEnabled(t.ctaEnabled || false)
+      setCtaText(t.ctaText || '')
+      setCtaSubtext(t.ctaSubtext || '')
+      setCtaLink(t.ctaLink || '')
+      setCtaButtonText(t.ctaButtonText || 'Learn More')
       
       const hours = t.businessHours || {}
       const defaultHours: Record<string, { open: string; close: string; closed: boolean }> = {}
@@ -325,7 +346,8 @@ export default function SettingsPage() {
         body: JSON.stringify({
           name, phone, address, city, state, zip, logo, primaryColor, menuLayout,
           taxRate, deliveryEnabled, deliveryFee, minOrderAmount, pickupEnabled,
-          scheduledOrdersEnabled, giftCardsEnabled, loyaltyEnabled, isActive, businessHours
+          scheduledOrdersEnabled, giftCardsEnabled, loyaltyEnabled, isActive, businessHours,
+          ctaEnabled, ctaText, ctaSubtext, ctaLink, ctaButtonText
         }),
       })
 
@@ -867,6 +889,129 @@ export default function SettingsPage() {
                       className="w-full h-full"
                       title="Store Preview"
                     />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CTA Banner Section */}
+            {activeSection === 'cta' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">CTA Banner</h2>
+                  <p className="text-gray-500 mt-1">Add a promotional banner to your storefront</p>
+                </div>
+
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <div className="space-y-6">
+                    {/* Enable/Disable Toggle */}
+                    <label className="flex items-start gap-4 p-4 rounded-lg border cursor-pointer hover:bg-gray-50">
+                      <input 
+                        type="checkbox" 
+                        checked={ctaEnabled} 
+                        onChange={e => setCtaEnabled(e.target.checked)} 
+                        className="w-5 h-5 rounded text-blue-600 mt-0.5" 
+                      />
+                      <div>
+                        <span className="font-medium text-gray-900">Enable CTA Banner</span>
+                        <p className="text-sm text-gray-500">Show a promotional banner at the top of your store</p>
+                      </div>
+                    </label>
+
+                    {ctaEnabled && (
+                      <div className="space-y-4 pt-4 border-t">
+                        {/* Main Text */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Banner Headline *
+                          </label>
+                          <input 
+                            type="text" 
+                            value={ctaText}
+                            onChange={e => setCtaText(e.target.value)}
+                            placeholder="e.g., Fresh Fish Market Now Open!"
+                            className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        {/* Subtext */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Subtext <span className="text-gray-400">(optional)</span>
+                          </label>
+                          <input 
+                            type="text" 
+                            value={ctaSubtext}
+                            onChange={e => setCtaSubtext(e.target.value)}
+                            placeholder="e.g., Premium seafood delivered daily"
+                            className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+
+                        {/* Link */}
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Button Link <span className="text-gray-400">(optional)</span>
+                          </label>
+                          <input 
+                            type="text" 
+                            value={ctaLink}
+                            onChange={e => setCtaLink(e.target.value)}
+                            placeholder="e.g., https://yoursite.com/promo or /special-menu"
+                            className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Leave empty to hide the button</p>
+                        </div>
+
+                        {/* Button Text */}
+                        {ctaLink && (
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Button Text
+                            </label>
+                            <input 
+                              type="text" 
+                              value={ctaButtonText}
+                              onChange={e => setCtaButtonText(e.target.value)}
+                              placeholder="Learn More"
+                              className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        )}
+
+                        {/* Preview */}
+                        {ctaText && (
+                          <div className="pt-4 border-t">
+                            <h4 className="text-sm font-medium text-gray-700 mb-3">Preview</h4>
+                            <div 
+                              className="relative overflow-hidden text-white rounded-lg"
+                              style={{
+                                background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}cc 100%)`
+                              }}
+                            >
+                              <div className="px-4 py-4">
+                                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                                  <div className="flex items-center gap-3 text-center sm:text-left">
+                                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                                      <span className="text-xl">✨</span>
+                                    </div>
+                                    <div>
+                                      <h3 className="text-lg font-bold">{ctaText}</h3>
+                                      {ctaSubtext && <p className="text-sm text-white/80">{ctaSubtext}</p>}
+                                    </div>
+                                  </div>
+                                  {ctaLink && (
+                                    <span className="px-4 py-2 bg-white rounded-lg font-medium text-sm" style={{ color: primaryColor }}>
+                                      {ctaButtonText || 'Learn More'}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

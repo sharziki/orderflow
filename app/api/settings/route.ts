@@ -42,8 +42,16 @@ export async function GET(req: NextRequest) {
         doordashKeyId: true,
         doordashSigningSecret: true,
         pickupInstructions: true,
+        ghlApiKey: true,
+        ghlLocationId: true,
         isActive: true,
         isOnboarded: true,
+        // CTA fields
+        ctaEnabled: true,
+        ctaText: true,
+        ctaSubtext: true,
+        ctaLink: true,
+        ctaButtonText: true,
       },
     })
     
@@ -63,9 +71,11 @@ export async function GET(req: NextRequest) {
         ...tenant,
         // Return masked versions for display
         doordashSigningSecretMasked: maskKey(tenant.doordashSigningSecret),
+        ghlApiKeyMasked: maskKey(tenant.ghlApiKey),
         // Flag to show if configured
         doordashConfigured: !!(tenant.doordashDeveloperId && tenant.doordashKeyId && tenant.doordashSigningSecret),
         stripeConfigured: !!tenant.stripeAccountId,
+        ghlConfigured: !!(tenant.ghlApiKey && tenant.ghlLocationId),
       },
     })
   } catch (error) {
@@ -108,6 +118,14 @@ export async function PUT(req: NextRequest) {
       doordashKeyId,
       doordashSigningSecret,
       pickupInstructions,
+      ghlApiKey,
+      ghlLocationId,
+      // CTA fields
+      ctaEnabled,
+      ctaText,
+      ctaSubtext,
+      ctaLink,
+      ctaButtonText,
     } = body
     
     // Build update object (only include provided fields)
@@ -135,10 +153,21 @@ export async function PUT(req: NextRequest) {
     if (businessHours !== undefined) updateData.businessHours = businessHours
     if (pickupInstructions !== undefined) updateData.pickupInstructions = pickupInstructions
     
+    // CTA fields
+    if (ctaEnabled !== undefined) updateData.ctaEnabled = ctaEnabled
+    if (ctaText !== undefined) updateData.ctaText = ctaText
+    if (ctaSubtext !== undefined) updateData.ctaSubtext = ctaSubtext
+    if (ctaLink !== undefined) updateData.ctaLink = ctaLink
+    if (ctaButtonText !== undefined) updateData.ctaButtonText = ctaButtonText
+    
     // DoorDash credentials - only update if provided (don't overwrite with empty)
     if (doordashDeveloperId) updateData.doordashDeveloperId = doordashDeveloperId
     if (doordashKeyId) updateData.doordashKeyId = doordashKeyId
     if (doordashSigningSecret) updateData.doordashSigningSecret = doordashSigningSecret
+    
+    // Go High Level credentials - only update if provided
+    if (ghlApiKey) updateData.ghlApiKey = ghlApiKey
+    if (ghlLocationId) updateData.ghlLocationId = ghlLocationId
     
     // If delivery is being enabled, check DoorDash is configured
     if (deliveryEnabled && !updateData.deliveryEnabled) {
@@ -169,6 +198,7 @@ export async function PUT(req: NextRequest) {
         id: tenant.id,
         name: tenant.name,
         doordashConfigured: !!(tenant.doordashDeveloperId && tenant.doordashKeyId && tenant.doordashSigningSecret),
+        ghlConfigured: !!(tenant.ghlApiKey && tenant.ghlLocationId),
       },
     })
   } catch (error) {

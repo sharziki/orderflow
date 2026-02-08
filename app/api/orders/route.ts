@@ -6,6 +6,7 @@ import { sanitizeField, sanitizeEmail, sanitizePhone } from '@/lib/sanitize'
 import { sendOrderConfirmation, sendNewOrderNotification } from '@/lib/email'
 import { checkOrderThrottle, formatThrottleMessage } from '@/lib/order-throttle'
 import { calculatePrepTimeFromMenuItems } from '@/lib/prep-time'
+import { syncOrderToGHL } from '@/lib/gohighlevel'
 
 // Check if we're in demo mode (no database configured)
 function isDemoMode(): boolean {
@@ -603,6 +604,47 @@ export async function POST(req: NextRequest) {
     Promise.all(emailPromises).catch(err => {
       console.error('[Orders] Email notification error:', err)
     })
+    
+    // Sync to Go High Level CRM (if configured)
+    if (tenant.ghlApiKey && tenant.ghlLocationId) {
+      // Get customer order count for tracking
+      const customerOrderCount = resolvedCustomerId
+        ? await prisma.customer.findUnique({
+            where: { id: resolvedCustomerId },
+            select: { orderCount: true },
+          }).then(c => c?.orderCount || 1)
+        : 1
+
+      // Fire and forget - don't block the response
+      syncOrderToGHL(
+        tenant.ghlApiKey,
+        tenant.ghlLocationId,
+        {
+          name: customerName,
+          email: customerEmail || undefined,
+          phone: customerPhone,
+          address: deliveryAddress || undefined,
+          city: tenant.city || undefined,
+          state: tenant.state || undefined,
+          zip: tenant.zip || undefined,
+        },
+        {
+          orderNumber: order.orderNumber,
+          items: orderItems.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price * item.quantity,
+          })),
+          total: order.total,
+          orderCount: customerOrderCount,
+          totalOrders: customerOrderCount,
+          type: type as 'pickup' | 'delivery',
+          notes: notes || undefined,
+        }
+      ).catch(err => {
+        console.error('[Orders] GHL sync error:', err)
+      })
+    }
     
     return NextResponse.json({ 
       order: {
