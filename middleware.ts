@@ -1,12 +1,30 @@
+/**
+ * OrderFlow Middleware
+ * 
+ * This middleware handles:
+ * 1. Authentication checks for protected routes (/dashboard, /admin)
+ * 2. CSRF protection for API mutations (POST, PUT, DELETE, PATCH)
+ * 3. Subdomain routing for restaurant storefronts (joes-pizza.orderflow.io → /store/joes-pizza)
+ * 4. Main domain slug routing (/joes-pizza → /store/joes-pizza)
+ * 
+ * @see https://nextjs.org/docs/app/building-your-application/routing/middleware
+ */
+
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 
+// JWT secret for token verification (must match lib/auth.ts)
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'orderflow-secret-change-in-production'
 )
 
-// Check if user is authenticated for protected routes
+/**
+ * Check if user is authenticated by verifying JWT token in cookies
+ * 
+ * @param request - Next.js request object
+ * @returns true if user has valid auth token, false otherwise
+ */
 async function checkAuth(request: NextRequest): Promise<boolean> {
   const token = request.cookies.get('auth-token')?.value
   console.log('[Auth Middleware] Token present:', !!token)
@@ -138,6 +156,7 @@ export async function middleware(request: NextRequest) {
   
   // Main domain paths that shouldn't be treated as store slugs
   const mainPaths = [
+    '/',
     '/dashboard',
     '/admin',
     '/login',
@@ -158,6 +177,8 @@ export async function middleware(request: NextRequest) {
     'orderflow.io',
     'www.orderflow.io',
     'orderflow-silk.vercel.app',
+    '187.77.3.154',
+    '187.77.3.154:3000',
     process.env.VERCEL_URL,
   ].filter(Boolean)
   
