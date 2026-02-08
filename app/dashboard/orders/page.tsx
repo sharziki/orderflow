@@ -83,6 +83,8 @@ export default function KanbanOrdersPage() {
     })
   )
 
+  const soundTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   // Initialize audio
   useEffect(() => {
     audioRef.current = new Audio('/sounds/new-order.mp3')
@@ -92,12 +94,47 @@ export default function KanbanOrdersPage() {
     if (savedSoundPref !== null) {
       setSoundEnabled(savedSoundPref === 'true')
     }
+
+    // Cleanup sound timeout on unmount
+    return () => {
+      if (soundTimeoutRef.current) {
+        clearTimeout(soundTimeoutRef.current)
+      }
+      if (audioRef.current) {
+        audioRef.current.pause()
+      }
+    }
   }, [])
 
-  const playNotificationSound = useCallback(() => {
+  // Play notification sound - for pickup orders, play for 6 seconds (loop)
+  const playNotificationSound = useCallback((isPickupOrder: boolean = false) => {
     if (soundEnabled && audioRef.current) {
+      // Clear any existing sound timeout
+      if (soundTimeoutRef.current) {
+        clearTimeout(soundTimeoutRef.current)
+        soundTimeoutRef.current = null
+      }
+      
       audioRef.current.currentTime = 0
-      audioRef.current.play().catch(e => console.log('Could not play sound:', e))
+      
+      if (isPickupOrder) {
+        // For pickup orders: loop sound for 6 seconds
+        audioRef.current.loop = true
+        audioRef.current.play().catch(e => console.log('Could not play sound:', e))
+        
+        // Stop after 6 seconds
+        soundTimeoutRef.current = setTimeout(() => {
+          if (audioRef.current) {
+            audioRef.current.loop = false
+            audioRef.current.pause()
+            audioRef.current.currentTime = 0
+          }
+        }, 6000)
+      } else {
+        // For delivery orders: play once
+        audioRef.current.loop = false
+        audioRef.current.play().catch(e => console.log('Could not play sound:', e))
+      }
     }
   }, [soundEnabled])
 
@@ -108,7 +145,7 @@ export default function KanbanOrdersPage() {
     toast.success(newValue ? 'Sound enabled' : 'Sound muted')
   }
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (newOrderFromRealtime?: Order) => {
     try {
       const res = await fetch('/api/orders?limit=100')
       if (!res.ok) throw new Error('Failed to fetch orders')
@@ -120,9 +157,12 @@ export default function KanbanOrdersPage() {
         setDemoMode(true)
       }
       
-      // Check for new orders
-      if (fetchedOrders.length > previousOrderCountRef.current && previousOrderCountRef.current > 0) {
-        playNotificationSound()
+      // Check for new orders (only when not from realtime - realtime handles its own notification)
+      if (!newOrderFromRealtime && fetchedOrders.length > previousOrderCountRef.current && previousOrderCountRef.current > 0) {
+        // Find the newest order to determine type
+        const newestOrder = fetchedOrders[0]
+        const isPickup = newestOrder?.type === 'pickup'
+        playNotificationSound(isPickup)
         toast.success('New order received!')
       }
       previousOrderCountRef.current = fetchedOrders.length
@@ -142,15 +182,43 @@ export default function KanbanOrdersPage() {
     return () => clearInterval(interval)
   }, [fetchOrders])
 
+  // Auto-print new order ticket
+  const autoPrintNewOrder = useCallback(async (order: Order) => {
+    const settings = browserPrint.getPrinterSettings()
+    if (settings.autoPrint) {
+      try {
+        const htmlContent = formatHTMLTicket(order)
+        const result = await browserPrint.printViaBrowser(htmlContent)
+        if (result.success) {
+          toast.success(`Auto-printed ticket for ${order.orderNumber}`)
+        } else {
+          console.error('[Orders] Auto-print failed:', result.error)
+        }
+      } catch (error) {
+        console.error('[Orders] Auto-print error:', error)
+      }
+    }
+  }, [])
+
   // Supabase realtime (only if configured)
   useEffect(() => {
     if (!isSupabaseConfigured()) return
 
     const channel = supabase
       .channel('orders-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'Order' }, () => {
-        playNotificationSound()
-        fetchOrders()
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'Order' }, (payload) => {
+        // Get order type from payload to determine sound duration
+        const newOrder = payload.new as Order
+        const isPickup = newOrder?.type === 'pickup'
+        playNotificationSound(isPickup)
+        toast.success('New order received!')
+        
+        // Auto-print ticket immediately on new order (before acceptance)
+        if (newOrder) {
+          autoPrintNewOrder(newOrder)
+        }
+        
+        fetchOrders(newOrder)
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'Order' }, () => {
         fetchOrders()
@@ -160,7 +228,7 @@ export default function KanbanOrdersPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [playNotificationSound, fetchOrders])
+  }, [playNotificationSound, fetchOrders, autoPrintNewOrder])
 
   const updateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
     const order = orders.find(o => o.id === orderId)
@@ -419,24 +487,44 @@ export default function KanbanOrdersPage() {
               </>
             )}
             {order.status === 'preparing' && (
-              <button
-                onClick={() => updateOrderStatus(order.id, 'ready')}
-                disabled={isUpdating}
-                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-3 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <CheckCircle className="w-4 h-4" />
-                Mark Ready
-              </button>
+              <>
+                <button
+                  onClick={() => updateOrderStatus(order.id, 'pending')}
+                  disabled={isUpdating}
+                  className="px-3 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-semibold flex items-center justify-center gap-1 disabled:opacity-50"
+                  title="Move back to New Orders"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => updateOrderStatus(order.id, 'ready')}
+                  disabled={isUpdating}
+                  className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-3 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Mark Ready
+                </button>
+              </>
             )}
             {order.status === 'ready' && (
-              <button
-                onClick={() => updateOrderStatus(order.id, 'completed')}
-                disabled={isUpdating}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Package className="w-4 h-4" />
-                Complete
-              </button>
+              <>
+                <button
+                  onClick={() => updateOrderStatus(order.id, 'preparing')}
+                  disabled={isUpdating}
+                  className="px-3 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-semibold flex items-center justify-center gap-1 disabled:opacity-50"
+                  title="Move back to Making"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => updateOrderStatus(order.id, 'completed')}
+                  disabled={isUpdating}
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white px-3 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Package className="w-4 h-4" />
+                  Complete
+                </button>
+              </>
             )}
           </div>
           <button

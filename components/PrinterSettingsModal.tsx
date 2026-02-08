@@ -228,7 +228,7 @@ export default function PrinterSettingsModal({ isOpen, onClose }: PrinterSetting
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
               <div>
                 <p className="font-semibold text-slate-900">Auto-Print New Orders</p>
-                <p className="text-sm text-slate-500">Automatically print when orders are accepted</p>
+                <p className="text-sm text-slate-500">Automatically print tickets when new orders come in</p>
               </div>
               <button
                 onClick={() => setSettings(prev => ({ ...prev, autoPrint: !prev.autoPrint }))}

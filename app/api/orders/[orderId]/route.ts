@@ -74,15 +74,15 @@ export async function PUT(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
     
-    // Validate status transition
+    // Validate status transition - allows forward and backward movement for admin flexibility
     const validTransitions: { [key: string]: string[] } = {
       pending: ['confirmed', 'preparing', 'cancelled'],
-      confirmed: ['preparing', 'cancelled'],
-      preparing: ['ready', 'cancelled'],
-      ready: ['out_for_delivery', 'completed'],
-      out_for_delivery: ['completed'],
-      completed: [],
-      cancelled: [],
+      confirmed: ['pending', 'preparing', 'cancelled'], // Can go back to pending
+      preparing: ['pending', 'confirmed', 'ready', 'cancelled'], // Can go back to pending/confirmed
+      ready: ['pending', 'confirmed', 'preparing', 'out_for_delivery', 'completed', 'cancelled'], // Can go back
+      out_for_delivery: ['ready', 'completed', 'cancelled'], // Can go back to ready
+      completed: ['ready'], // Allow reopening completed orders back to ready
+      cancelled: ['pending'], // Allow reactivating cancelled orders
     }
     
     if (status && !validTransitions[existing.status]?.includes(status)) {
