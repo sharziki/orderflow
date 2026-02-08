@@ -51,11 +51,17 @@ export async function GET(
 
     return NextResponse.json({
       valid: true,
-      code: giftCard.code,
-      currentBalance: giftCard.currentBalance,
-      initialBalance: giftCard.initialBalance,
-      recipientName: giftCard.recipientName,
-      expiresAt: giftCard.expiresAt,
+      giftCard: {
+        code: giftCard.code,
+        currentBalance: giftCard.currentBalance,
+        initialAmount: giftCard.initialBalance,
+        recipientName: giftCard.recipientName,
+        purchasedAt: giftCard.createdAt.toISOString(),
+        lastUsedAt: giftCard.updatedAt.toISOString(),
+        status: giftCard.currentBalance <= 0 ? 'REDEEMED' : 'ACTIVE',
+        expiresAt: giftCard.expiresAt?.toISOString() || null,
+      },
+      transactions: [],
     })
   } catch (error) {
     console.error('[GiftCard] Error:', error)

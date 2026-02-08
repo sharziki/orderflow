@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Gift, Search, DollarSign, CheckCircle, XCircle, ArrowLeft, Minus, Utensils } from 'lucide-react'
+import { Gift, Search, DollarSign, CheckCircle, XCircle, ArrowLeft, Minus, Utensils, Ban, AlertTriangle } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 
@@ -60,6 +60,8 @@ export default function AdminGiftCards() {
   const [redeemAmount, setRedeemAmount] = useState('')
   const [redeemNotes, setRedeemNotes] = useState('')
   const [processing, setProcessing] = useState(false)
+  const [showVoidModal, setShowVoidModal] = useState(false)
+  const [voidReason, setVoidReason] = useState('')
 
   useEffect(() => {
     fetchGiftCards()
@@ -184,6 +186,42 @@ export default function AdminGiftCards() {
     } catch (error) {
       console.error('Error redeeming gift card:', error)
       toast.error(error instanceof Error ? error.message : 'Failed to redeem gift card')
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const handleVoidGiftCard = async () => {
+    if (!selectedCard) return
+
+    setProcessing(true)
+
+    try {
+      const response = await fetch(`/api/gift-cards/${selectedCard.code}/void`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reason: voidReason.trim() || 'No reason provided'
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to void gift card')
+      }
+
+      const data = await response.json()
+      toast.success(data.message || 'Gift card voided successfully')
+
+      // Refresh gift cards and close modal
+      await fetchGiftCards()
+      setShowVoidModal(false)
+      setVoidReason('')
+      setSelectedCard(null)
+
+    } catch (error) {
+      console.error('Error voiding gift card:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to void gift card')
     } finally {
       setProcessing(false)
     }
@@ -338,13 +376,22 @@ export default function AdminGiftCards() {
             )}
 
             {selectedCard.status === 'ACTIVE' && selectedCard.currentBalance > 0 && (
-              <button
-                onClick={() => setShowRedeemModal(true)}
-                className="btn-primary w-full"
-              >
-                <DollarSign className="w-5 h-5" />
-                Redeem Amount
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowRedeemModal(true)}
+                  className="btn-primary flex-1"
+                >
+                  <DollarSign className="w-5 h-5" />
+                  Redeem Amount
+                </button>
+                <button
+                  onClick={() => setShowVoidModal(true)}
+                  className="px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Ban className="w-5 h-5" />
+                  Void Card
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -532,6 +579,92 @@ export default function AdminGiftCards() {
                         <Minus className="w-5 h-5" />
                         Redeem ${parseFloat(redeemAmount || '0').toFixed(2)}
                       </span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Void Modal */}
+      {showVoidModal && selectedCard && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/70 z-40"
+            onClick={() => setShowVoidModal(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-lg border border-gray-200 max-w-md w-full shadow-2xl">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 p-6 rounded-t-lg">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-8 h-8 text-white" />
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Void Gift Card</h2>
+                    <p className="text-red-100 text-sm mt-1">This action cannot be undone</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">
+                    <strong>Warning:</strong> Voiding this gift card will permanently deactivate it. 
+                    The remaining balance of <strong>${selectedCard.currentBalance.toFixed(2)}</strong> will become unusable.
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-600">Gift Card Code</p>
+                  <p className="text-lg font-mono font-bold text-gray-900">{selectedCard.code}</p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-600">Current Balance</p>
+                  <p className="text-2xl font-bold text-red-600">${selectedCard.currentBalance.toFixed(2)}</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Reason for voiding *
+                  </label>
+                  <textarea
+                    value={voidReason}
+                    onChange={(e) => setVoidReason(e.target.value)}
+                    placeholder="e.g., Customer refund requested, Fraudulent purchase, etc."
+                    rows={3}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-red-500 focus:ring-2 focus:ring-red-100 outline-none transition-all resize-none"
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowVoidModal(false)
+                      setVoidReason('')
+                    }}
+                    className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-lg font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                    disabled={processing}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleVoidGiftCard}
+                    disabled={processing}
+                    className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {processing ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Ban className="w-5 h-5" />
+                        Void Card
+                      </>
                     )}
                   </button>
                 </div>

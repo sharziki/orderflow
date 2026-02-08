@@ -54,6 +54,9 @@ export async function GET(
       ? allergensParam.split(',').map(a => a.trim().toLowerCase()).filter(Boolean)
       : []
     
+    // Parse menu filter from query param
+    const menuIdParam = searchParams.get('menuId')
+    
     const tenant = await prisma.tenant.findUnique({
       where: { slug },
       select: {
@@ -80,6 +83,12 @@ export async function GET(
         timezone: true,
         isActive: true,
         loyaltyEnabled: true,
+        // Custom CTA
+        ctaEnabled: true,
+        ctaText: true,
+        ctaSubtext: true,
+        ctaLink: true,
+        ctaButtonText: true,
         // DoorDash config (to check if delivery is actually available)
         doordashDeveloperId: true,
         doordashKeyId: true,
@@ -111,10 +120,49 @@ export async function GET(
     const currentTime = `${hour}:${minute}`
     const today = weekday
     
-    // Get categories with items (including scheduling fields)
-    const categories = await prisma.category.findMany({
+    // Get menus for this tenant
+    const menus = await prisma.menu.findMany({
       where: { tenantId: tenant.id, isActive: true },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        icon: true,
+        isDefault: true,
+        sortOrder: true,
+      },
+      orderBy: { sortOrder: 'asc' },
+    })
+
+    // Determine which menu to show
+    let selectedMenuId: string | null = null
+    if (menuIdParam) {
+      // Use explicitly requested menu
+      selectedMenuId = menuIdParam
+    } else if (menus.length > 0) {
+      // Use default menu, or first menu
+      const defaultMenu = menus.find(m => m.isDefault)
+      selectedMenuId = defaultMenu?.id || menus[0].id
+    }
+
+    // Get categories with items (including scheduling fields)
+    // Filter by menu if menus exist
+    const categoryWhere: any = { tenantId: tenant.id, isActive: true }
+    if (menus.length > 0 && selectedMenuId) {
+      categoryWhere.menuId = selectedMenuId
+    }
+
+    const categories = await prisma.category.findMany({
+      where: categoryWhere,
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        sortOrder: true,
+        menuId: true,
+        availableFrom: true,
+        availableTo: true,
+        availableDays: true,
         menuItems: {
           where: { isAvailable: true },
           orderBy: { sortOrder: 'asc' },
@@ -124,6 +172,7 @@ export async function GET(
             description: true,
             price: true,
             image: true,
+            images: true,
             allergens: true,
             calories: true,
             modifierGroupIds: true,
@@ -221,6 +270,8 @@ export async function GET(
       },
       categories: filteredCategories,
       modifierGroups,
+      menus: menus.length > 1 ? menus : [], // Only return menus if more than one
+      selectedMenuId,
       appliedAllergenFilters: allergenFilters,
     })
   } catch (error) {

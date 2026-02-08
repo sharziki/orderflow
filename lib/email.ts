@@ -248,6 +248,87 @@ export async function sendPasswordResetEmail(to: string, resetToken: string) {
   }
 }
 
+export async function sendGiftCardEmail(
+  to: string,
+  giftCard: {
+    code: string
+    amount: number
+    recipientName?: string | null
+    purchaserName?: string | null
+    message?: string | null
+    restaurantName: string
+    balanceCheckUrl: string
+  }
+) {
+  const resend = getResend()
+  if (!resend) {
+    console.log('[Email] Skipping gift card email (no API key):', to)
+    return
+  }
+
+  const isGift = !!giftCard.purchaserName && giftCard.purchaserName !== giftCard.recipientName
+
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL,
+      to,
+      subject: isGift 
+        ? `🎁 You received a ${giftCard.restaurantName} Gift Card!` 
+        : `🎁 Your ${giftCard.restaurantName} Gift Card`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #0B3755 0%, #1e40af 100%); color: white; padding: 32px; border-radius: 16px 16px 0 0; text-align: center;">
+            <h1 style="margin: 0 0 8px 0; font-size: 28px;">🎁 Gift Card</h1>
+            <p style="margin: 0; opacity: 0.9;">${giftCard.restaurantName}</p>
+          </div>
+          
+          <div style="background: white; padding: 32px; border-radius: 0 0 16px 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            ${isGift && giftCard.purchaserName ? `
+              <div style="margin-bottom: 24px; padding: 16px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                <p style="margin: 0; font-weight: 600; color: #92400e;">
+                  🎉 ${giftCard.purchaserName} sent you a gift!
+                </p>
+                ${giftCard.message ? `<p style="margin: 8px 0 0 0; color: #a16207; font-style: italic;">"${giftCard.message}"</p>` : ''}
+              </div>
+            ` : ''}
+            
+            <div style="text-align: center; margin: 24px 0;">
+              <p style="margin: 0; color: #64748b; font-size: 14px;">Gift Card Value</p>
+              <p style="margin: 8px 0; font-size: 48px; font-weight: bold; color: #16a34a;">$${giftCard.amount.toFixed(2)}</p>
+            </div>
+            
+            <div style="background: #f1f5f9; padding: 20px; border-radius: 12px; text-align: center; margin: 24px 0;">
+              <p style="margin: 0 0 8px 0; color: #64748b; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Your Gift Card Code</p>
+              <p style="margin: 0; font-size: 24px; font-family: monospace; font-weight: bold; color: #0f172a; letter-spacing: 2px;">${giftCard.code}</p>
+            </div>
+            
+            <div style="margin: 24px 0; padding: 16px; background: #eff6ff; border-radius: 8px;">
+              <p style="margin: 0; font-weight: 600; color: #1e40af;">How to use your gift card:</p>
+              <ol style="margin: 12px 0 0 0; padding-left: 20px; color: #3b82f6;">
+                <li style="margin-bottom: 8px;">Visit ${giftCard.restaurantName} online or in-store</li>
+                <li style="margin-bottom: 8px;">Add items to your cart and proceed to checkout</li>
+                <li style="margin-bottom: 8px;">Enter your gift card code: <strong>${giftCard.code}</strong></li>
+                <li>Enjoy your meal! 🍽️</li>
+              </ol>
+            </div>
+            
+            <a href="${giftCard.balanceCheckUrl}" style="display: block; background: #0B3755; color: white; text-align: center; padding: 16px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; margin-top: 24px;">
+              Check Your Balance →
+            </a>
+            
+            <p style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 12px; text-align: center;">
+              This gift card never expires. For questions, contact ${giftCard.restaurantName}.
+            </p>
+          </div>
+        </div>
+      `,
+    })
+    console.log('[Email] Gift card email sent to:', to)
+  } catch (error) {
+    console.error('[Email] Failed to send gift card email:', error)
+  }
+}
+
 export async function sendNewOrderNotification(
   to: string,
   order: {

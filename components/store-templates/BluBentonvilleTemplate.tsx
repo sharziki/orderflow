@@ -17,10 +17,16 @@ import {
 } from 'lucide-react'
 import { StoreTemplateProps } from './types'
 import AddressPicker from '@/components/AddressPicker'
+import { HoverImageGallery } from './HoverImageGallery'
+import CustomCTA from '@/components/CustomCTA'
+import MenuSelector from '@/components/MenuSelector'
 
 export function BluBentonvilleTemplate({
   store,
   categories,
+  menus = [],
+  selectedMenuId,
+  onMenuChange,
   cart,
   cartOpen,
   orderType,
@@ -35,13 +41,20 @@ export function BluBentonvilleTemplate({
   goToCheckout,
   categoryRefs,
   navRef,
+  onOpenItemModal,
+  onEditCartItem,
 }: StoreTemplateProps) {
   const [deliveryAddress, setDeliveryAddress] = useState('')
   const [deliveryLat, setDeliveryLat] = useState<number>()
   const [deliveryLng, setDeliveryLng] = useState<number>()
   const [searchQuery, setSearchQuery] = useState('')
   
-  const cartTotal = cart.reduce((sum, c) => sum + c.menuItem.price * c.quantity, 0)
+  // Calculate cart total including modifier prices
+  const cartTotal = cart.reduce((sum, c) => {
+    const itemPrice = c.menuItem.price
+    const modifiersPrice = (c.selectedModifiers || []).reduce((mSum, mod) => mSum + mod.price, 0)
+    return sum + (itemPrice + modifiersPrice) * c.quantity
+  }, 0)
   const cartCount = cart.reduce((sum, c) => sum + c.quantity, 0)
   const primaryColor = store.primaryColor || '#1e3a5f'
   const secondaryColor = store.secondaryColor || '#0ea5e9'
@@ -210,8 +223,30 @@ export function BluBentonvilleTemplate({
         </div>
       </header>
 
+      {/* Custom CTA Banner */}
+      {store.ctaEnabled && store.ctaText && (
+        <CustomCTA
+          text={store.ctaText}
+          subtext={store.ctaSubtext}
+          link={store.ctaLink}
+          buttonText={store.ctaButtonText}
+          primaryColor={primaryColor}
+        />
+      )}
+
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Menu Selector (if multiple menus) */}
+        {menus.length > 1 && onMenuChange && (
+          <div className="mb-6">
+            <MenuSelector
+              menus={menus}
+              selectedMenuId={selectedMenuId || null}
+              onMenuChange={onMenuChange}
+              primaryColor={primaryColor}
+            />
+          </div>
+        )}
         <div className="flex gap-8">
           {/* Menu Column */}
           <div className="flex-1 min-w-0">
@@ -252,79 +287,80 @@ export function BluBentonvilleTemplate({
               </div>
             </div>
 
-            {/* Menu Sections */}
+            {/* Menu Sections - 2x2 on mobile */}
             <div className="py-6 space-y-10">
               {filteredCategories.map((category) => (
                 <div
                   key={category.id}
                   ref={(el) => { categoryRefs.current[category.id] = el }}
                 >
-                  <h2 className="text-2xl font-bold text-gray-900 mb-4">{category.name}</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">{category.name}</h2>
+                  {category.description && (
+                    <p className="text-gray-500 text-sm sm:text-base mb-4">{category.description}</p>
+                  )}
+                  {!category.description && <div className="mb-4" />}
                   
-                  {/* 2-column grid on desktop */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 2x2 grid on mobile, 2 cols on desktop */}
+                  <div className="grid grid-cols-2 md:grid-cols-2 gap-3 sm:gap-4">
                     {category.menuItems.map((item) => {
-                      const inCart = cart.find(c => c.menuItem.id === item.id)
+                      // Count total quantity of this item across all cart entries
+                      const inCartCount = cart.filter(c => c.menuItem.id === item.id).reduce((sum, c) => sum + c.quantity, 0)
+                      // Collect all images: prefer images array, fallback to single image
+                      const allImages = item.images && item.images.length > 0 
+                        ? item.images 
+                        : (item.image ? [item.image] : [])
                       
                       return (
                         <div
                           key={item.id}
-                          className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 border border-gray-100 flex"
+                          onClick={() => onOpenItemModal?.(item)}
+                          className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-200 border border-gray-100 cursor-pointer group flex flex-col sm:flex-row"
                         >
                           {/* Image */}
-                          {item.image && (
-                            <div className="w-28 h-28 flex-shrink-0 relative">
-                              <img 
-                                src={item.image} 
+                          {allImages.length > 0 && (
+                            <div className="relative">
+                              <HoverImageGallery
+                                images={allImages}
                                 alt={item.name}
-                                className="w-full h-full object-cover"
+                                className="w-full aspect-square sm:w-28 sm:h-28 flex-shrink-0"
                               />
+                              {/* In cart badge */}
+                              {inCartCount > 0 && (
+                                <div 
+                                  className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg"
+                                  style={{ backgroundColor: primaryColor }}
+                                >
+                                  {inCartCount}
+                                </div>
+                              )}
                             </div>
                           )}
                           
                           {/* Content */}
-                          <div className="flex-1 p-4 flex flex-col">
+                          <div className="flex-1 p-3 sm:p-4 flex flex-col">
                             <div className="flex-1">
-                              <h3 className="font-semibold text-gray-900 mb-1">{item.name}</h3>
+                              <h3 className="font-semibold text-gray-900 text-sm sm:text-base mb-0.5 sm:mb-1 line-clamp-2">{item.name}</h3>
                               {item.description && (
-                                <p className="text-sm text-gray-500 line-clamp-2">{item.description}</p>
+                                <p className="text-xs sm:text-sm text-gray-500 line-clamp-2 hidden sm:block">{item.description}</p>
                               )}
                             </div>
                             
-                            <div className="flex items-center justify-between mt-3">
+                            <div className="flex items-center justify-between mt-2 sm:mt-3">
                               <span 
-                                className="font-bold text-lg"
+                                className="font-bold text-base sm:text-lg"
                                 style={{ color: primaryColor }}
                               >
                                 ${item.price.toFixed(2)}
                               </span>
                               
-                              {inCart ? (
-                                <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
-                                  <button
-                                    onClick={() => updateQuantity(item.id, -1)}
-                                    className="w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-sm hover:bg-gray-50"
-                                  >
-                                    <Minus className="w-4 h-4" />
-                                  </button>
-                                  <span className="w-6 text-center font-semibold text-sm">{inCart.quantity}</span>
-                                  <button
-                                    onClick={() => updateQuantity(item.id, 1)}
-                                    className="w-7 h-7 rounded-full flex items-center justify-center text-white"
-                                    style={{ backgroundColor: primaryColor }}
-                                  >
-                                    <Plus className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() => addToCart(item)}
-                                  className="w-9 h-9 rounded-full flex items-center justify-center text-white shadow-md hover:shadow-lg transition-shadow"
-                                  style={{ backgroundColor: primaryColor }}
-                                >
-                                  <Plus className="w-5 h-5" />
-                                </button>
-                              )}
+                              {/* Mobile: Simple + button, Desktop: Show count or + */}
+                              <button
+                                onClick={(e) => { e.stopPropagation(); onOpenItemModal?.(item); }}
+                                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-white shadow-md active:scale-95 transition-transform"
+                                style={{ backgroundColor: primaryColor }}
+                              >
+                                <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -363,37 +399,55 @@ export function BluBentonvilleTemplate({
                   </div>
                 ) : (
                   <div className="p-4 space-y-3">
-                    {cart.map((item) => (
-                      <div key={item.menuItem.id} className="flex items-center gap-3">
-                        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                          <button
-                            onClick={() => updateQuantity(item.menuItem.id, -1)}
-                            className="w-6 h-6 rounded-md bg-white flex items-center justify-center text-gray-600 hover:bg-gray-50"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="w-5 text-center text-sm font-medium">{item.quantity}</span>
-                          <button
-                            onClick={() => updateQuantity(item.menuItem.id, 1)}
-                            className="w-6 h-6 rounded-md bg-white flex items-center justify-center text-gray-600 hover:bg-gray-50"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{item.menuItem.name}</p>
-                        </div>
-                        <span className="font-semibold text-gray-900">
-                          ${(item.menuItem.price * item.quantity).toFixed(2)}
-                        </span>
-                        <button
-                          onClick={() => removeFromCart(item.menuItem.id)}
-                          className="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50"
+                    {cart.map((item, index) => {
+                      const itemPrice = item.menuItem.price
+                      const modifiersPrice = (item.selectedModifiers || []).reduce((sum, mod) => sum + mod.price, 0)
+                      const totalPrice = (itemPrice + modifiersPrice) * item.quantity
+                      
+                      return (
+                        <div 
+                          key={`${item.menuItem.id}-${index}`} 
+                          className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 p-2 -m-2 rounded-lg transition-colors"
+                          onClick={() => onEditCartItem?.(item, index)}
                         >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => updateQuantity(item.menuItem.id, -1)}
+                              className="w-6 h-6 rounded-md bg-white flex items-center justify-center text-gray-600 hover:bg-gray-50"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-5 text-center text-sm font-medium">{item.quantity}</span>
+                            <button
+                              onClick={() => updateQuantity(item.menuItem.id, 1)}
+                              className="w-6 h-6 rounded-md bg-white flex items-center justify-center text-gray-600 hover:bg-gray-50"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{item.menuItem.name}</p>
+                            {item.selectedModifiers && item.selectedModifiers.length > 0 && (
+                              <p className="text-xs text-gray-500 truncate">
+                                {item.selectedModifiers.map(m => m.optionName).join(', ')}
+                              </p>
+                            )}
+                            {item.specialRequests && (
+                              <p className="text-xs text-gray-400 italic truncate">{item.specialRequests}</p>
+                            )}
+                          </div>
+                          <span className="font-semibold text-gray-900">
+                            ${totalPrice.toFixed(2)}
+                          </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeFromCart(item.menuItem.id); }}
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>

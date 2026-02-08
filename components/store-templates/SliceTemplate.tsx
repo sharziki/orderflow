@@ -2,6 +2,7 @@
 
 import { ShoppingCart, Plus, Minus, X, Clock, MapPin, Phone, ChevronRight, Star, Percent } from 'lucide-react'
 import { StoreTemplateProps } from './types'
+import { HoverImageGallery } from './HoverImageGallery'
 
 export function SliceTemplate({
   store,
@@ -20,8 +21,15 @@ export function SliceTemplate({
   goToCheckout,
   categoryRefs,
   navRef,
+  onOpenItemModal,
+  onEditCartItem,
 }: StoreTemplateProps) {
-  const cartTotal = cart.reduce((sum, c) => sum + c.menuItem.price * c.quantity, 0)
+  // Calculate cart total including modifier prices
+  const cartTotal = cart.reduce((sum, c) => {
+    const itemPrice = c.menuItem.price
+    const modifiersPrice = (c.selectedModifiers || []).reduce((mSum, mod) => mSum + mod.price, 0)
+    return sum + (itemPrice + modifiersPrice) * c.quantity
+  }, 0)
   const cartCount = cart.reduce((sum, c) => sum + c.quantity, 0)
   const primaryColor = store.primaryColor || '#dc2626'
 
@@ -163,7 +171,7 @@ export function SliceTemplate({
         </div>
       </div>
 
-      {/* Menu Sections */}
+      {/* Menu Sections - 2x2 on mobile */}
       <div className="max-w-3xl mx-auto px-4 py-6 pb-32">
         {categories.map((category) => (
           <div
@@ -171,59 +179,102 @@ export function SliceTemplate({
             ref={(el) => { categoryRefs.current[category.id] = el }}
             className="mb-8"
           >
-            <h2 className="text-xl font-bold text-slate-900 mb-4">{category.name}</h2>
-            <div className="space-y-3">
+            <h2 className="text-xl font-bold text-slate-900 mb-1">{category.name}</h2>
+            {category.description && (
+              <p className="text-slate-500 text-sm mb-4">{category.description}</p>
+            )}
+            {!category.description && <div className="mb-4" />}
+            {/* 2x2 on mobile, list on desktop */}
+            <div className="grid grid-cols-2 sm:grid-cols-1 gap-3">
               {category.menuItems.map((item) => {
-                const inCart = cart.find(c => c.menuItem.id === item.id)
+                // Count total quantity of this item across all cart entries
+                const inCartCount = cart.filter(c => c.menuItem.id === item.id).reduce((sum, c) => sum + c.quantity, 0)
+                // Collect all images: prefer images array, fallback to single image
+                const allImages = item.images && item.images.length > 0 
+                  ? item.images 
+                  : (item.image ? [item.image] : [])
                 return (
                   <div
                     key={item.id}
-                    className="bg-white border border-slate-200 rounded-xl p-4 flex gap-4 hover:shadow-md transition-shadow"
+                    onClick={() => onOpenItemModal?.(item)}
+                    className="bg-white border border-slate-200 rounded-xl overflow-hidden hover:shadow-md transition-all cursor-pointer group"
                   >
-                    {/* Item Image */}
-                    {item.image && (
-                      <div className="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 bg-slate-100">
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                    
-                    {/* Item Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-900">{item.name}</h3>
-                      {item.description && (
-                        <p className="text-sm text-slate-500 mt-1 line-clamp-2">{item.description}</p>
-                      )}
-                      <div className="flex items-center justify-between mt-3">
-                        <span className="font-bold" style={{ color: primaryColor }}>
-                          ${item.price.toFixed(2)}
-                        </span>
-                        
-                        {inCart ? (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => updateQuantity(item.id, -1)}
-                              className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200"
-                            >
-                              <Minus className="w-4 h-4" />
-                            </button>
-                            <span className="font-semibold w-6 text-center">{inCart.quantity}</span>
-                            <button
-                              onClick={() => updateQuantity(item.id, 1)}
-                              className="w-8 h-8 rounded-full flex items-center justify-center text-white"
+                    {/* Mobile Card Layout */}
+                    <div className="sm:hidden">
+                      {allImages.length > 0 && (
+                        <div className="relative aspect-square bg-slate-100">
+                          <HoverImageGallery
+                            images={allImages}
+                            alt={item.name}
+                            className="w-full h-full"
+                          />
+                          {inCartCount > 0 && (
+                            <div 
+                              className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg"
                               style={{ backgroundColor: primaryColor }}
                             >
-                              <Plus className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
+                              {inCartCount}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <div className="p-3">
+                        <h3 className="font-semibold text-slate-900 text-sm line-clamp-2">{item.name}</h3>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="font-bold text-base" style={{ color: primaryColor }}>
+                            ${item.price.toFixed(2)}
+                          </span>
                           <button
-                            onClick={() => addToCart(item)}
-                            className="px-4 py-2 rounded-lg text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+                            onClick={(e) => { e.stopPropagation(); onOpenItemModal?.(item); }}
+                            className="px-3 py-1.5 rounded-lg text-white text-xs font-semibold active:scale-95 transition-transform"
                             style={{ backgroundColor: primaryColor }}
                           >
                             Add
                           </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Desktop Row Layout */}
+                    <div className="hidden sm:flex p-4 gap-4">
+                      {/* Item Image with hover cycling */}
+                      {allImages.length > 0 && (
+                        <div className="relative">
+                          <HoverImageGallery
+                            images={allImages}
+                            alt={item.name}
+                            className="w-24 h-24 rounded-lg flex-shrink-0 bg-slate-100"
+                          />
+                          {inCartCount > 0 && (
+                            <div 
+                              className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg"
+                              style={{ backgroundColor: primaryColor }}
+                            >
+                              {inCartCount}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Item Info */}
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-slate-900">{item.name}</h3>
+                        {item.description && (
+                          <p className="text-sm text-slate-500 mt-1 line-clamp-2">{item.description}</p>
                         )}
+                        <div className="flex items-center justify-between mt-3">
+                          <span className="font-bold" style={{ color: primaryColor }}>
+                            ${item.price.toFixed(2)}
+                          </span>
+                          
+                          <button
+                            onClick={(e) => { e.stopPropagation(); onOpenItemModal?.(item); }}
+                            className="px-4 py-2 rounded-lg text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+                            style={{ backgroundColor: primaryColor }}
+                          >
+                            {inCartCount > 0 ? 'Edit' : 'Add'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

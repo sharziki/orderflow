@@ -95,8 +95,27 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     })
 
+    // Map to frontend-expected format
+    const mappedCards = giftCards.map(card => ({
+      id: card.id,
+      code: card.code,
+      initialAmount: card.initialBalance,
+      currentBalance: card.currentBalance,
+      purchasedBy: card.purchaserEmail,
+      purchasedAt: card.createdAt.toISOString(),
+      lastUsedAt: card.updatedAt.toISOString(),
+      status: !card.isActive ? 'CANCELLED' : card.currentBalance <= 0 ? 'REDEEMED' : 'ACTIVE',
+      notes: card.message,
+      customer: card.purchaserName || card.purchaserEmail ? {
+        id: card.id,
+        name: card.purchaserName || 'Unknown',
+        email: card.purchaserEmail || '',
+        phone: null
+      } : null
+    }))
+
     // Return array directly for consistency
-    return NextResponse.json(giftCards)
+    return NextResponse.json(mappedCards)
   } catch (error) {
     console.error('[GiftCards] Error:', error)
     return NextResponse.json(

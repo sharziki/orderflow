@@ -21,7 +21,8 @@ import {
   Menu,
   BarChart3,
   ChefHat,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react'
 import {
   AreaChart,
@@ -48,84 +49,16 @@ interface DashboardStats {
   giftCards: { totalSold: number; totalValue: number; activeCards: number }
 }
 
-// Generate realistic demo data
-const generateDemoStats = (): DashboardStats => {
-  const today = new Date()
-  const dailyRevenue = []
-  
-  // Generate last 30 days of data with realistic patterns
-  for (let i = 29; i >= 0; i--) {
-    const date = new Date(today)
-    date.setDate(date.getDate() - i)
-    const dayOfWeek = date.getDay()
-    
-    // Weekend boost, weekday variance
-    let baseRevenue = 800 + Math.random() * 400
-    if (dayOfWeek === 5 || dayOfWeek === 6) baseRevenue *= 1.4 // Fri/Sat boost
-    if (dayOfWeek === 0) baseRevenue *= 1.2 // Sunday moderate
-    
-    // Add some trend (growth over time)
-    baseRevenue *= (1 + (29 - i) * 0.008)
-    
-    const orders = Math.floor(baseRevenue / 28) + Math.floor(Math.random() * 8)
-    
-    dailyRevenue.push({
-      date: date.toISOString().split('T')[0],
-      revenue: Math.round(baseRevenue * 100) / 100,
-      orders
-    })
-  }
-  
-  const todayData = dailyRevenue[dailyRevenue.length - 1]
-  const yesterdayData = dailyRevenue[dailyRevenue.length - 2]
-  const weekData = dailyRevenue.slice(-7)
-  const lastWeekData = dailyRevenue.slice(-14, -7)
-  
-  const weekRevenue = weekData.reduce((sum, d) => sum + d.revenue, 0)
-  const lastWeekRevenue = lastWeekData.reduce((sum, d) => sum + d.revenue, 0)
-  const weekOrders = weekData.reduce((sum, d) => sum + d.orders, 0)
-  
-  const monthRevenue = dailyRevenue.reduce((sum, d) => sum + d.revenue, 0)
-  const monthOrders = dailyRevenue.reduce((sum, d) => sum + d.orders, 0)
-  
-  return {
-    today: {
-      revenue: todayData.revenue,
-      orders: todayData.orders,
-      change: ((todayData.revenue - yesterdayData.revenue) / yesterdayData.revenue) * 100
-    },
-    week: {
-      revenue: weekRevenue,
-      orders: weekOrders,
-      change: ((weekRevenue - lastWeekRevenue) / lastWeekRevenue) * 100
-    },
-    month: {
-      revenue: monthRevenue,
-      orders: monthOrders,
-      change: 12.5 // Assume positive growth
-    },
-    topItems: [
-      { name: 'Classic Cheeseburger', count: 156, revenue: 2027.44 },
-      { name: 'Crispy Chicken Sandwich', count: 134, revenue: 1606.66 },
-      { name: 'Truffle Fries', count: 98, revenue: 684.02 },
-      { name: 'Garden Salad', count: 87, revenue: 782.13 },
-      { name: 'Fresh Lemonade', count: 203, revenue: 1012.97 }
-    ],
-    recentOrders: [
-      { id: '1', orderNumber: '1047', total: 34.97, status: 'preparing', customerName: 'John D.', createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString() },
-      { id: '2', orderNumber: '1046', total: 28.45, status: 'ready', customerName: 'Sarah M.', createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString() },
-      { id: '3', orderNumber: '1045', total: 52.30, status: 'completed', customerName: 'Mike R.', createdAt: new Date(Date.now() - 1000 * 60 * 25).toISOString() },
-      { id: '4', orderNumber: '1044', total: 19.99, status: 'completed', customerName: 'Emily K.', createdAt: new Date(Date.now() - 1000 * 60 * 38).toISOString() },
-      { id: '5', orderNumber: '1043', total: 45.50, status: 'completed', customerName: 'David L.', createdAt: new Date(Date.now() - 1000 * 60 * 52).toISOString() }
-    ],
-    dailyRevenue,
-    giftCards: {
-      totalSold: 47,
-      totalValue: 2350,
-      activeCards: 31
-    }
-  }
-}
+// Create empty stats for new restaurants
+const createEmptyStats = (): DashboardStats => ({
+  today: { revenue: 0, orders: 0, change: 0 },
+  week: { revenue: 0, orders: 0, change: 0 },
+  month: { revenue: 0, orders: 0, change: 0 },
+  topItems: [],
+  recentOrders: [],
+  dailyRevenue: [],
+  giftCards: { totalSold: 0, totalValue: 0, activeCards: 0 }
+})
 
 export default function DashboardHome() {
   const router = useRouter()
@@ -155,80 +88,86 @@ export default function DashboardHome() {
 
   const fetchStats = async () => {
     try {
+      // Fetch analytics data
       const res = await fetch('/api/analytics?period=month')
-      if (res.ok) {
-        const data = await res.json()
-        
-        // Check if we have real data
-        const hasRealData = data.summary?.totalOrders > 0
-        
-        if (hasRealData) {
-          // Use real data
-          const today = new Date()
-          const todayStr = today.toISOString().split('T')[0]
-          const todayData = data.dailyBreakdown?.find((d: any) => d.date === todayStr) || { orders: 0, revenue: 0 }
-          
-          setStats({
-            today: { 
-              revenue: todayData.revenue || 0, 
-              orders: todayData.orders || 0,
-              change: data.summary?.ordersChange || 0
-            },
-            week: { 
-              revenue: data.summary?.totalRevenue || 0, 
-              orders: data.summary?.totalOrders || 0,
-              change: data.summary?.revenueChange || 0
-            },
-            month: { 
-              revenue: data.summary?.totalRevenue || 0, 
-              orders: data.summary?.totalOrders || 0,
-              change: data.summary?.revenueChange || 0
-            },
-            topItems: data.topItems?.slice(0, 5) || [],
-            recentOrders: [],
-            dailyRevenue: data.dailyBreakdown?.map((d: any) => ({
-              date: d.date,
-              revenue: d.revenue || 0,
-              orders: d.orders || 0
-            })) || [],
-            giftCards: { totalSold: 0, totalValue: 0, activeCards: 0 }
-          })
-          
-          // Fetch recent orders
-          const ordersRes = await fetch('/api/orders?limit=5')
-          if (ordersRes.ok) {
-            const ordersData = await ordersRes.json()
-            setStats(prev => prev ? {
-              ...prev,
-              recentOrders: ordersData.orders?.slice(0, 5) || []
-            } : null)
-          }
-          
-          // Fetch gift card stats
-          const giftRes = await fetch('/api/gift-cards')
-          if (giftRes.ok) {
-            const giftData = await giftRes.json()
-            const cards = giftData.giftCards || []
-            setStats(prev => prev ? {
-              ...prev,
-              giftCards: {
-                totalSold: cards.length,
-                totalValue: cards.reduce((sum: number, c: any) => sum + c.initialBalance, 0),
-                activeCards: cards.filter((c: any) => c.currentBalance > 0).length
-              }
-            } : null)
-          }
-        } else {
-          // Use demo data for preview
-          setStats(generateDemoStats())
+      
+      if (!res.ok) {
+        // API error - show empty state
+        setStats(createEmptyStats())
+        setLoading(false)
+        return
+      }
+      
+      const data = await res.json()
+      
+      // Build stats from real data (even if empty)
+      const today = new Date()
+      const todayStr = today.toISOString().split('T')[0]
+      const todayData = data.dailyBreakdown?.find((d: any) => d.date === todayStr) || { orders: 0, revenue: 0 }
+      
+      const newStats: DashboardStats = {
+        today: { 
+          revenue: todayData.revenue || 0, 
+          orders: todayData.orders || 0,
+          change: data.summary?.ordersChange || 0
+        },
+        week: { 
+          revenue: data.summary?.totalRevenue || 0, 
+          orders: data.summary?.totalOrders || 0,
+          change: data.summary?.revenueChange || 0
+        },
+        month: { 
+          revenue: data.summary?.totalRevenue || 0, 
+          orders: data.summary?.totalOrders || 0,
+          change: data.summary?.revenueChange || 0
+        },
+        topItems: data.topItems?.slice(0, 5) || [],
+        recentOrders: [],
+        dailyRevenue: data.dailyBreakdown?.map((d: any) => ({
+          date: d.date,
+          revenue: d.revenue || 0,
+          orders: d.orders || 0
+        })) || [],
+        giftCards: { totalSold: 0, totalValue: 0, activeCards: 0 }
+      }
+      
+      setStats(newStats)
+      
+      // Fetch recent orders
+      try {
+        const ordersRes = await fetch('/api/orders?limit=5')
+        if (ordersRes.ok) {
+          const ordersData = await ordersRes.json()
+          setStats(prev => prev ? {
+            ...prev,
+            recentOrders: ordersData.orders?.slice(0, 5) || []
+          } : null)
         }
-      } else {
-        // Fallback to demo data
-        setStats(generateDemoStats())
+      } catch (e) {
+        console.error('Failed to fetch orders:', e)
+      }
+      
+      // Fetch gift card stats
+      try {
+        const giftRes = await fetch('/api/gift-cards')
+        if (giftRes.ok) {
+          const giftData = await giftRes.json()
+          const cards = giftData.giftCards || []
+          setStats(prev => prev ? {
+            ...prev,
+            giftCards: {
+              totalSold: cards.length,
+              totalValue: cards.reduce((sum: number, c: any) => sum + c.initialBalance, 0),
+              activeCards: cards.filter((c: any) => c.currentBalance > 0).length
+            }
+          } : null)
+        }
+      } catch (e) {
+        console.error('Failed to fetch gift cards:', e)
       }
     } catch (error) {
       console.error('Failed to fetch stats:', error)
-      setStats(generateDemoStats())
+      setStats(createEmptyStats())
     } finally {
       setLoading(false)
     }
@@ -325,12 +264,63 @@ export default function DashboardHome() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Welcome banner for new restaurants */}
+        {stats && stats.month.orders === 0 && (
+          <Card className="mb-8 bg-gradient-to-r from-blue-500 to-indigo-600 text-white border-0">
+            <CardContent className="py-6">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-xl font-bold mb-2">Welcome to OrderFlow! 🎉</h2>
+                  <p className="text-blue-100 mb-4">
+                    Your restaurant is all set up. Here's how to start receiving orders:
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                    <div className="bg-white/10 rounded-lg p-3">
+                      <p className="font-semibold">1. Add menu items</p>
+                      <p className="text-sm text-blue-100">Create your delicious menu</p>
+                    </div>
+                    <div className="bg-white/10 rounded-lg p-3">
+                      <p className="font-semibold">2. Connect Stripe</p>
+                      <p className="text-sm text-blue-100">Accept online payments</p>
+                    </div>
+                    <div className="bg-white/10 rounded-lg p-3">
+                      <p className="font-semibold">3. Share your link</p>
+                      <p className="text-sm text-blue-100">Start taking orders</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <Button variant="secondary" size="sm" asChild>
+                      <Link href="/dashboard/menu">
+                        <Menu className="w-4 h-4 mr-2" />
+                        Add Menu Items
+                      </Link>
+                    </Button>
+                    <Button variant="secondary" size="sm" asChild>
+                      <Link href={`/store/${tenant?.slug}`} target="_blank">
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        View Store
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Greeting */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">
             {getGreeting()}, {tenant?.name || 'there'}
           </h1>
-          <p className="text-gray-600 mt-1">Here's how your business is doing</p>
+          <p className="text-gray-600 mt-1">
+            {stats && stats.month.orders > 0 
+              ? "Here's how your business is doing"
+              : "Let's get your restaurant ready for customers"}
+          </p>
         </div>
 
         {/* Stats Cards */}
@@ -424,64 +414,84 @@ export default function DashboardHome() {
                 <CardTitle>Revenue Overview</CardTitle>
                 <CardDescription>Daily revenue and order trends</CardDescription>
               </div>
-              <div className="flex gap-2">
-                <Button 
-                  variant={chartPeriod === '7d' ? 'default' : 'outline'} 
-                  size="sm"
-                  onClick={() => setChartPeriod('7d')}
-                >
-                  7 Days
-                </Button>
-                <Button 
-                  variant={chartPeriod === '30d' ? 'default' : 'outline'} 
-                  size="sm"
-                  onClick={() => setChartPeriod('30d')}
-                >
-                  30 Days
-                </Button>
-              </div>
+              {chartData && chartData.length > 0 && (
+                <div className="flex gap-2">
+                  <Button 
+                    variant={chartPeriod === '7d' ? 'default' : 'outline'} 
+                    size="sm"
+                    onClick={() => setChartPeriod('7d')}
+                  >
+                    7 Days
+                  </Button>
+                  <Button 
+                    variant={chartPeriod === '30d' ? 'default' : 'outline'} 
+                    size="sm"
+                    onClick={() => setChartPeriod('30d')}
+                  >
+                    30 Days
+                  </Button>
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis 
-                    dataKey="date" 
-                    tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    tick={{ fontSize: 12, fill: '#6b7280' }}
-                    axisLine={{ stroke: '#e5e7eb' }}
-                    tickLine={false}
-                  />
-                  <YAxis 
-                    tickFormatter={(value) => `$${value}`}
-                    tick={{ fontSize: 12, fill: '#6b7280' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip 
-                    formatter={(value) => [formatCurrency(value as number), 'Revenue']}
-                    labelFormatter={(date) => new Date(date as string).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-                    contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
-                  />
-                  <Area 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="#3b82f6" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorRevenue)" 
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {chartData && chartData.length > 0 ? (
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="date" 
+                      tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      tick={{ fontSize: 12, fill: '#6b7280' }}
+                      axisLine={{ stroke: '#e5e7eb' }}
+                      tickLine={false}
+                    />
+                    <YAxis 
+                      tickFormatter={(value) => `$${value}`}
+                      tick={{ fontSize: 12, fill: '#6b7280' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <Tooltip 
+                      formatter={(value) => [formatCurrency(value as number), 'Revenue']}
+                      labelFormatter={(date) => new Date(date as string).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                      contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="revenue" 
+                      stroke="#3b82f6" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorRevenue)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-[300px] flex flex-col items-center justify-center text-center">
+                <div className="w-16 h-16 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+                  <TrendingUp className="w-8 h-8 text-blue-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No revenue data yet</h3>
+                <p className="text-gray-500 max-w-sm mb-4">
+                  Once you start receiving orders, your revenue trends will appear here.
+                </p>
+                <Button variant="outline" asChild>
+                  <Link href={`/store/${tenant?.slug}`} target="_blank">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Share your store link to get started
+                  </Link>
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 

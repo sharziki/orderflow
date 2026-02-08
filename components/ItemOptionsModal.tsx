@@ -1,284 +1,127 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { X, Plus, Minus } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { X, Plus, Minus, Check } from 'lucide-react'
 import Image from 'next/image'
-
-interface MenuItem {
-  id: string
-  name: string
-  description: string
-  price: number
-  category: string
-  image?: string
-}
-
-interface OptionGroup {
-  id: string
-  name: string
-  required: boolean
-  maxSelections?: number
-  options: {
-    id: string
-    name: string
-    price: number
-  }[]
-}
+import { MenuItem, ModifierGroup, SelectedModifier } from './store-templates/types'
 
 interface ItemOptionsModalProps {
   isOpen: boolean
   onClose: () => void
   item: MenuItem
-  onAddToCart: (item: MenuItem, quantity: number, selectedOptions: any[], specialRequests: string) => void
-}
-
-// Helper to determine what options an item should have based on name/description/category
-const getOptionsForItem = (item: MenuItem): OptionGroup[] => {
-  const nameLower = item.name.toLowerCase()
-  const descLower = item.description.toLowerCase()
-  const options: OptionGroup[] = []
-
-  // Cooking style for fish, seafood, chicken, shrimp entrees
-  const needsCookingStyle = 
-    item.category === 'Catch Of The Day' ||
-    descLower.includes('grilled, fried or blackened') ||
-    descLower.includes('grilled, fried, or blackened') ||
-    descLower.includes('grilled (gf), fried or blackened')
-
-  if (needsCookingStyle) {
-    options.push({
-      id: 'cooking',
-      name: 'Cooking Style',
-      required: true,
-      maxSelections: 1,
-      options: [
-        { id: 'grilled', name: 'Grilled', price: 0 },
-        { id: 'fried', name: 'Fried', price: 0 },
-        { id: 'blackened', name: 'Blackened', price: 0 },
-      ]
-    })
-  }
-
-  // Tacos - cooking style
-  if (nameLower.includes('taco') && !nameLower.includes('carne asada')) {
-    options.push({
-      id: 'cooking',
-      name: 'Cooking Style',
-      required: true,
-      maxSelections: 1,
-      options: [
-        { id: 'grilled', name: 'Grilled', price: 0 },
-        { id: 'fried', name: 'Fried', price: 0 },
-        { id: 'blackened', name: 'Blackened', price: 0 },
-      ]
-    })
-  }
-
-  // Spicy Roll - fish choice
-  if (nameLower === 'spicy roll') {
-    options.push({
-      id: 'fish',
-      name: 'Choose Your Fish',
-      required: true,
-      maxSelections: 1,
-      options: [
-        { id: 'tuna', name: 'Tuna', price: 0 },
-        { id: 'salmon', name: 'Salmon', price: 0 },
-        { id: 'yellowtail', name: 'Yellowtail', price: 0 },
-        { id: 'crab', name: 'Crab', price: 0 },
-      ]
-    })
-  }
-
-  // Tekkamaki Roll - choice
-  if (nameLower.includes('tekkamaki')) {
-    options.push({
-      id: 'filling',
-      name: 'Choose Your Filling',
-      required: true,
-      maxSelections: 1,
-      options: [
-        { id: 'tuna', name: 'Tuna', price: 0 },
-        { id: 'salmon', name: 'Salmon', price: 0 },
-        { id: 'yellowtail', name: 'Yellowtail', price: 0 },
-        { id: 'veggie', name: 'Veggie', price: 0 },
-        { id: 'avocado', name: 'Avocado', price: 0 },
-        { id: 'cucumber', name: 'Cucumber', price: 0 },
-      ]
-    })
-  }
-
-  // Hand Roll Combo - choices
-  if (nameLower.includes('hand roll combo')) {
-    options.push({
-      id: 'roll1',
-      name: 'First Hand Roll',
-      required: true,
-      maxSelections: 1,
-      options: [
-        { id: 'spicy-tuna', name: 'Spicy Tuna', price: 0 },
-        { id: 'yellowtail', name: 'Yellowtail', price: 0 },
-        { id: 'crab', name: 'Crab', price: 0 },
-        { id: 'salmon', name: 'Salmon', price: 0 },
-      ]
-    })
-    options.push({
-      id: 'roll2',
-      name: 'Second Hand Roll',
-      required: true,
-      maxSelections: 1,
-      options: [
-        { id: 'spicy-tuna', name: 'Spicy Tuna', price: 0 },
-        { id: 'yellowtail', name: 'Yellowtail', price: 0 },
-        { id: 'crab', name: 'Crab', price: 0 },
-        { id: 'salmon', name: 'Salmon', price: 0 },
-      ]
-    })
-  }
-
-  // Alfredo Pasta - protein choice
-  if (nameLower.includes('alfredo') && !nameLower.includes('cajun')) {
-    options.push({
-      id: 'protein',
-      name: 'Choose Your Protein',
-      required: true,
-      maxSelections: 1,
-      options: [
-        { id: 'none', name: 'No Protein', price: 0 },
-        { id: 'salmon', name: 'Salmon', price: 6 },
-        { id: 'shrimp', name: 'Shrimp', price: 5 },
-        { id: 'chicken', name: 'Chicken', price: 4 },
-        { id: 'veggie', name: 'Vegetables', price: 3 },
-      ]
-    })
-  }
-
-  // Hawaiian Poke Bowl - fish choice
-  if (nameLower.includes('poke') && (nameLower.includes('bowl') || nameLower.includes('kit'))) {
-    options.push({
-      id: 'fish',
-      name: 'Choose Your Fish',
-      required: true,
-      maxSelections: 1,
-      options: [
-        { id: 'tuna', name: 'Tuna', price: 0 },
-        { id: 'salmon', name: 'Salmon', price: 0 },
-      ]
-    })
-  }
-
-  // Soup - size choice
-  if (nameLower.includes('chowder') || nameLower.includes('bisque') || nameLower.includes('gumbo')) {
-    options.push({
-      id: 'size',
-      name: 'Size',
-      required: true,
-      maxSelections: 1,
-      options: [
-        { id: 'cup', name: 'Cup', price: 0 },
-        { id: 'bowl', name: 'Bowl', price: 3 },
-      ]
-    })
-  }
-
-  // Po'Boy - seafood choice
-  if (nameLower.includes('po\' boy') || nameLower.includes('poboy') || nameLower.includes("po' boy")) {
-    options.push({
-      id: 'seafood',
-      name: 'Choose Your Seafood',
-      required: true,
-      maxSelections: 1,
-      options: [
-        { id: 'shrimp', name: 'Shrimp', price: 0 },
-        { id: 'oyster', name: 'Oyster', price: 0 },
-        { id: 'catfish', name: 'Catfish', price: 0 },
-      ]
-    })
-  }
-
-  // Crab Cakes - cooking style
-  if (nameLower.includes('crab cake')) {
-    options.push({
-      id: 'cooking',
-      name: 'Cooking Style',
-      required: true,
-      maxSelections: 1,
-      options: [
-        { id: 'grilled', name: 'Grilled', price: 0 },
-        { id: 'fried', name: 'Fried', price: 0 },
-      ]
-    })
-  }
-
-  // Live Maine Lobster - preparation
-  if (nameLower.includes('live maine lobster') && !nameLower.includes('market')) {
-    options.push({
-      id: 'prep',
-      name: 'Preparation',
-      required: true,
-      maxSelections: 1,
-      options: [
-        { id: 'steamed', name: 'Steamed', price: 0 },
-        { id: 'grilled', name: 'Grilled', price: 0 },
-      ]
-    })
-  }
-
-  // Fish Market items - typically sold by weight, but for online just quantity
-  // No special options needed
-
-  return options
+  modifierGroups?: ModifierGroup[]
+  existingModifiers?: SelectedModifier[]
+  existingQuantity?: number
+  existingSpecialRequests?: string
+  onAddToCart: (
+    item: MenuItem, 
+    quantity: number, 
+    selectedOptions: SelectedModifier[], 
+    specialRequests: string
+  ) => void
+  primaryColor?: string
 }
 
 export default function ItemOptionsModal({
   isOpen,
   onClose,
   item,
-  onAddToCart
+  modifierGroups = [],
+  existingModifiers = [],
+  existingQuantity = 1,
+  existingSpecialRequests = '',
+  onAddToCart,
+  primaryColor = '#1e3a5f'
 }: ItemOptionsModalProps) {
-  const [quantity, setQuantity] = useState(1)
-  const [specialRequests, setSpecialRequests] = useState('')
-  const [selectedOptions, setSelectedOptions] = useState<{[key: string]: string}>({})
+  const [quantity, setQuantity] = useState(existingQuantity)
+  const [specialRequests, setSpecialRequests] = useState(existingSpecialRequests)
+  const [selectedOptions, setSelectedOptions] = useState<{[groupId: string]: string[]}>({})
 
-  // Get relevant options for this specific item
-  const optionGroups = useMemo(() => getOptionsForItem(item), [item])
+  // Initialize with existing modifiers when editing
+  useEffect(() => {
+    if (existingModifiers && existingModifiers.length > 0) {
+      const grouped: {[groupId: string]: string[]} = {}
+      existingModifiers.forEach(mod => {
+        if (!grouped[mod.groupId]) grouped[mod.groupId] = []
+        grouped[mod.groupId].push(mod.optionName)
+      })
+      setSelectedOptions(grouped)
+    } else {
+      setSelectedOptions({})
+    }
+    setQuantity(existingQuantity)
+    setSpecialRequests(existingSpecialRequests)
+  }, [existingModifiers, existingQuantity, existingSpecialRequests, item.id])
 
   if (!isOpen) return null
 
-  const handleOptionSelect = (groupId: string, optionId: string) => {
-    setSelectedOptions(prev => ({
-      ...prev,
-      [groupId]: optionId
-    }))
+  const handleOptionToggle = (groupId: string, optionName: string, maxSelections: number | null) => {
+    setSelectedOptions(prev => {
+      const currentSelections = prev[groupId] || []
+      const isSelected = currentSelections.includes(optionName)
+
+      if (isSelected) {
+        // Deselect
+        return {
+          ...prev,
+          [groupId]: currentSelections.filter(name => name !== optionName)
+        }
+      } else {
+        // Select
+        if (maxSelections === 1) {
+          // Single selection - replace
+          return {
+            ...prev,
+            [groupId]: [optionName]
+          }
+        } else if (maxSelections && currentSelections.length >= maxSelections) {
+          // At max - replace oldest
+          return {
+            ...prev,
+            [groupId]: [...currentSelections.slice(1), optionName]
+          }
+        } else {
+          // Add to selections
+          return {
+            ...prev,
+            [groupId]: [...currentSelections, optionName]
+          }
+        }
+      }
+    })
   }
 
   const calculateTotal = () => {
     let total = item.price * quantity
 
-    optionGroups.forEach(group => {
-      const selectedOptionId = selectedOptions[group.id]
-      if (selectedOptionId) {
-        const option = group.options.find(opt => opt.id === selectedOptionId)
-        if (option) {
-          total += option.price * quantity
+    // Add modifier prices
+    modifierGroups.forEach(group => {
+      const selections = selectedOptions[group.id] || []
+      selections.forEach(optionName => {
+        const modifier = group.modifiers.find(m => m.name === optionName)
+        if (modifier) {
+          total += modifier.price * quantity
         }
-      }
+      })
     })
 
     return total
   }
 
   const handleAddToCart = () => {
-    const options = Object.entries(selectedOptions).map(([groupId, optionId]) => {
-      const group = optionGroups.find(g => g.id === groupId)
-      const option = group?.options.find(opt => opt.id === optionId)
-      return {
-        groupId,
-        groupName: group?.name,
-        optionId,
-        optionName: option?.name,
-        price: option?.price || 0
-      }
+    const options: SelectedModifier[] = []
+    
+    modifierGroups.forEach(group => {
+      const selections = selectedOptions[group.id] || []
+      selections.forEach(optionName => {
+        const modifier = group.modifiers.find(m => m.name === optionName)
+        options.push({
+          groupId: group.id,
+          groupName: group.name,
+          optionName: optionName,
+          price: modifier?.price || 0
+        })
+      })
     })
 
     onAddToCart(item, quantity, options, specialRequests)
@@ -292,11 +135,21 @@ export default function ItemOptionsModal({
     onClose()
   }
 
-  const canAddToCart = optionGroups
-    .filter(group => group.required)
-    .every(group => selectedOptions[group.id])
+  // Validate required modifiers
+  const canAddToCart = useMemo(() => {
+    for (const group of modifierGroups) {
+      if (group.isRequired) {
+        const selections = selectedOptions[group.id] || []
+        if (selections.length < group.minSelections) {
+          return false
+        }
+      }
+    }
+    return true
+  }, [modifierGroups, selectedOptions])
 
-  const hasOptions = optionGroups.length > 0
+  const hasModifiers = modifierGroups.length > 0
+  const isEditing = existingModifiers && existingModifiers.length > 0
 
   return (
     <div
@@ -307,25 +160,28 @@ export default function ItemOptionsModal({
         }
       }}
     >
-      <div className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto rounded-t-xl sm:rounded-lg bg-white text-gray-900 shadow-2xl">
+      <div className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-xl bg-white text-gray-900 shadow-2xl animate-slide-up sm:animate-none">
         {/* Header */}
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 p-5 sm:p-6 bg-gradient-to-r from-[rgb(var(--color-primary))] to-blue-700 text-white">
-          <h2 className="text-xl sm:text-2xl font-bold">
-            {hasOptions ? 'Customize Your Order' : 'Add to Order'}
+        <div 
+          className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 p-4 sm:p-6 text-white"
+          style={{ backgroundColor: primaryColor }}
+        >
+          <h2 className="text-lg sm:text-xl font-bold">
+            {isEditing ? 'Edit Item' : hasModifiers ? 'Customize Your Order' : 'Add to Order'}
           </h2>
           <button
             onClick={handleClose}
-            className="text-white/80 hover:text-white transition-colors p-1"
+            className="text-white/80 hover:text-white transition-colors p-1 -mr-1"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="p-4 sm:p-6 space-y-5">
           {/* Item Info */}
           <div className="flex gap-4">
             {item.image && (
-              <div className="relative w-24 h-24 rounded-lg overflow-hidden flex-shrink-0">
+              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
                 <Image
                   src={item.image}
                   alt={item.name}
@@ -334,60 +190,103 @@ export default function ItemOptionsModal({
                 />
               </div>
             )}
-            <div className="flex-1">
-              <h3 className="text-lg sm:text-xl font-bold text-gray-900">{item.name}</h3>
-              <p className="text-sm text-gray-600 mt-1 leading-relaxed">{item.description}</p>
-              <p className="text-xl font-bold text-[rgb(var(--color-primary))] mt-2">
+            <div className="flex-1 min-w-0">
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">{item.name}</h3>
+              {item.description && (
+                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>
+              )}
+              <p 
+                className="text-xl font-bold mt-2"
+                style={{ color: primaryColor }}
+              >
                 ${item.price.toFixed(2)}
               </p>
             </div>
           </div>
 
-          {/* Option Groups - Only show if there are options */}
-          {optionGroups.map(group => (
-            <div key={group.id} className="border-t border-gray-100 pt-5">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-base sm:text-lg font-bold text-gray-900">{group.name}</h4>
-                {group.required && (
-                  <span className="text-xs font-semibold text-[rgb(var(--color-primary))] bg-blue-50 px-2.5 py-1 rounded-full">
-                    Required
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {group.options.map(option => (
-                  <button
-                    key={option.id}
-                    onClick={() => handleOptionSelect(group.id, option.id)}
-                    className={`flex flex-col items-start justify-between p-3 rounded-lg border transition-all touch-manipulation ${
-                      selectedOptions[group.id] === option.id
-                        ? 'border-[rgb(var(--color-primary))] bg-blue-50 shadow-sm'
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="flex items-start gap-2 w-full mb-1">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 mt-0.5 ${
-                        selectedOptions[group.id] === option.id
-                          ? 'border-[rgb(var(--color-primary))] bg-[rgb(var(--color-primary))]'
-                          : 'border-gray-300'
-                      }`}>
-                        {selectedOptions[group.id] === option.id && (
-                          <div className="w-1.5 h-1.5 rounded-full bg-white" />
-                        )}
-                      </div>
-                      <span className="font-medium text-sm text-gray-900 text-left">{option.name}</span>
-                    </div>
-                    {option.price > 0 && (
-                      <span className="flex items-center gap-1 text-xs font-bold text-[rgb(var(--color-primary))] ml-6">
-                        <Plus className="w-3 h-3" />
-                        ${option.price.toFixed(2)}
-                      </span>
+          {/* Modifier Groups */}
+          {modifierGroups.map(group => {
+            const selections = selectedOptions[group.id] || []
+            const isSingleSelect = group.maxSelections === 1
+            
+            return (
+              <div key={group.id} className="border-t border-gray-100 pt-5">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h4 className="text-base sm:text-lg font-bold text-gray-900">{group.name}</h4>
+                    {group.description && (
+                      <p className="text-sm text-gray-500">{group.description}</p>
                     )}
-                  </button>
-                ))}
+                    {group.maxSelections && group.maxSelections > 1 && (
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Select up to {group.maxSelections}
+                      </p>
+                    )}
+                  </div>
+                  {group.isRequired && (
+                    <span 
+                      className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                      style={{ 
+                        color: primaryColor,
+                        backgroundColor: `${primaryColor}15`
+                      }}
+                    >
+                      Required
+                    </span>
+                  )}
+                </div>
+                
+                <div className="space-y-2">
+                  {group.modifiers.map(modifier => {
+                    const isSelected = selections.includes(modifier.name)
+                    
+                    return (
+                      <button
+                        key={modifier.name}
+                        onClick={() => handleOptionToggle(group.id, modifier.name, group.maxSelections)}
+                        className={`w-full flex items-center justify-between p-3 sm:p-4 rounded-xl border-2 transition-all touch-manipulation ${
+                          isSelected
+                            ? 'shadow-sm'
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                        style={isSelected ? { 
+                          borderColor: primaryColor,
+                          backgroundColor: `${primaryColor}08`
+                        } : {}}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                              isSingleSelect ? '' : 'rounded-md'
+                            }`}
+                            style={isSelected ? {
+                              borderColor: primaryColor,
+                              backgroundColor: primaryColor
+                            } : {
+                              borderColor: '#d1d5db'
+                            }}
+                          >
+                            {isSelected && (
+                              <Check className="w-3 h-3 text-white" />
+                            )}
+                          </div>
+                          <span className="font-medium text-gray-900 text-left">{modifier.name}</span>
+                        </div>
+                        {modifier.price > 0 && (
+                          <span 
+                            className="flex items-center gap-1 text-sm font-semibold"
+                            style={{ color: primaryColor }}
+                          >
+                            +${modifier.price.toFixed(2)}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
 
           {/* Special Requests */}
           <div className="border-t border-gray-100 pt-5">
@@ -397,7 +296,11 @@ export default function ItemOptionsModal({
             <textarea
               value={specialRequests}
               onChange={(e) => setSpecialRequests(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[rgb(var(--color-primary))] focus:border-[rgb(var(--color-primary))] resize-none text-gray-900 placeholder-gray-400"
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:border-transparent resize-none text-gray-900 placeholder-gray-400 transition-all"
+              style={{ 
+                // @ts-ignore
+                '--tw-ring-color': primaryColor 
+              } as React.CSSProperties}
               rows={2}
               placeholder="Any allergies or special requests?"
             />
@@ -408,47 +311,73 @@ export default function ItemOptionsModal({
             <label className="block text-base sm:text-lg font-bold text-gray-900 mb-3">
               Quantity
             </label>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <button
                 onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                className="w-12 h-12 rounded-lg flex items-center justify-center border-2 border-gray-300 hover:border-[rgb(var(--color-primary))] hover:bg-blue-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-12 h-12 rounded-xl flex items-center justify-center border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={quantity <= 1}
               >
-                <Minus className="w-4 h-4 text-gray-700" />
+                <Minus className="w-5 h-5 text-gray-700" />
               </button>
-              <span className="text-2xl font-bold w-16 text-center text-gray-900">{quantity}</span>
+              <span className="text-2xl font-bold w-12 text-center text-gray-900">{quantity}</span>
               <button
                 onClick={() => setQuantity(quantity + 1)}
-                className="w-12 h-12 rounded-lg flex items-center justify-center border-2 border-gray-300 hover:border-[rgb(var(--color-primary))] hover:bg-blue-50 transition-all"
+                className="w-12 h-12 rounded-xl flex items-center justify-center border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all"
               >
-                <Plus className="w-4 h-4 text-gray-700" />
+                <Plus className="w-5 h-5 text-gray-700" />
               </button>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 sm:p-6 safe-area-inset-bottom">
+        <div className="sticky bottom-0 border-t border-gray-200 bg-gray-50 p-4 sm:p-6 pb-safe">
           <div className="flex items-center justify-between mb-4">
             <span className="text-base sm:text-lg font-bold text-gray-900">Total:</span>
-            <span className="text-2xl sm:text-3xl font-bold text-[rgb(var(--color-primary))]">
+            <span 
+              className="text-2xl sm:text-3xl font-bold"
+              style={{ color: primaryColor }}
+            >
               ${calculateTotal().toFixed(2)}
             </span>
           </div>
           <button
             onClick={handleAddToCart}
             disabled={!canAddToCart}
-            className="btn-primary w-full"
+            className="w-full py-4 rounded-xl font-bold text-white text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg active:scale-[0.98]"
+            style={{ backgroundColor: primaryColor }}
           >
-            Add to Cart
+            {isEditing ? 'Update Cart' : 'Add to Cart'}
           </button>
-          {!canAddToCart && hasOptions && (
-            <p className="text-sm text-[rgb(var(--color-primary))] font-semibold text-center mt-3">
+          {!canAddToCart && hasModifiers && (
+            <p 
+              className="text-sm font-semibold text-center mt-3"
+              style={{ color: primaryColor }}
+            >
               Please select all required options
             </p>
           )}
         </div>
       </div>
+
+      <style jsx global>{`
+        @keyframes slide-up {
+          from {
+            transform: translateY(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateY(0);
+            opacity: 1;
+          }
+        }
+        .animate-slide-up {
+          animation: slide-up 0.3s ease-out;
+        }
+        .pb-safe {
+          padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+        }
+      `}</style>
     </div>
   )
 }

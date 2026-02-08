@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Utensils, Loader2, MapPin, Phone, Store, Camera, X, Check, ArrowRight, Sparkles, Clock, CreditCard, BarChart3 } from 'lucide-react'
+import AddressAutocomplete, { AddressDetails } from '@/components/AddressAutocomplete'
 
 const DEFAULT_HOURS = {
   monday: { open: '11:00', close: '21:00', closed: false },
@@ -29,10 +30,28 @@ export default function OnboardingPage() {
   const [form, setForm] = useState({
     name: '',
     address: '',
+    city: '',
+    state: '',
+    zip: '',
+    lat: undefined as number | undefined,
+    lng: undefined as number | undefined,
     phone: '',
     email: '',
     password: '',
   })
+
+  // Handle address selection from autocomplete
+  const handleAddressSelect = (details: AddressDetails) => {
+    setForm(prev => ({
+      ...prev,
+      address: details.address,
+      city: details.city,
+      state: details.state,
+      zip: details.zip,
+      lat: details.lat,
+      lng: details.lng,
+    }))
+  }
 
   const slug = form.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 
@@ -81,9 +100,11 @@ export default function OnboardingPage() {
           password: form.password,
           phone: form.phone,
           address: form.address,
-          city: '',
-          state: '',
-          zip: '',
+          city: form.city,
+          state: form.state,
+          zip: form.zip,
+          latitude: form.lat,
+          longitude: form.lng,
           primaryColor: '#2563eb',
           secondaryColor: '#2563eb',
           template: 'modern',
@@ -222,20 +243,25 @@ export default function OnboardingPage() {
               </div>
             </div>
 
-            {/* Address */}
+            {/* Address with Autocomplete */}
             <div>
               <Label className="text-sm font-medium text-slate-700">
                 Restaurant Address *
               </Label>
-              <div className="relative mt-1.5">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <Input
+              <div className="mt-1.5">
+                <AddressAutocomplete
                   value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  placeholder="123 Main Street, New York, NY 10001"
-                  className="pl-10 h-12 text-base"
+                  onChange={(value) => setForm({ ...form, address: value })}
+                  onAddressSelect={handleAddressSelect}
+                  placeholder="Start typing your address..."
                 />
               </div>
+              {form.city && form.state && (
+                <p className="text-xs text-green-600 mt-1.5 flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  {form.city}, {form.state} {form.zip}
+                </p>
+              )}
             </div>
 
             {/* Phone */}
@@ -360,7 +386,7 @@ export default function OnboardingPage() {
             <h3 className="text-white font-semibold text-sm text-center mb-4">Setup progress</h3>
             {[
               { done: !!form.name, label: 'Restaurant name' },
-              { done: !!form.address, label: 'Address' },
+              { done: !!form.address && !!form.city, label: 'Address (with autocomplete)' },
               { done: !!form.email, label: 'Email' },
               { done: !!form.password && form.password.length >= 6, label: 'Password (6+ chars)' },
             ].map((item) => (

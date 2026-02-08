@@ -2,120 +2,92 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { ShoppingCart, Menu, X, Plus, Minus } from 'lucide-react'
-import { StoreTemplateProps, MenuItem } from './types'
+import { StoreTemplateProps, MenuItem, Category } from './types'
 import LeftSidebar from '@/components/blu-template/LeftSidebar'
 import AddressPicker from '@/components/AddressPicker'
 import OrderModal from '@/components/OrderModal'
+import { HoverImageGallery } from './HoverImageGallery'
 
-// MenuItemCard component
+// MenuItemCard component - Mobile: Compact 2x2 grid card
 function MenuItemCard({ 
   item, 
-  onAddToCart,
+  onOpenModal,
   primaryColor,
-  inCart,
-  onUpdateQuantity
+  inCart
 }: { 
   item: MenuItem
-  onAddToCart: () => void
+  onOpenModal: () => void
   primaryColor: string
   inCart?: number
-  onUpdateQuantity: (delta: number) => void
 }) {
   const [isHovered, setIsHovered] = useState(false)
+  
+  // Collect all images: prefer images array, fallback to single image
+  const allImages = item.images && item.images.length > 0 
+    ? item.images 
+    : (item.image ? [item.image] : [])
 
   return (
     <div
-      className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 h-full flex flex-col"
+      className="group bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 h-full flex flex-col cursor-pointer"
+      onClick={onOpenModal}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Image */}
-      {item.image && (
-        <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-          <img
-            src={item.image}
+      {allImages.length > 0 && (
+        <div className="relative aspect-square sm:aspect-[4/3] overflow-hidden bg-gray-100">
+          <HoverImageGallery
+            images={allImages}
             alt={item.name}
-            className={`w-full h-full object-cover transition-transform duration-500 ${
-              isHovered ? 'scale-110' : 'scale-100'
-            }`}
+            className="w-full h-full"
           />
-          {/* Quick add button overlay */}
-          <div className={`absolute inset-0 bg-black/40 flex items-center justify-center transition-opacity duration-300 ${
+          {/* In cart badge */}
+          {inCart && inCart > 0 && (
+            <div 
+              className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-lg"
+              style={{ backgroundColor: primaryColor }}
+            >
+              {inCart}
+            </div>
+          )}
+          {/* Hover overlay - Desktop only */}
+          <div className={`hidden sm:flex absolute inset-0 bg-black/40 items-center justify-center transition-opacity duration-300 ${
             isHovered ? 'opacity-100' : 'opacity-0'
           }`}>
-            {inCart ? (
-              <div className="flex items-center gap-2 bg-white rounded-full p-1">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onUpdateQuantity(-1) }}
-                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="w-6 text-center font-bold">{inCart}</span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onUpdateQuantity(1) }}
-                  className="w-8 h-8 rounded-full text-white flex items-center justify-center"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={onAddToCart}
-                className="px-6 py-2 rounded-full text-white font-semibold shadow-lg hover:shadow-xl transition-shadow"
-                style={{ backgroundColor: primaryColor }}
-              >
-                Add to Cart
-              </button>
-            )}
+            <span
+              className="px-4 py-2 rounded-full text-white font-semibold shadow-lg text-sm"
+              style={{ backgroundColor: primaryColor }}
+            >
+              {inCart ? 'Edit Item' : 'Add to Cart'}
+            </span>
           </div>
         </div>
       )}
 
-      {/* Content */}
-      <div className="p-4 flex-1 flex flex-col">
-        <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-gray-700">
+      {/* Content - More compact on mobile */}
+      <div className="p-3 sm:p-4 flex-1 flex flex-col">
+        <h3 className="font-semibold text-gray-900 text-sm sm:text-base mb-0.5 sm:mb-1 line-clamp-2 sm:line-clamp-none group-hover:text-gray-700">
           {item.name}
         </h3>
         {item.description && (
-          <p className="text-sm text-gray-500 line-clamp-2 flex-1">{item.description}</p>
+          <p className="text-xs sm:text-sm text-gray-500 line-clamp-2 flex-1 hidden sm:block">{item.description}</p>
         )}
-        <div className="flex items-center justify-between mt-3">
+        <div className="flex items-center justify-between mt-2 sm:mt-3">
           <span 
-            className="font-bold text-lg"
+            className="font-bold text-base sm:text-lg"
             style={{ color: primaryColor }}
           >
             ${item.price.toFixed(2)}
           </span>
-          {!item.image && (
-            inCart ? (
-              <div className="flex items-center gap-1 bg-gray-100 rounded-full p-1">
-                <button
-                  onClick={() => onUpdateQuantity(-1)}
-                  className="w-7 h-7 rounded-full bg-white flex items-center justify-center shadow-sm"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <span className="w-5 text-center font-semibold text-sm">{inCart}</span>
-                <button
-                  onClick={() => onUpdateQuantity(1)}
-                  className="w-7 h-7 rounded-full text-white flex items-center justify-center"
-                  style={{ backgroundColor: primaryColor }}
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={onAddToCart}
-                className="w-9 h-9 rounded-full flex items-center justify-center text-white shadow-md"
-                style={{ backgroundColor: primaryColor }}
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-            )
-          )}
+          {/* Mobile add button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenModal(); }}
+            className="sm:hidden w-8 h-8 rounded-full flex items-center justify-center text-white shadow-md active:scale-95 transition-transform"
+            style={{ backgroundColor: primaryColor }}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </div>
@@ -254,6 +226,8 @@ export function BluOriginalTemplate({
   goToCheckout,
   categoryRefs,
   navRef,
+  onOpenItemModal,
+  onEditCartItem,
 }: StoreTemplateProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
@@ -267,7 +241,12 @@ export function BluOriginalTemplate({
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
   const primaryColor = store.primaryColor || '#1e3a5f'
 
-  const cartTotal = cart.reduce((sum, c) => sum + c.menuItem.price * c.quantity, 0)
+  // Calculate cart total including modifier prices
+  const cartTotal = cart.reduce((sum, c) => {
+    const itemPrice = c.menuItem.price
+    const modifiersPrice = (c.selectedModifiers || []).reduce((mSum, mod) => mSum + mod.price, 0)
+    return sum + (itemPrice + modifiersPrice) * c.quantity
+  }, 0)
   const cartCount = cart.reduce((sum, c) => sum + c.quantity, 0)
 
   // Get all menu items flattened
@@ -427,59 +406,66 @@ export function BluOriginalTemplate({
             </p>
           </div>
 
-          {/* Product Grid */}
+          {/* Product Grid - 2x2 on mobile, 2 cols on tablet, 3 on desktop */}
           {filteredItems.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-500">No items found matching your search.</p>
             </div>
           ) : selectedCategory !== 'All' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
               {filteredItems.map((item) => {
-                const inCart = cart.find(c => c.menuItem.id === item.id)
+                // Count total quantity of this item across all cart entries
+                const inCartCount = cart.filter(c => c.menuItem.id === item.id).reduce((sum, c) => sum + c.quantity, 0)
                 return (
                   <MenuItemCard
                     key={item.id}
                     item={item}
-                    onAddToCart={() => addToCart(item)}
+                    onOpenModal={() => onOpenItemModal?.(item)}
                     primaryColor={primaryColor}
-                    inCart={inCart?.quantity}
-                    onUpdateQuantity={(delta) => updateQuantity(item.id, delta)}
+                    inCart={inCartCount}
                   />
                 )
               })}
             </div>
           ) : (
-            <div className="space-y-16">
-              {Object.entries(itemsByCategory).map(([category, items]) => (
-                <div key={category} className="relative">
+            <div className="space-y-12 sm:space-y-16">
+              {Object.entries(itemsByCategory).map(([categoryName, items]) => {
+                // Find the category object to get description
+                const categoryObj = categories.find(c => c.name === categoryName)
+                return (
+                <div key={categoryName} className="relative">
                   <div
-                    ref={(el) => { sectionRefs.current[category] = el }}
-                    data-category={category}
+                    ref={(el) => { sectionRefs.current[categoryName] = el }}
+                    data-category={categoryName}
                     className="absolute -top-32 h-1 w-full"
                   />
                   <h3 
-                    className="text-xl sm:text-2xl font-bold text-gray-900 mb-6 pb-3 border-b-2"
+                    className="text-lg sm:text-2xl font-bold text-gray-900 pb-2 sm:pb-3 border-b-2"
                     style={{ borderColor: primaryColor }}
                   >
-                    {category}
+                    {categoryName}
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+                  {categoryObj?.description && (
+                    <p className="text-gray-500 text-sm sm:text-base mt-2 mb-4 sm:mb-6">{categoryObj.description}</p>
+                  )}
+                  {!categoryObj?.description && <div className="mb-4 sm:mb-6" />}
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6">
                     {items.map((item) => {
-                      const inCart = cart.find(c => c.menuItem.id === item.id)
+                      // Count total quantity of this item across all cart entries
+                      const inCartCount = cart.filter(c => c.menuItem.id === item.id).reduce((sum, c) => sum + c.quantity, 0)
                       return (
                         <MenuItemCard
                           key={item.id}
                           item={item}
-                          onAddToCart={() => addToCart(item)}
+                          onOpenModal={() => onOpenItemModal?.(item)}
                           primaryColor={primaryColor}
-                          inCart={inCart?.quantity}
-                          onUpdateQuantity={(delta) => updateQuantity(item.id, delta)}
+                          inCart={inCartCount}
                         />
                       )
                     })}
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           )}
         </main>

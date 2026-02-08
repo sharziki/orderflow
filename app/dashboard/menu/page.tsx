@@ -59,6 +59,7 @@ interface MenuItem {
   price: number
   categoryId: string
   image: string | null
+  images: string[] // Multiple images for hover animations
   isAvailable: boolean
   isSoldOut: boolean
   sortOrder: number
@@ -312,6 +313,8 @@ function EditItemModal({
   saving: boolean
 }) {
   const isNew = !item?.id
+  // Migrate legacy single image to images array
+  const initialImages = item?.images?.length ? item.images : (item?.image ? [item.image] : [])
   const [formData, setFormData] = useState({
     id: item?.id || '',
     name: item?.name || '',
@@ -319,6 +322,7 @@ function EditItemModal({
     price: item?.price?.toString() || '',
     categoryId: item?.categoryId || categories[0]?.id || '',
     image: item?.image || '',
+    images: initialImages,
     isAvailable: item?.isAvailable ?? true,
     isSoldOut: item?.isSoldOut ?? false,
     modifierGroupIds: item?.modifierGroupIds || []
@@ -327,28 +331,68 @@ function EditItemModal({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = e.target.files
+    if (!files || files.length === 0) return
 
     setUploading(true)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
+      const uploadedUrls: string[] = []
       
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: fd
-      })
+      for (const file of Array.from(files)) {
+        const fd = new FormData()
+        fd.append('file', file)
+        
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: fd
+        })
+        
+        if (res.ok) {
+          const { url } = await res.json()
+          uploadedUrls.push(url)
+        }
+      }
       
-      if (res.ok) {
-        const { url } = await res.json()
-        setFormData(prev => ({ ...prev, image: url }))
+      if (uploadedUrls.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          images: [...prev.images, ...uploadedUrls],
+          // Set first image as primary for backwards compatibility
+          image: prev.images.length === 0 ? uploadedUrls[0] : prev.image
+        }))
       }
     } catch (err) {
       console.error('Upload failed:', err)
     } finally {
       setUploading(false)
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
+  }
+
+  const removeImage = (index: number) => {
+    setFormData(prev => {
+      const newImages = prev.images.filter((_, i) => i !== index)
+      return {
+        ...prev,
+        images: newImages,
+        // Update primary image if removed
+        image: newImages[0] || ''
+      }
+    })
+  }
+
+  const moveImage = (fromIndex: number, toIndex: number) => {
+    setFormData(prev => {
+      const newImages = [...prev.images]
+      const [removed] = newImages.splice(fromIndex, 1)
+      newImages.splice(toIndex, 0, removed)
+      return {
+        ...prev,
+        images: newImages,
+        image: newImages[0] || ''
+      }
+    })
   }
 
   const toggleModifierGroup = (groupId: string) => {
@@ -366,6 +410,8 @@ function EditItemModal({
       ...formData,
       price: parseFloat(formData.price),
       description: formData.description || null,
+      image: formData.images[0] || null, // Primary image for backwards compatibility
+      images: formData.images,
     })
   }
 
@@ -441,53 +487,76 @@ function EditItemModal({
               </select>
             </div>
 
-            {/* Photo Upload */}
+            {/* Photo Upload - Multiple Images */}
             <div>
-              <Label>Photo</Label>
-              <div className="mt-2">
-                {formData.image ? (
-                  <div className="flex items-center gap-3">
-                    <img 
-                      src={formData.image} 
-                      alt="Item" 
-                      className="w-16 h-16 rounded-lg object-cover"
-                    />
-                    <div className="flex-1 text-sm text-slate-600 truncate">
-                      {formData.image.split('/').pop()}
-                    </div>
-                    <button
-                      onClick={() => setFormData(prev => ({ ...prev, image: '' }))}
-                      className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-red-500"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-sm text-blue-600 hover:text-blue-700"
-                    >
-                      Upload New
-                    </button>
+              <Label className="flex items-center gap-2">
+                Photos
+                <span className="text-xs text-slate-400 font-normal">(first image is default, hover cycles through others)</span>
+              </Label>
+              <div className="mt-2 space-y-3">
+                {/* Image Grid */}
+                {formData.images.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {formData.images.map((img, index) => (
+                      <div 
+                        key={img} 
+                        className={`relative group ${index === 0 ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
+                      >
+                        <img 
+                          src={img} 
+                          alt={`Item ${index + 1}`} 
+                          className="w-16 h-16 rounded-lg object-cover"
+                        />
+                        {index === 0 && (
+                          <span className="absolute -top-1 -left-1 bg-blue-500 text-white text-[10px] px-1 rounded">
+                            Main
+                          </span>
+                        )}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-1">
+                          {index > 0 && (
+                            <button
+                              onClick={() => moveImage(index, 0)}
+                              className="p-1 bg-white/90 rounded text-slate-700 hover:bg-white"
+                              title="Make primary"
+                            >
+                              <Check className="w-3 h-3" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => removeImage(index)}
+                            className="p-1 bg-white/90 rounded text-red-500 hover:bg-white"
+                            title="Remove"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="w-full h-20 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center gap-2 hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                  >
-                    {uploading ? (
-                      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
-                    ) : (
-                      <>
-                        <ImagePlus className="w-5 h-5 text-slate-400" />
-                        <span className="text-sm text-slate-500">Upload Photo</span>
-                      </>
-                    )}
-                  </button>
                 )}
+                
+                {/* Upload Button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full h-16 border-2 border-dashed border-slate-300 rounded-lg flex items-center justify-center gap-2 hover:border-blue-500 hover:bg-blue-50 transition-colors"
+                >
+                  {uploading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                  ) : (
+                    <>
+                      <ImagePlus className="w-5 h-5 text-slate-400" />
+                      <span className="text-sm text-slate-500">
+                        {formData.images.length > 0 ? 'Add More Photos' : 'Upload Photos'}
+                      </span>
+                    </>
+                  )}
+                </button>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleImageUpload}
                   className="hidden"
                 />

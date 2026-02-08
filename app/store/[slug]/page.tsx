@@ -8,11 +8,15 @@ import {
   Category, 
   CartItem, 
   MenuItem,
+  Menu,
+  ModifierGroup,
+  SelectedModifier,
   ModernTemplate,
   SliceTemplate,
   BluBentonvilleTemplate,
   BluOriginalTemplate,
 } from '@/components/store-templates'
+import ItemOptionsModal from '@/components/ItemOptionsModal'
 
 export default function StorePage() {
   const params = useParams()
@@ -22,6 +26,9 @@ export default function StorePage() {
   
   const [store, setStore] = useState<Store | null>(null)
   const [categories, setCategories] = useState<Category[]>([])
+  const [menus, setMenus] = useState<Menu[]>([])
+  const [selectedMenuId, setSelectedMenuId] = useState<string | null>(null)
+  const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   
@@ -29,6 +36,12 @@ export default function StorePage() {
   const [cartOpen, setCartOpen] = useState(false)
   const [orderType, setOrderType] = useState<'pickup' | 'delivery'>('pickup')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  
+  // Item modal state
+  const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingCartIndex, setEditingCartIndex] = useState<number | null>(null)
+  const [editingCartItem, setEditingCartItem] = useState<CartItem | null>(null)
   
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
@@ -68,9 +81,12 @@ export default function StorePage() {
     setOrderType('pickup')
   }, [slug])
 
-  const fetchStore = async () => {
+  const fetchStore = async (menuId?: string) => {
     try {
-      const res = await fetch(`/api/store/${slug}`)
+      const url = menuId 
+        ? `/api/store/${slug}?menuId=${menuId}` 
+        : `/api/store/${slug}`
+      const res = await fetch(url)
       if (!res.ok) {
         if (res.status === 404) {
           setError('Restaurant not found')
@@ -84,6 +100,9 @@ export default function StorePage() {
       const data = await res.json()
       setStore(data.store)
       setCategories(data.categories || [])
+      setModifierGroups(data.modifierGroups || [])
+      setMenus(data.menus || [])
+      setSelectedMenuId(data.selectedMenuId || null)
       if (data.categories?.length > 0) {
         setActiveCategory(data.categories[0].id)
       }
@@ -92,6 +111,13 @@ export default function StorePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Handle menu change
+  const handleMenuChange = async (menuId: string) => {
+    setSelectedMenuId(menuId)
+    setLoading(true)
+    await fetchStore(menuId)
   }
 
   const scrollToCategory = (categoryId: string) => {
@@ -105,14 +131,46 @@ export default function StorePage() {
     }
   }
 
-  const addToCart = (item: MenuItem) => {
-    setCart(prev => {
-      const existing = prev.find(c => c.menuItem.id === item.id)
-      if (existing) {
-        return prev.map(c => c.menuItem.id === item.id ? { ...c, quantity: c.quantity + 1 } : c)
-      }
-      return [...prev, { menuItem: item, quantity: 1 }]
-    })
+  // Open item modal (mandatory before adding to cart)
+  const openItemModal = (item: MenuItem) => {
+    setSelectedItem(item)
+    setEditingCartIndex(null)
+    setEditingCartItem(null)
+    setIsModalOpen(true)
+  }
+
+  // Edit cart item (reopen modal with existing selections)
+  const editCartItem = (cartItem: CartItem, index: number) => {
+    setSelectedItem(cartItem.menuItem)
+    setEditingCartIndex(index)
+    setEditingCartItem(cartItem)
+    setIsModalOpen(true)
+  }
+
+  const closeItemModal = () => {
+    setIsModalOpen(false)
+    setSelectedItem(null)
+    setEditingCartIndex(null)
+    setEditingCartItem(null)
+  }
+
+  const addToCart = (
+    item: MenuItem, 
+    quantity: number = 1, 
+    selectedModifiers: SelectedModifier[] = [], 
+    specialRequests: string = ''
+  ) => {
+    if (editingCartIndex !== null) {
+      // Editing existing cart item
+      setCart(prev => prev.map((c, idx) => 
+        idx === editingCartIndex 
+          ? { menuItem: item, quantity, selectedModifiers, specialRequests }
+          : c
+      ))
+    } else {
+      // Adding new item - always add as new entry (modifiers may differ)
+      setCart(prev => [...prev, { menuItem: item, quantity, selectedModifiers, specialRequests }])
+    }
   }
 
   const updateQuantity = (itemId: string, delta: number) => {
@@ -160,14 +218,26 @@ export default function StorePage() {
     )
   }
 
+  // Get modifier groups for an item
+  const getModifierGroupsForItem = (item: MenuItem): ModifierGroup[] => {
+    if (!item.modifierGroupIds || item.modifierGroupIds.length === 0) {
+      return []
+    }
+    return modifierGroups.filter(mg => item.modifierGroupIds!.includes(mg.id))
+  }
+
   // Template props
   const templateProps = {
     store,
     categories,
+    menus,
+    selectedMenuId,
+    onMenuChange: handleMenuChange,
     cart,
     cartOpen,
     orderType,
     activeCategory,
+    modifierGroups,
     setCartOpen,
     setOrderType: setOrderType as (type: 'pickup' | 'delivery') => void,
     setActiveCategory,
@@ -178,23 +248,58 @@ export default function StorePage() {
     goToCheckout,
     categoryRefs,
     navRef,
+    onOpenItemModal: openItemModal,
+    onEditCartItem: editCartItem,
   }
 
   // Render appropriate template based on layoutOverride, store.menuLayout, or store.template
   const layout = layoutOverride || (store as any).menuLayout || store.template
   
-  switch (layout) {
-    case 'blu-bentonville':
-    case 'blu-original':
-    case 'sidebar':
-      return <BluOriginalTemplate {...templateProps} />
-    case 'slice':
-      return <SliceTemplate {...templateProps} />
-    case 'wide':
-      return <BluBentonvilleTemplate {...templateProps} />
-    case 'classic':
-    case 'modern':
-    default:
-      return <ModernTemplate {...templateProps} />
+  const renderTemplate = () => {
+    switch (layout) {
+      case 'blu-bentonville':
+      case 'blu-original':
+      case 'sidebar':
+        return <BluOriginalTemplate {...templateProps} />
+      case 'slice':
+        return <SliceTemplate {...templateProps} />
+      case 'wide':
+        return <BluBentonvilleTemplate {...templateProps} />
+      case 'classic':
+      case 'modern':
+      default:
+        return <ModernTemplate {...templateProps} />
+    }
   }
+
+  return (
+    <>
+      {renderTemplate()}
+      
+      {/* Item Options Modal - Used for all templates */}
+      {selectedItem && (
+        <ItemOptionsModal
+          isOpen={isModalOpen}
+          onClose={closeItemModal}
+          item={selectedItem}
+          modifierGroups={getModifierGroupsForItem(selectedItem)}
+          existingModifiers={editingCartItem?.selectedModifiers}
+          existingQuantity={editingCartItem?.quantity}
+          existingSpecialRequests={editingCartItem?.specialRequests}
+          onAddToCart={(item, quantity, selectedOptions, specialRequests) => {
+            // Transform selectedOptions to SelectedModifier format
+            const modifiers: SelectedModifier[] = selectedOptions.map(opt => ({
+              groupId: opt.groupId,
+              groupName: opt.groupName || '',
+              optionName: opt.optionName || '',
+              price: opt.price || 0
+            }))
+            addToCart(item, quantity, modifiers, specialRequests)
+            closeItemModal()
+          }}
+          primaryColor={store.primaryColor}
+        />
+      )}
+    </>
+  )
 }
