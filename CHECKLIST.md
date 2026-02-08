@@ -1,30 +1,39 @@
 # OrderFlow Feature Checklist
 
-## Features To Complete
+## Features Status
 
-- [ ] 1. Ability to upload multiple photos of menu items for hover animations
-- [ ] 2. Ability to add/customize a CTA for each restaurant
-- [ ] 3. Ability to add multiple menus (like the fresh fish marketplace)
-- [ ] 4. Autopopulate Address API for onboarding
-- [ ] 5. Replace demo data on dash with real data
-- [ ] 6. Get server + everything live on VPS
-- [ ] 7. Demo mode for test delivery orders with DoorDash sandbox
-- [ ] 8. Go High Level Connection - auto create/update contacts after orders (map fields, add order notes, track order history)
-- [ ] 9. *(skipped - no item 9 in list)*
-- [ ] 10. Allow customers to purchase gift cards
-- [ ] 11. Detailed documentation for GitHub (for Pakistani dev handoff)
-- [ ] 12. Sidebar/main layout on mobile: 2x2 grid approach (like Sizzle Fish)
-- [ ] 13. Fix modals on mobile - click item for popup with modifiers, special requests
-- [ ] 14. Fix the description for categories
-- [ ] 15. Add modifiers as mandatory popup - can't add to cart without selecting modifiers (e.g., burger toppings)
-- [ ] 16. Allow upcharges to be customized on checkout screen via popup (e.g., drink size selection)
-- [ ] 17. Make the pickup order sound 6 seconds
-- [ ] 18. On admin order screen allow user to drag orders backwards
-- [ ] 19. Tickets should print automatically on new order (regardless of acceptance)
+- [x] 1. Multiple photos per menu item for hover animations ✅ (HoverImageGallery component + images[] field)
+- [x] 2. Custom CTA for each restaurant ✅ (CustomCTA component + ctaText/ctaLink fields)
+- [x] 3. Multiple menus support ✅ (Menu model + MenuSelector component)
+- [x] 4. Address autocomplete for onboarding ✅ (AddressAutocomplete component + API)
+- [x] 5. Replace demo data with real data ✅ (Dashboard now queries real orders/revenue)
+- [ ] 6. Get server + everything live on VPS ⏳ (Need VPS details)
+- [x] 7. Demo mode for DoorDash testing ✅ (demoModeEnabled toggle + sandbox flow)
+- [x] 8. Go High Level integration ✅ (gohighlevel.ts + auto-sync contacts/orders)
+- [x] 10. Gift card purchasing ✅ (Full purchase + redemption + admin panel)
+- [x] 11. Detailed GitHub documentation ✅ (docs/COMPONENTS.md, docs/DATABASE.md)
+- [ ] 12. Mobile 2x2 grid layout 🔄 (In progress - templates being updated)
+- [ ] 13. Mobile modals for item popups 🔄 (In progress)
+- [x] 14. Category descriptions ✅ (Now displayed in templates)
+- [ ] 15. Mandatory modifier popup 🔄 (In progress)
+- [ ] 16. Checkout upcharge popup 🔄 (In progress)
+- [x] 17. 6-second pickup order sound ✅ (Loops for 6 seconds on pickup)
+- [x] 18. Drag orders backwards ✅ (Backward transitions + UI buttons)
+- [x] 19. Auto-print tickets on new order ✅ (Prints before acceptance)
+
+## Commits Made
+
+- `e7a39cc` - Gift cards complete
+- `08fee90` - Go High Level integration  
+- `dbda32d` - Demo mode for DoorDash
+- `b891b35` - Order management (sound, drag backwards, auto-print)
+- `9a6abf0` - Documentation
+
+## Remaining
+
+- [ ] Item 6: VPS deployment (need server details)
+- [ ] Items 12, 13, 15, 16: Mobile UI improvements (sub-agent still working)
 
 ---
 
-## Progress Log
-
-*Starting: 2026-02-08*
-
+*Last updated: 2026-02-08 23:17 UTC*
