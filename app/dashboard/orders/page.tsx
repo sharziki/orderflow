@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { 
   Clock, CheckCircle, XCircle, Truck, Store, RefreshCw, ChefHat, Package, 
-  Bell, BellOff, Printer, ArrowLeft, Volume2, VolumeX, Phone, User, MapPin, Settings
+  Bell, BellOff, Printer, ArrowLeft, Volume2, VolumeX, Phone, User, MapPin, Settings, FlaskConical
 } from 'lucide-react'
 import { browserPrint } from '@/lib/browser-print'
 import { formatHTMLTicket } from '@/lib/ticket-formatter'
@@ -421,13 +421,19 @@ export default function KanbanOrdersPage() {
         </div>
 
         {/* Type Badge */}
-        <div className="flex gap-2 mb-3">
+        <div className="flex gap-2 mb-3 flex-wrap">
           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
             order.type === 'pickup' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'
           }`}>
             {order.type === 'pickup' ? <Store className="w-3 h-3" /> : <Truck className="w-3 h-3" />}
             {order.type}
           </span>
+          {order.orderNumber?.startsWith('TEST-') && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+              <FlaskConical className="w-3 h-3" />
+              DEMO
+            </span>
+          )}
           {order.scheduledFor && (
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
               <Clock className="w-3 h-3" />

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
-import { CheckCircle, Clock, MapPin, Phone, Loader2, RefreshCw, Download } from 'lucide-react'
+import { CheckCircle, Clock, MapPin, Phone, Loader2, RefreshCw, Download, FlaskConical } from 'lucide-react'
 import { downloadReceipt } from '@/lib/pdf-receipt'
 import Confetti from 'react-confetti'
 
@@ -132,6 +132,7 @@ export default function OrderConfirmedPage() {
 
   const steps = STATUS_STEPS[order.type] || STATUS_STEPS.pickup
   const currentStep = getStatusIndex(order.status)
+  const isDemoOrder = order.orderNumber?.startsWith('TEST-')
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -145,6 +146,21 @@ export default function OrderConfirmedPage() {
       )}
 
       <div className="max-w-2xl mx-auto px-4 py-8">
+        {/* Demo Order Banner */}
+        {isDemoOrder && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <FlaskConical className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-amber-800">Demo Test Order</p>
+                <p className="text-sm text-amber-700">This is a test order. No real payment was processed and no delivery will occur.</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Success Header */}
         <div className="text-center mb-8">
           <div 
@@ -161,9 +177,14 @@ export default function OrderConfirmedPage() {
 
         {/* Order Number */}
         <div 
-          className="text-center py-4 rounded-xl text-white mb-6"
-          style={{ backgroundColor: primaryColor }}
+          className={`text-center py-4 rounded-xl text-white mb-6 ${isDemoOrder ? 'relative overflow-hidden' : ''}`}
+          style={{ backgroundColor: isDemoOrder ? '#d97706' : primaryColor }}
         >
+          {isDemoOrder && (
+            <div className="absolute top-0 right-0 bg-white/20 px-3 py-1 rounded-bl-lg text-xs font-bold">
+              DEMO
+            </div>
+          )}
           <p className="text-white/70 text-sm">Order Number</p>
           <p className="text-2xl font-bold">#{order.orderNumber}</p>
         </div>

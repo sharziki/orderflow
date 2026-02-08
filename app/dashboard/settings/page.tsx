@@ -26,7 +26,12 @@ import {
   CheckCircle2,
   XCircle,
   CreditCard,
-  Rocket
+  Rocket,
+  Users,
+  FlaskConical,
+  Play,
+  TestTube,
+  Megaphone
 } from 'lucide-react'
 
 interface Tenant {
@@ -59,6 +64,12 @@ interface Tenant {
   doordashDeveloperId: string | null
   doordashKeyId: string | null
   doordashSigningSecret: string | null
+  ghlApiKey: string | null
+  ghlLocationId: string | null
+  ghlConfigured?: boolean
+  demoModeEnabled?: boolean
+  demoModeCompletedAt?: string | null
+  demoOrderCount?: number
 }
 
 const LAYOUTS = [
@@ -79,6 +90,7 @@ const SECTIONS = [
   { id: 'fees', label: 'Fees & Taxes', icon: DollarSign, required: true },
   { id: 'features', label: 'Features', icon: Settings, required: false },
   { id: 'integrations', label: 'Integrations', icon: Link2, required: true },
+  { id: 'demo', label: 'Demo Mode', icon: FlaskConical, required: false },
   { id: 'danger', label: 'Danger Zone', icon: AlertTriangle, required: false },
 ]
 
@@ -112,9 +124,39 @@ export default function SettingsPage() {
   const [loyaltyEnabled, setLoyaltyEnabled] = useState(false)
   const [isActive, setIsActive] = useState(true)
   const [businessHours, setBusinessHours] = useState<Record<string, { open: string; close: string; closed: boolean }>>({})
+  
+  // GHL state
+  const [ghlApiKey, setGhlApiKey] = useState('')
+  const [ghlLocationId, setGhlLocationId] = useState('')
+  const [ghlTesting, setGhlTesting] = useState(false)
+  const [showGhlForm, setShowGhlForm] = useState(false)
+
+  // Demo Mode state
+  const [demoModeEnabled, setDemoModeEnabled] = useState(false)
+  const [demoModeCompletedAt, setDemoModeCompletedAt] = useState<string | null>(null)
+  const [demoOrderCount, setDemoOrderCount] = useState(0)
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoTestLoading, setDemoTestLoading] = useState(false)
+  const [demoTestResult, setDemoTestResult] = useState<any>(null)
+
+  // Fetch demo mode status (defined before useEffect so it's available)
+  const fetchDemoModeStatus = async () => {
+    try {
+      const res = await fetch('/api/settings/demo-mode')
+      if (res.ok) {
+        const data = await res.json()
+        setDemoModeEnabled(data.demoModeEnabled || false)
+        setDemoModeCompletedAt(data.demoModeCompletedAt)
+        setDemoOrderCount(data.demoOrderCount || 0)
+      }
+    } catch (error) {
+      console.error('Failed to fetch demo mode status:', error)
+    }
+  }
 
   useEffect(() => {
     fetchSettings()
+    fetchDemoModeStatus()
   }, [])
 
   const fetchSettings = async () => {
@@ -158,6 +200,84 @@ export default function SettingsPage() {
       router.push('/login')
     } finally {
       setLoading(false)
+    }
+  }
+
+  // Toggle demo mode
+  const handleToggleDemoMode = async () => {
+    setDemoLoading(true)
+    try {
+      const res = await fetch('/api/settings/demo-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !demoModeEnabled }),
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        setDemoModeEnabled(data.demoModeEnabled)
+        setDemoModeCompletedAt(data.demoModeCompletedAt)
+        setDemoOrderCount(data.demoOrderCount || 0)
+        setDemoTestResult(null)
+        toast.success(data.message)
+      } else {
+        toast.error('Failed to toggle demo mode')
+      }
+    } catch (error) {
+      toast.error('Failed to toggle demo mode')
+    } finally {
+      setDemoLoading(false)
+    }
+  }
+
+  // Place demo test order
+  const handlePlaceDemoTestOrder = async () => {
+    setDemoTestLoading(true)
+    setDemoTestResult(null)
+    try {
+      const res = await fetch('/api/orders/demo-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      
+      const data = await res.json()
+      setDemoTestResult(data)
+      
+      if (data.success) {
+        setDemoOrderCount(prev => prev + 1)
+        toast.success(data.message)
+      } else {
+        toast.error(data.error || 'Failed to create demo order')
+      }
+    } catch (error) {
+      toast.error('Failed to create demo order')
+    } finally {
+      setDemoTestLoading(false)
+    }
+  }
+
+  // Complete demo test and optionally disable
+  const handleCompleteDemoTest = async (autoDisable: boolean = false) => {
+    setDemoLoading(true)
+    try {
+      const res = await fetch('/api/settings/demo-mode', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ autoDisable }),
+      })
+      
+      if (res.ok) {
+        const data = await res.json()
+        setDemoModeEnabled(data.demoModeEnabled)
+        setDemoModeCompletedAt(data.demoModeCompletedAt)
+        toast.success(data.message)
+      } else {
+        toast.error('Failed to complete demo test')
+      }
+    } catch (error) {
+      toast.error('Failed to complete demo test')
+    } finally {
+      setDemoLoading(false)
     }
   }
 
@@ -290,6 +410,67 @@ export default function SettingsPage() {
       }
     } catch (error) {
       toast.error('Failed to delete store')
+    }
+  }
+
+  const handleTestGHL = async () => {
+    if (!ghlApiKey || !ghlLocationId) {
+      toast.error('Please enter both API key and Location ID')
+      return
+    }
+
+    setGhlTesting(true)
+    try {
+      const res = await fetch('/api/settings/ghl/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: ghlApiKey, locationId: ghlLocationId }),
+      })
+      
+      const data = await res.json()
+      
+      if (res.ok && data.success) {
+        toast.success('GHL connection successful!')
+      } else {
+        toast.error(data.error || 'Connection failed')
+      }
+    } catch (error) {
+      toast.error('Failed to test connection')
+    } finally {
+      setGhlTesting(false)
+    }
+  }
+
+  const handleSaveGHL = async () => {
+    if (!ghlApiKey || !ghlLocationId) {
+      toast.error('Please enter both API key and Location ID')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ghlApiKey, ghlLocationId }),
+      })
+
+      if (res.ok) {
+        toast.success('GHL settings saved!')
+        setShowGhlForm(false)
+        // Refresh tenant data
+        const meRes = await fetch('/api/auth/me')
+        if (meRes.ok) {
+          const data = await meRes.json()
+          setTenant(data.tenant)
+        }
+      } else {
+        toast.error('Failed to save settings')
+      }
+    } catch (error) {
+      toast.error('Failed to save settings')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -903,6 +1084,302 @@ export default function SettingsPage() {
                       {tenant?.doordashDeveloperId ? 'Manage' : 'Set Up'}
                     </Link>
                   </div>
+                </div>
+
+                {/* Go High Level */}
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                        <Users className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Go High Level</h3>
+                        <p className="text-sm text-gray-500 mt-1">Sync customers to your GHL CRM after orders</p>
+                        {tenant?.ghlConfigured ? (
+                          <span className="inline-flex items-center gap-1.5 text-sm text-green-600 mt-2">
+                            <CheckCircle2 className="w-4 h-4" /> Connected
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 text-sm text-gray-500 mt-2">
+                            <AlertCircle className="w-4 h-4" /> Optional - sync orders to CRM
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setShowGhlForm(!showGhlForm)}
+                      className="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50"
+                    >
+                      {tenant?.ghlConfigured ? 'Manage' : 'Set Up'}
+                    </button>
+                  </div>
+
+                  {/* GHL Configuration Form */}
+                  {showGhlForm && (
+                    <div className="mt-6 pt-6 border-t">
+                      <div className="space-y-4 max-w-md">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            API Key
+                          </label>
+                          <input
+                            type="password"
+                            value={ghlApiKey}
+                            onChange={e => setGhlApiKey(e.target.value)}
+                            placeholder="Enter your GHL API key"
+                            className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Find this in GHL Settings → Business Profile → API Key
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Location ID
+                          </label>
+                          <input
+                            type="text"
+                            value={ghlLocationId}
+                            onChange={e => setGhlLocationId(e.target.value)}
+                            placeholder="Enter your GHL Location ID"
+                            className="w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Find this in GHL Settings → Business Profile
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 pt-2">
+                          <button
+                            onClick={handleTestGHL}
+                            disabled={ghlTesting || !ghlApiKey || !ghlLocationId}
+                            className="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {ghlTesting && <Loader2 className="w-4 h-4 animate-spin" />}
+                            Test Connection
+                          </button>
+                          <button
+                            onClick={handleSaveGHL}
+                            disabled={saving || !ghlApiKey || !ghlLocationId}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                          >
+                            {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                            Save Settings
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                        <h4 className="text-sm font-medium text-blue-900 mb-2">What gets synced?</h4>
+                        <ul className="text-sm text-blue-700 space-y-1">
+                          <li>• Customer contact info (name, email, phone, address)</li>
+                          <li>• Order notes with items, total, and order number</li>
+                          <li>• Order count tracking ("Order 3 of 5 total orders")</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Demo Mode Section */}
+            {activeSection === 'demo' && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Demo Mode</h2>
+                  <p className="text-gray-500 mt-1">Test delivery orders without real charges</p>
+                </div>
+
+                {/* Demo Mode Status Card */}
+                <div className={`rounded-xl p-6 border shadow-sm ${demoModeEnabled ? 'bg-amber-50 border-amber-200' : 'bg-white'}`}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${demoModeEnabled ? 'bg-amber-100' : 'bg-gray-100'}`}>
+                        <FlaskConical className={`w-6 h-6 ${demoModeEnabled ? 'text-amber-600' : 'text-gray-600'}`} />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-gray-900">Demo Mode</h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {demoModeEnabled 
+                            ? 'Demo mode is active. Orders will use sandbox credentials and Stripe test mode.'
+                            : 'Enable demo mode to test your delivery integration without real charges.'}
+                        </p>
+                        {demoModeEnabled && (
+                          <div className="flex items-center gap-4 mt-3">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium">
+                              <TestTube className="w-4 h-4" />
+                              DEMO ACTIVE
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              {demoOrderCount} test order{demoOrderCount !== 1 ? 's' : ''} placed
+                            </span>
+                          </div>
+                        )}
+                        {demoModeCompletedAt && (
+                          <span className="inline-flex items-center gap-1.5 text-sm text-green-600 mt-2">
+                            <CheckCircle2 className="w-4 h-4" />
+                            Last successful test: {new Date(demoModeCompletedAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleToggleDemoMode}
+                      disabled={demoLoading}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        demoModeEnabled
+                          ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          : 'bg-amber-600 text-white hover:bg-amber-700'
+                      } disabled:opacity-50`}
+                    >
+                      {demoLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : demoModeEnabled ? (
+                        'Disable'
+                      ) : (
+                        'Enable Demo Mode'
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* What Demo Mode Does */}
+                <div className="bg-white rounded-xl p-6 border shadow-sm">
+                  <h3 className="font-medium text-gray-900 mb-4">What Demo Mode Does</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Truck className="w-3.5 h-3.5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">DoorDash Sandbox</p>
+                        <p className="text-sm text-gray-500">Uses DoorDash sandbox credentials for simulated delivery quotes</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <CreditCard className="w-3.5 h-3.5 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">No Real Charges</p>
+                        <p className="text-sm text-gray-500">Orders use Stripe test mode - no real money changes hands</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <TestTube className="w-3.5 h-3.5 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Test Orders Marked</p>
+                        <p className="text-sm text-gray-500">All demo orders are prefixed with "TEST-" and visible on your dashboard</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Place Demo Test Order */}
+                {demoModeEnabled && (
+                  <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
+                    <div className="flex items-start gap-4">
+                      <Play className="w-6 h-6 text-blue-600 mt-1 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-blue-800">Place a Test Order</h3>
+                        <p className="text-sm text-blue-700 mt-1">
+                          Create a demo order to test your entire order pipeline including DoorDash delivery quotes.
+                        </p>
+                        <button
+                          onClick={handlePlaceDemoTestOrder}
+                          disabled={demoTestLoading}
+                          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+                        >
+                          {demoTestLoading ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Creating test order...
+                            </>
+                          ) : (
+                            <>
+                              <Play className="w-4 h-4" />
+                              Place Test Order
+                            </>
+                          )}
+                        </button>
+                        
+                        {/* Test Result */}
+                        {demoTestResult && (
+                          <div className={`mt-4 p-4 rounded-lg ${demoTestResult.success ? 'bg-green-100 border border-green-200' : 'bg-red-100 border border-red-200'}`}>
+                            <div className="flex items-start gap-2">
+                              {demoTestResult.success ? (
+                                <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                              ) : (
+                                <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                              )}
+                              <div>
+                                <p className={`font-medium ${demoTestResult.success ? 'text-green-800' : 'text-red-800'}`}>
+                                  {demoTestResult.message || demoTestResult.error}
+                                </p>
+                                {demoTestResult.order && (
+                                  <div className="mt-2 text-sm text-green-700">
+                                    <p>Order Number: <span className="font-mono">{demoTestResult.order.orderNumber}</span></p>
+                                    <p>Total: ${demoTestResult.order.total.toFixed(2)}</p>
+                                    {demoTestResult.doordash?.success && (
+                                      <p>DoorDash Fee: ${demoTestResult.doordash.quote.fee.toFixed(2)}</p>
+                                    )}
+                                  </div>
+                                )}
+                                {demoTestResult.nextSteps && (
+                                  <ul className="mt-2 text-sm text-gray-600 list-disc list-inside">
+                                    {demoTestResult.nextSteps.map((step: string, i: number) => (
+                                      <li key={i}>{step}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Complete Demo Test */}
+                {demoModeEnabled && demoOrderCount > 0 && (
+                  <div className="bg-green-50 rounded-xl p-6 border border-green-200">
+                    <div className="flex items-start gap-4">
+                      <CheckCircle2 className="w-6 h-6 text-green-600 mt-1 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-green-800">Ready to Go Live?</h3>
+                        <p className="text-sm text-green-700 mt-1">
+                          If you're satisfied with your testing, you can mark the demo as complete and disable demo mode.
+                        </p>
+                        <div className="flex gap-3 mt-4">
+                          <button
+                            onClick={() => handleCompleteDemoTest(true)}
+                            disabled={demoLoading}
+                            className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                          >
+                            Complete & Disable Demo Mode
+                          </button>
+                          <button
+                            onClick={() => handleCompleteDemoTest(false)}
+                            disabled={demoLoading}
+                            className="px-4 py-2 border border-green-600 text-green-700 rounded-lg text-sm font-medium hover:bg-green-100 disabled:opacity-50"
+                          >
+                            Mark Complete (Keep Demo On)
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Info about demo orders */}
+                <div className="bg-gray-50 rounded-xl p-4 border">
+                  <p className="text-sm text-gray-600">
+                    <strong>Note:</strong> Demo orders appear in your Orders dashboard with a "TEST-" prefix. 
+                    They don't affect your real order count or revenue statistics.
+                  </p>
                 </div>
               </div>
             )}

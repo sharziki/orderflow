@@ -58,15 +58,32 @@ export interface DoorDashDeliveryResponse {
 }
 
 // ============================================
+// SANDBOX CREDENTIALS (for demo mode)
+// ============================================
+
+// DoorDash provides sandbox credentials for testing
+// These are the demo/sandbox values from DoorDash documentation
+const DOORDASH_SANDBOX_CREDENTIALS: DoorDashCredentials = {
+  developerId: process.env.DOORDASH_SANDBOX_DEVELOPER_ID || '8a37f3d2-7d56-4f80-a5e6-d1e3f0a5f623',
+  keyId: process.env.DOORDASH_SANDBOX_KEY_ID || 'sandbox-key-id',
+  signingSecret: process.env.DOORDASH_SANDBOX_SIGNING_SECRET || 'c2FuZGJveC1zaWduaW5nLXNlY3JldC1rZXk=',
+}
+
+const SANDBOX_BASE_URL = 'https://openapi.doordash.com' // Same URL but sandbox creds return simulated data
+
+// ============================================
 // API HELPER (with credentials)
 // ============================================
 
 class DoorDashApiHelper {
-  private baseUrl = 'https://openapi.doordash.com'
+  private baseUrl: string
   private credentials: DoorDashCredentials
+  private isSandbox: boolean
 
-  constructor(credentials: DoorDashCredentials) {
+  constructor(credentials: DoorDashCredentials, isSandbox: boolean = false) {
     this.credentials = credentials
+    this.isSandbox = isSandbox
+    this.baseUrl = isSandbox ? SANDBOX_BASE_URL : 'https://openapi.doordash.com'
   }
 
   private base64UrlDecode(str: string): Uint8Array {
@@ -129,35 +146,77 @@ class DoorDashApiHelper {
 export class DoorDashMultiTenant {
   
   /**
-   * Get credentials for a tenant
+   * Check if tenant is in demo mode
    */
-  static async getCredentials(tenantId: string): Promise<DoorDashCredentials | null> {
+  static async isDemoMode(tenantId: string): Promise<boolean> {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { demoModeEnabled: true },
+    })
+    return tenant?.demoModeEnabled === true
+  }
+
+  /**
+   * Get credentials for a tenant (returns sandbox credentials if in demo mode)
+   */
+  static async getCredentials(tenantId: string): Promise<{ credentials: DoorDashCredentials; isDemoMode: boolean } | null> {
     const tenant = await prisma.tenant.findUnique({
       where: { id: tenantId },
       select: {
         doordashDeveloperId: true,
         doordashKeyId: true,
         doordashSigningSecret: true,
+        demoModeEnabled: true,
       },
     })
+    
+    // If demo mode is enabled, use sandbox credentials
+    if (tenant?.demoModeEnabled) {
+      return {
+        credentials: DOORDASH_SANDBOX_CREDENTIALS,
+        isDemoMode: true,
+      }
+    }
     
     if (!tenant?.doordashDeveloperId || !tenant?.doordashKeyId || !tenant?.doordashSigningSecret) {
       return null
     }
     
     return {
-      developerId: tenant.doordashDeveloperId,
-      keyId: tenant.doordashKeyId,
-      signingSecret: tenant.doordashSigningSecret,
+      credentials: {
+        developerId: tenant.doordashDeveloperId,
+        keyId: tenant.doordashKeyId,
+        signingSecret: tenant.doordashSigningSecret,
+      },
+      isDemoMode: false,
     }
   }
 
   /**
-   * Check if tenant has DoorDash configured
+   * Legacy method for backward compatibility
+   */
+  static async getCredentialsLegacy(tenantId: string): Promise<DoorDashCredentials | null> {
+    const result = await this.getCredentials(tenantId)
+    return result?.credentials || null
+  }
+
+  /**
+   * Check if tenant has DoorDash configured (includes demo mode)
    */
   static async isConfigured(tenantId: string): Promise<boolean> {
-    const creds = await this.getCredentials(tenantId)
-    return creds !== null
+    const result = await this.getCredentials(tenantId)
+    return result !== null
+  }
+
+  /**
+   * Check if tenant can use DoorDash (configured OR in demo mode)
+   */
+  static async canUseDelivery(tenantId: string): Promise<{ available: boolean; isDemoMode: boolean }> {
+    const result = await this.getCredentials(tenantId)
+    return {
+      available: result !== null,
+      isDemoMode: result?.isDemoMode || false,
+    }
   }
 
   /**
@@ -166,12 +225,19 @@ export class DoorDashMultiTenant {
   static async createQuote(
     tenantId: string,
     request: DoorDashDeliveryRequest
-  ): Promise<DoorDashQuoteResponse> {
-    const creds = await this.getCredentials(tenantId)
-    if (!creds) throw new Error('DoorDash not configured for this restaurant')
+  ): Promise<DoorDashQuoteResponse & { isDemoMode?: boolean }> {
+    const result = await this.getCredentials(tenantId)
+    if (!result) throw new Error('DoorDash not configured for this restaurant')
     
-    const api = new DoorDashApiHelper(creds)
-    return api.request('POST', '/drive/v2/quotes', request)
+    const api = new DoorDashApiHelper(result.credentials, result.isDemoMode)
+    
+    // In demo mode, prefix the external_delivery_id
+    if (result.isDemoMode) {
+      request = { ...request, external_delivery_id: `DEMO-${request.external_delivery_id}` }
+    }
+    
+    const response = await api.request('POST', '/drive/v2/quotes', request)
+    return { ...response, isDemoMode: result.isDemoMode }
   }
 
   /**
@@ -181,12 +247,13 @@ export class DoorDashMultiTenant {
     tenantId: string,
     externalDeliveryId: string,
     params: { tip?: number } = {}
-  ): Promise<DoorDashDeliveryResponse> {
-    const creds = await this.getCredentials(tenantId)
-    if (!creds) throw new Error('DoorDash not configured for this restaurant')
+  ): Promise<DoorDashDeliveryResponse & { isDemoMode?: boolean }> {
+    const result = await this.getCredentials(tenantId)
+    if (!result) throw new Error('DoorDash not configured for this restaurant')
     
-    const api = new DoorDashApiHelper(creds)
-    return api.request('POST', `/drive/v2/quotes/${encodeURIComponent(externalDeliveryId)}/accept`, params)
+    const api = new DoorDashApiHelper(result.credentials, result.isDemoMode)
+    const response = await api.request('POST', `/drive/v2/quotes/${encodeURIComponent(externalDeliveryId)}/accept`, params)
+    return { ...response, isDemoMode: result.isDemoMode }
   }
 
   /**
@@ -195,12 +262,13 @@ export class DoorDashMultiTenant {
   static async getDeliveryStatus(
     tenantId: string,
     deliveryId: string
-  ): Promise<DoorDashDeliveryResponse> {
-    const creds = await this.getCredentials(tenantId)
-    if (!creds) throw new Error('DoorDash not configured for this restaurant')
+  ): Promise<DoorDashDeliveryResponse & { isDemoMode?: boolean }> {
+    const result = await this.getCredentials(tenantId)
+    if (!result) throw new Error('DoorDash not configured for this restaurant')
     
-    const api = new DoorDashApiHelper(creds)
-    return api.request('GET', `/drive/v2/deliveries/${deliveryId}`)
+    const api = new DoorDashApiHelper(result.credentials, result.isDemoMode)
+    const response = await api.request('GET', `/drive/v2/deliveries/${deliveryId}`)
+    return { ...response, isDemoMode: result.isDemoMode }
   }
 
   /**
@@ -210,10 +278,10 @@ export class DoorDashMultiTenant {
     tenantId: string,
     deliveryId: string
   ): Promise<void> {
-    const creds = await this.getCredentials(tenantId)
-    if (!creds) throw new Error('DoorDash not configured for this restaurant')
+    const result = await this.getCredentials(tenantId)
+    if (!result) throw new Error('DoorDash not configured for this restaurant')
     
-    const api = new DoorDashApiHelper(creds)
+    const api = new DoorDashApiHelper(result.credentials, result.isDemoMode)
     await api.request('PUT', `/drive/v2/deliveries/${deliveryId}/cancel`, {})
   }
 
@@ -225,6 +293,7 @@ export class DoorDashMultiTenant {
     deliveryId?: string
     fee?: number
     error?: string
+    isDemoMode?: boolean
   }> {
     // Get order with tenant info
     const order = await prisma.order.findUnique({
@@ -243,6 +312,7 @@ export class DoorDashMultiTenant {
             doordashDeveloperId: true,
             doordashKeyId: true,
             doordashSigningSecret: true,
+            demoModeEnabled: true,
           },
         },
       },
@@ -261,7 +331,10 @@ export class DoorDashMultiTenant {
     }
 
     const tenant = order.tenant
-    if (!tenant.doordashDeveloperId || !tenant.doordashKeyId || !tenant.doordashSigningSecret) {
+    const isDemoMode = tenant.demoModeEnabled === true
+    
+    // Check if DoorDash is configured (or demo mode is enabled)
+    if (!isDemoMode && (!tenant.doordashDeveloperId || !tenant.doordashKeyId || !tenant.doordashSigningSecret)) {
       return { success: false, error: 'DoorDash not configured for this restaurant' }
     }
 
@@ -327,22 +400,59 @@ export class DoorDashMultiTenant {
         order.deliveryAddress
       )
 
+      // If demo mode, increment demo order count
+      if (isDemoMode) {
+        await prisma.tenant.update({
+          where: { id: tenant.id },
+          data: { demoOrderCount: { increment: 1 } },
+        })
+      }
+
       return {
         success: true,
         deliveryId: delivery.delivery_id,
         fee: quote.fee / 100,
+        isDemoMode,
       }
     } catch (error: any) {
       logger.error('doordash_delivery_failed', {
         orderId,
         tenantId: tenant.id,
         error: error.message,
+        isDemoMode,
       })
       return {
         success: false,
         error: error.response?.data?.message || error.message || 'Failed to create delivery',
+        isDemoMode,
       }
     }
+  }
+
+  /**
+   * Complete a demo test and optionally disable demo mode
+   */
+  static async completeDemoTest(tenantId: string, autoDisable: boolean = false): Promise<void> {
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        demoModeCompletedAt: new Date(),
+        ...(autoDisable && { demoModeEnabled: false }),
+      },
+    })
+  }
+
+  /**
+   * Enable or disable demo mode for a tenant
+   */
+  static async setDemoMode(tenantId: string, enabled: boolean): Promise<void> {
+    await prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        demoModeEnabled: enabled,
+        ...(enabled && { demoOrderCount: 0, demoModeCompletedAt: null }),
+      },
+    })
   }
 }
 

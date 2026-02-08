@@ -72,16 +72,32 @@ model Tenant {
   doordashSigningSecret String?
   pickupInstructions    String?
   
+  // Demo Mode (for testing delivery orders)
+  demoModeEnabled       Boolean   @default(false)
+  demoModeCompletedAt   DateTime? // When a successful test order was completed
+  demoOrderCount        Int       @default(0) // Number of demo orders placed
+  
   // Twilio (SMS)
   twilioAccountSid      String?
   twilioAuthToken       String?
   twilioPhoneNumber     String?
   smsNotificationsEnabled Boolean @default(false)
   
+  // Go High Level (CRM)
+  ghlApiKey             String?
+  ghlLocationId         String?
+  
   // Loyalty Settings
   loyaltyPointsPerDollar Int      @default(1)
   loyaltyPointsRedemptionRate Int @default(100) // 100 points = $5
   loyaltyRedemptionValue Float   @default(5)
+  
+  // Custom CTA Banner
+  ctaEnabled            Boolean   @default(false)
+  ctaText               String?   // e.g., "Fresh Fish Market Now Open!"
+  ctaSubtext            String?   // e.g., "Premium seafood delivered daily"
+  ctaLink               String?   // e.g., "/fish-market" or external URL
+  ctaButtonText         String?   // e.g., "Shop Now"
   
   // Status
   isActive              Boolean   @default(true)
@@ -91,6 +107,7 @@ model Tenant {
   
   // Relations
   users                 User[]
+  menus                 Menu[]
   categories            Category[]
   menuItems             MenuItem[]
   modifierGroups        ModifierGroup[]
@@ -184,12 +201,40 @@ model Customer {
 }
 
 // ============================================
+// MENU (Multiple menus per tenant - e.g., Dine In, Takeout, Catering)
+// ============================================
+model Menu {
+  id          String    @id @default(cuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  name        String    // e.g., "Dine In", "Takeout", "Catering", "Fresh Fish Market"
+  description String?
+  icon        String?   // Lucide icon name or emoji
+  isActive    Boolean   @default(true)
+  isDefault   Boolean   @default(false) // Default menu to show
+  sortOrder   Int       @default(0)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  categories  Category[]
+  
+  @@index([tenantId])
+  @@index([tenantId, sortOrder])
+}
+
+// ============================================
 // MENU CATEGORY
 // ============================================
 model Category {
   id          String    @id @default(cuid())
   tenantId    String
   tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Link to a Menu (optional for backwards compatibility)
+  menuId      String?
+  menu        Menu?     @relation(fields: [menuId], references: [id], onDelete: SetNull)
   
   name        String
   description String?
@@ -208,6 +253,7 @@ model Category {
   menuItems   MenuItem[]
   
   @@index([tenantId])
+  @@index([menuId])
   @@index([tenantId, sortOrder])
 }
 
@@ -225,6 +271,7 @@ model MenuItem {
   description String?
   price       Float
   image       String?
+  images      String[]  @default([]) // Multiple images for hover animations
   
   // Variants (e.g., Small/Medium/Large as primary selector)
   variants    Json?     // [{ name: "Small", price: 12.99 }, { name: "Large", price: 16.99 }]
