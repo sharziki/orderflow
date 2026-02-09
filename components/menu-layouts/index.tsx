@@ -6,7 +6,6 @@ import SliceLayout from './SliceLayout'
 import MinimalLayout from './MinimalLayout'
 import GridCompactLayout from './GridCompactLayout'
 import ClassicLayout from './ClassicLayout'
-import DarkModeLayout from './DarkModeLayout'
 
 // Layout metadata for the picker UI
 export const MENU_LAYOUTS = {
@@ -49,14 +48,6 @@ export const MENU_LAYOUTS = {
     thumbnail: '🍷',
     features: ['Serif fonts', 'Elegant dividers', 'Traditional feel'],
     recommended: ['Fine dining', 'Wine bars', 'Upscale'],
-  },
-  'dark-mode': {
-    id: 'dark-mode',
-    name: 'Dark Mode',
-    description: 'Modern dark theme with gradient accents',
-    thumbnail: '🌙',
-    features: ['Dark theme', 'Gradient accents', 'Premium feel'],
-    recommended: ['Nightlife', 'Cocktail bars', 'Premium brands'],
   },
 } as const
 
@@ -159,8 +150,6 @@ export function MenuLayoutRenderer({
       return <GridCompactLayout {...commonProps} />
     case 'classic':
       return <ClassicLayout {...commonProps} />
-    case 'dark-mode':
-      return <DarkModeLayout {...commonProps} />
     default:
       return <BluBentonvilleLayout {...commonProps} />
   }
@@ -210,4 +199,4 @@ export function LayoutPicker({ selected, onSelect, primaryColor = '#2563eb' }: L
   )
 }
 
-export { BluBentonvilleLayout, SliceLayout, MinimalLayout, GridCompactLayout, ClassicLayout, DarkModeLayout }
+export { BluBentonvilleLayout, SliceLayout, MinimalLayout, GridCompactLayout, ClassicLayout }
