@@ -101,14 +101,14 @@ export function BluBentonvilleTemplate({
   }
 
   return (
-    <div className="min-h-screen bg-[#0c0c0c]">
+    <div className="min-h-screen bg-gray-50">
       {/* Hero Header */}
       <header className="relative">
-        {/* Background gradient - Derby Digital style */}
+        {/* Background gradient - Light theme */}
         <div 
           className="absolute inset-0 h-64"
           style={{ 
-            background: `linear-gradient(135deg, ${primaryColor} 0%, #4C75FF 50%, #0c0c0c 100%)` 
+            background: `linear-gradient(135deg, ${primaryColor} 0%, #4C75FF 100%)` 
           }}
         />
         
@@ -259,7 +259,7 @@ export function BluBentonvilleTemplate({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search menu..."
-                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-[#1c1c1c] text-white placeholder:text-gray-500 border border-[#333] focus:border-[#1a4fff] focus:ring-2 focus:ring-[#1a4fff]/20 focus:outline-none"
+                  className="w-full pl-12 pr-4 py-3 rounded-xl bg-white text-gray-900 placeholder:text-gray-400 border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none shadow-sm"
                 />
               </div>
             </div>
@@ -267,7 +267,7 @@ export function BluBentonvilleTemplate({
             {/* Sticky Category Nav */}
             <div 
               ref={navRef}
-              className="sticky top-0 bg-[#0c0c0c] z-20 -mx-4 px-4 py-3 border-b border-[#1c1c1c]"
+              className="sticky top-0 bg-white z-20 -mx-4 px-4 py-3 border-b border-gray-200 shadow-sm"
             >
               <div className="flex gap-2 overflow-x-auto no-scrollbar">
                 {categories.map((cat) => (
@@ -277,7 +277,7 @@ export function BluBentonvilleTemplate({
                     className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                       activeCategory === cat.id
                         ? 'text-white shadow-lg'
-                        : 'bg-[#1c1c1c] text-gray-400 hover:bg-[#232323] hover:text-white border border-[#333]'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
                     }`}
                     style={activeCategory === cat.id ? { backgroundColor: primaryColor } : {}}
                   >
@@ -294,9 +294,9 @@ export function BluBentonvilleTemplate({
                   key={category.id}
                   ref={(el) => { categoryRefs.current[category.id] = el }}
                 >
-                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">{category.name}</h2>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-1">{category.name}</h2>
                   {category.description && (
-                    <p className="text-gray-400 text-sm sm:text-base mb-4">{category.description}</p>
+                    <p className="text-gray-600 text-sm sm:text-base mb-4">{category.description}</p>
                   )}
                   {!category.description && <div className="mb-4" />}
                   
@@ -314,7 +314,7 @@ export function BluBentonvilleTemplate({
                         <div
                           key={item.id}
                           onClick={() => onOpenItemModal?.(item)}
-                          className="bg-[#1c1c1c] rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl hover:shadow-[#1a4fff]/10 transition-all duration-300 border border-[#333] hover:border-[#1a4fff] cursor-pointer group flex flex-col sm:flex-row"
+                          className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-gray-200 hover:border-blue-400 cursor-pointer group flex flex-col sm:flex-row"
                         >
                           {/* Image */}
                           {allImages.length > 0 && (
@@ -339,15 +339,16 @@ export function BluBentonvilleTemplate({
                           {/* Content */}
                           <div className="flex-1 p-3 sm:p-4 flex flex-col">
                             <div className="flex-1">
-                              <h3 className="font-semibold text-white text-sm sm:text-base mb-0.5 sm:mb-1 line-clamp-2">{item.name}</h3>
+                              <h3 className="font-semibold text-gray-900 text-sm sm:text-base mb-0.5 sm:mb-1 line-clamp-2">{item.name}</h3>
                               {item.description && (
-                                <p className="text-xs sm:text-sm text-gray-400 line-clamp-2 hidden sm:block">{item.description}</p>
+                                <p className="text-xs sm:text-sm text-gray-500 line-clamp-2 hidden sm:block">{item.description}</p>
                               )}
                             </div>
                             
                             <div className="flex items-center justify-between mt-2 sm:mt-3">
                               <span 
-                                className="font-bold text-base sm:text-lg text-[#9eff3e]"
+                                className="font-bold text-base sm:text-lg"
+                                style={{ color: primaryColor }}
                               >
                                 ${item.price.toFixed(2)}
                               </span>
@@ -373,7 +374,7 @@ export function BluBentonvilleTemplate({
 
           {/* Desktop Cart Sidebar */}
           <div className="hidden lg:block w-96 flex-shrink-0">
-            <div className="sticky top-20 bg-[#1c1c1c] rounded-2xl shadow-2xl border border-[#333] overflow-hidden">
+            <div className="sticky top-20 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
               <div 
                 className="p-4 text-white"
                 style={{ background: `linear-gradient(135deg, ${primaryColor} 0%, #4C75FF 100%)` }}
@@ -389,12 +390,12 @@ export function BluBentonvilleTemplate({
                 </div>
               </div>
               
-              <div className="max-h-96 overflow-y-auto scrollbar-dark">
+              <div className="max-h-96 overflow-y-auto">
                 {cart.length === 0 ? (
-                  <div className="p-8 text-center text-gray-400">
-                    <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-gray-600" />
+                  <div className="p-8 text-center text-gray-500">
+                    <ShoppingCart className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                     <p>Your cart is empty</p>
-                    <p className="text-sm mt-1 text-gray-500">Add items to get started</p>
+                    <p className="text-sm mt-1 text-gray-400">Add items to get started</p>
                   </div>
                 ) : (
                   <div className="p-4 space-y-3">
@@ -406,41 +407,41 @@ export function BluBentonvilleTemplate({
                       return (
                         <div 
                           key={`${item.menuItem.id}-${index}`} 
-                          className="flex items-start gap-3 cursor-pointer hover:bg-[#232323] p-2 -m-2 rounded-xl transition-colors"
+                          className="flex items-start gap-3 cursor-pointer hover:bg-gray-50 p-2 -m-2 rounded-xl transition-colors"
                           onClick={() => onEditCartItem?.(item, index)}
                         >
-                          <div className="flex items-center gap-1 bg-[#0c0c0c] rounded-lg p-1 border border-[#333]" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 border border-gray-200" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={() => updateQuantity(item.menuItem.id, -1)}
-                              className="w-6 h-6 rounded-md bg-[#232323] flex items-center justify-center text-gray-400 hover:bg-[#333] hover:text-white"
+                              className="w-6 h-6 rounded-md bg-white flex items-center justify-center text-gray-500 hover:bg-gray-200 hover:text-gray-700"
                             >
                               <Minus className="w-3 h-3" />
                             </button>
-                            <span className="w-5 text-center text-sm font-medium text-white">{item.quantity}</span>
+                            <span className="w-5 text-center text-sm font-medium text-gray-900">{item.quantity}</span>
                             <button
                               onClick={() => updateQuantity(item.menuItem.id, 1)}
-                              className="w-6 h-6 rounded-md bg-[#232323] flex items-center justify-center text-gray-400 hover:bg-[#333] hover:text-white"
+                              className="w-6 h-6 rounded-md bg-white flex items-center justify-center text-gray-500 hover:bg-gray-200 hover:text-gray-700"
                             >
                               <Plus className="w-3 h-3" />
                             </button>
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-white truncate">{item.menuItem.name}</p>
+                            <p className="font-medium text-gray-900 truncate">{item.menuItem.name}</p>
                             {item.selectedModifiers && item.selectedModifiers.length > 0 && (
-                              <p className="text-xs text-gray-400 truncate">
+                              <p className="text-xs text-gray-500 truncate">
                                 {item.selectedModifiers.map(m => m.optionName).join(', ')}
                               </p>
                             )}
                             {item.specialRequests && (
-                              <p className="text-xs text-gray-500 italic truncate">{item.specialRequests}</p>
+                              <p className="text-xs text-gray-400 italic truncate">{item.specialRequests}</p>
                             )}
                           </div>
-                          <span className="font-semibold text-[#9eff3e]">
+                          <span className="font-semibold" style={{ color: primaryColor }}>
                             ${totalPrice.toFixed(2)}
                           </span>
                           <button
                             onClick={(e) => { e.stopPropagation(); removeFromCart(item.menuItem.id); }}
-                            className="w-6 h-6 rounded-full flex items-center justify-center text-gray-500 hover:text-red-400 hover:bg-red-500/10"
+                            className="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -452,10 +453,10 @@ export function BluBentonvilleTemplate({
               </div>
               
               {cart.length > 0 && (
-                <div className="border-t border-[#333] p-4">
-                  <div className="flex justify-between text-lg font-bold mb-4 text-white">
+                <div className="border-t border-gray-200 p-4">
+                  <div className="flex justify-between text-lg font-bold mb-4 text-gray-900">
                     <span>Subtotal</span>
-                    <span className="text-[#9eff3e]">${cartTotal.toFixed(2)}</span>
+                    <span style={{ color: primaryColor }}>${cartTotal.toFixed(2)}</span>
                   </div>
                   <button
                     onClick={goToCheckout}
@@ -485,7 +486,7 @@ export function BluBentonvilleTemplate({
               </div>
               <span>{cartCount} item{cartCount !== 1 ? 's' : ''}</span>
             </div>
-            <span className="text-lg text-[#9eff3e]">${cartTotal.toFixed(2)}</span>
+            <span className="text-lg font-bold">${cartTotal.toFixed(2)}</span>
           </button>
         </div>
       )}
