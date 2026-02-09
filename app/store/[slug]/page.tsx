@@ -17,6 +17,8 @@ import {
   BluOriginalTemplate,
 } from '@/components/store-templates'
 import ItemOptionsModal from '@/components/ItemOptionsModal'
+import RecentOrdersModal from '@/components/RecentOrdersModal'
+import PhoneLookupModal from '@/components/PhoneLookupModal'
 
 export default function StorePage() {
   const params = useParams()
@@ -42,6 +44,11 @@ export default function StorePage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCartIndex, setEditingCartIndex] = useState<number | null>(null)
   const [editingCartItem, setEditingCartItem] = useState<CartItem | null>(null)
+  
+  // Recent orders modal state
+  const [showPhoneLookup, setShowPhoneLookup] = useState(false)
+  const [showRecentOrders, setShowRecentOrders] = useState(false)
+  const [customerPhone, setCustomerPhone] = useState<string>('')
   
   const categoryRefs = useRef<Record<string, HTMLDivElement | null>>({})
   const navRef = useRef<HTMLDivElement>(null)
@@ -193,6 +200,46 @@ export default function StorePage() {
   // It clears on page refresh for a fresh start each visit
   // Only saved when going to checkout
 
+  // Recent orders functionality
+  const openRecentOrders = () => {
+    // Check if we have a saved phone number
+    const savedPhone = localStorage.getItem(`customerPhone_${slug}`)
+    if (savedPhone) {
+      setCustomerPhone(savedPhone)
+      setShowRecentOrders(true)
+    } else {
+      setShowPhoneLookup(true)
+    }
+  }
+
+  const handlePhoneLookup = (phone: string) => {
+    setCustomerPhone(phone)
+    localStorage.setItem(`customerPhone_${slug}`, phone)
+    setShowPhoneLookup(false)
+    setShowRecentOrders(true)
+  }
+
+  const handleReorder = async (items: any[]) => {
+    // Add reorder items to cart
+    for (const item of items) {
+      // Fetch the current menu item to ensure it's still available
+      const menuItem = categories
+        .flatMap(cat => cat.menuItems)
+        .find(mi => mi.id === item.menuItemId)
+      
+      if (menuItem) {
+        const modifiers: SelectedModifier[] = (item.options || []).map((opt: any) => ({
+          groupId: opt.groupId || '',
+          groupName: opt.groupName || opt.optionGroupName || '',
+          optionName: opt.optionName || '',
+          price: opt.price || 0
+        }))
+        addToCart(menuItem, item.quantity, modifiers, item.specialRequests || '')
+      }
+    }
+    setCartOpen(true)
+  }
+
   const goToCheckout = () => {
     localStorage.setItem(`cart_${slug}`, JSON.stringify(cart))
     localStorage.setItem(`orderType_${slug}`, orderType)
@@ -250,6 +297,7 @@ export default function StorePage() {
     navRef,
     onOpenItemModal: openItemModal,
     onEditCartItem: editCartItem,
+    onOpenRecentOrders: openRecentOrders,
   }
 
   // Render appropriate template based on layoutOverride, store.menuLayout, or store.template
@@ -300,6 +348,24 @@ export default function StorePage() {
           primaryColor={store.primaryColor}
         />
       )}
+
+      {/* Phone Lookup Modal - Enter phone to view orders */}
+      <PhoneLookupModal
+        isOpen={showPhoneLookup}
+        onClose={() => setShowPhoneLookup(false)}
+        onSubmit={handlePhoneLookup}
+        primaryColor={store.primaryColor}
+      />
+
+      {/* Recent Orders Modal */}
+      <RecentOrdersModal
+        isOpen={showRecentOrders}
+        onClose={() => setShowRecentOrders(false)}
+        tenantSlug={slug}
+        customerPhone={customerPhone}
+        primaryColor={store.primaryColor}
+        onReorder={handleReorder}
+      />
     </>
   )
 }

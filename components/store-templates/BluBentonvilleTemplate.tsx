@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Search,
   Truck,
-  Store as StoreIcon
+  Store as StoreIcon,
+  History
 } from 'lucide-react'
 import { StoreTemplateProps } from './types'
 import AddressPicker from '@/components/AddressPicker'
@@ -43,6 +44,7 @@ export function BluBentonvilleTemplate({
   navRef,
   onOpenItemModal,
   onEditCartItem,
+  onOpenRecentOrders,
 }: StoreTemplateProps) {
   const [deliveryAddress, setDeliveryAddress] = useState('')
   const [deliveryLat, setDeliveryLat] = useState<number>()
@@ -162,6 +164,15 @@ export function BluBentonvilleTemplate({
                       <span className="w-2 h-2 bg-red-400 rounded-full" />
                       Closed
                     </span>
+                  )}
+                  {onOpenRecentOrders && (
+                    <button
+                      onClick={onOpenRecentOrders}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 text-white/90 rounded-full text-sm font-medium transition-colors"
+                    >
+                      <History className="w-3.5 h-3.5" />
+                      Recent Orders
+                    </button>
                   )}
                 </div>
               </div>

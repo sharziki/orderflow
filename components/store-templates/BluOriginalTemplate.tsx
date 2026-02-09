@@ -228,6 +228,7 @@ export function BluOriginalTemplate({
   navRef,
   onOpenItemModal,
   onEditCartItem,
+  onOpenRecentOrders,
 }: StoreTemplateProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('All')
@@ -390,6 +391,7 @@ export function BluOriginalTemplate({
             onOrderTypeChange={handleOrderTypeChange}
             deliveryAddress={deliveryAddress}
             onEditDeliveryAddress={() => setShowDeliveryModal(true)}
+            onOpenRecentOrders={onOpenRecentOrders}
           />
         </div>
 
