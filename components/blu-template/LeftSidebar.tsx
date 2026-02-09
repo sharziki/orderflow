@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, X, Store, Truck, SlidersHorizontal, MapPin, Edit2, Clock, Phone, History } from 'lucide-react'
+import { Search, X, Store, Truck, SlidersHorizontal, MapPin, Edit2, Clock, Phone } from 'lucide-react'
 
 interface StoreInfo {
   name: string
@@ -28,7 +28,6 @@ interface LeftSidebarProps {
   onOrderTypeChange: (type: 'pickup' | 'delivery') => void
   deliveryAddress?: string
   onEditDeliveryAddress?: () => void
-  onOpenRecentOrders?: () => void
 }
 
 export default function LeftSidebar({
@@ -43,8 +42,7 @@ export default function LeftSidebar({
   orderType,
   onOrderTypeChange,
   deliveryAddress,
-  onEditDeliveryAddress,
-  onOpenRecentOrders
+  onEditDeliveryAddress
 }: LeftSidebarProps) {
   return (
     <aside className="w-80 bg-[#0c0c0c] border-r border-[#1c1c1c] h-full overflow-y-auto scrollbar-dark">
@@ -225,19 +223,6 @@ export default function LeftSidebar({
             })}
           </nav>
         </div>
-
-        {/* Recent Orders Button */}
-        {onOpenRecentOrders && (
-          <div className="pt-4 border-t border-[#232323]">
-            <button
-              onClick={onOpenRecentOrders}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-400 hover:text-white hover:bg-[#1c1c1c] transition-all duration-200"
-            >
-              <History className="h-4 w-4" />
-              Recent Orders
-            </button>
-          </div>
-        )}
       </div>
     </aside>
   )

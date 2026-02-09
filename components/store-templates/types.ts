@@ -104,5 +104,4 @@ export interface StoreTemplateProps {
   navRef: React.RefObject<HTMLDivElement>
   onOpenItemModal?: (item: MenuItem) => void
   onEditCartItem?: (cartItem: CartItem, index: number) => void
-  onOpenRecentOrders?: () => void
 }

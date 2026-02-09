@@ -1,6 +1,6 @@
 'use client'
 
-import { ShoppingCart, Plus, Minus, X, Clock, MapPin, Phone, ChevronRight, History } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, Clock, MapPin, Phone, ChevronRight } from 'lucide-react'
 import { StoreTemplateProps } from './types'
 import { HoverImageGallery } from './HoverImageGallery'
 
@@ -23,7 +23,6 @@ export function ModernTemplate({
   navRef,
   onOpenItemModal,
   onEditCartItem,
-  onOpenRecentOrders,
 }: StoreTemplateProps) {
   // Calculate cart total including modifier prices
   const cartTotal = cart.reduce((sum, c) => {
@@ -67,15 +66,6 @@ export function ModernTemplate({
                   </span>
                 ) : (
                   <span className="text-white/60">Closed</span>
-                )}
-                {onOpenRecentOrders && (
-                  <button
-                    onClick={onOpenRecentOrders}
-                    className="flex items-center gap-1 text-white/80 hover:text-white transition-colors"
-                  >
-                    <History className="w-4 h-4" />
-                    Recent Orders
-                  </button>
                 )}
               </div>
             </div>

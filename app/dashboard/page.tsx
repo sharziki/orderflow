@@ -632,7 +632,7 @@ export default function DashboardHome() {
             <CardDescription>Manage your restaurant</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               <Link href="/dashboard/orders" className="group">
                 <div className="bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl p-4 text-center transition-all hover:shadow-md">
                   <div className="w-12 h-12 bg-blue-100 group-hover:bg-blue-200 rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors">
@@ -640,6 +640,15 @@ export default function DashboardHome() {
                   </div>
                   <p className="font-semibold text-slate-900 text-sm">Orders</p>
                   <p className="text-xs text-slate-500 mt-1">View & manage</p>
+                </div>
+              </Link>
+              <Link href="/dashboard/order-history" className="group">
+                <div className="bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl p-4 text-center transition-all hover:shadow-md">
+                  <div className="w-12 h-12 bg-indigo-100 group-hover:bg-indigo-200 rounded-xl flex items-center justify-center mx-auto mb-3 transition-colors">
+                    <Clock className="w-6 h-6 text-indigo-600" />
+                  </div>
+                  <p className="font-semibold text-slate-900 text-sm">Order History</p>
+                  <p className="text-xs text-slate-500 mt-1">Past orders</p>
                 </div>
               </Link>
               <Link href="/dashboard/menu" className="group">

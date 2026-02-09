@@ -1,6 +1,6 @@
 'use client'
 
-import { ShoppingCart, Plus, Minus, X, Clock, MapPin, Phone, ChevronRight, Star, Percent, History } from 'lucide-react'
+import { ShoppingCart, Plus, Minus, X, Clock, MapPin, Phone, ChevronRight, Star, Percent } from 'lucide-react'
 import { StoreTemplateProps } from './types'
 import { HoverImageGallery } from './HoverImageGallery'
 
@@ -23,7 +23,6 @@ export function SliceTemplate({
   navRef,
   onOpenItemModal,
   onEditCartItem,
-  onOpenRecentOrders,
 }: StoreTemplateProps) {
   // Calculate cart total including modifier prices
   const cartTotal = cart.reduce((sum, c) => {
@@ -91,18 +90,6 @@ export function SliceTemplate({
                 <span className={`font-medium ${store.isOpen ? 'text-green-600' : 'text-red-500'}`}>
                   {store.isOpen ? 'Open' : 'Closed'}
                 </span>
-                {onOpenRecentOrders && (
-                  <>
-                    <span className="text-slate-300">•</span>
-                    <button
-                      onClick={onOpenRecentOrders}
-                      className="flex items-center gap-1 text-slate-500 hover:text-slate-700 transition-colors"
-                    >
-                      <History className="w-4 h-4" />
-                      Recent Orders
-                    </button>
-                  </>
-                )}
                 {store.address && (
                   <>
                     <span className="text-slate-300">•</span>
