@@ -36,6 +36,11 @@ interface GridCompactLayoutProps {
   cart: { id: string; qty: number }[]
   onAddToCart: (id: string) => void
   onRemoveFromCart: (id: string) => void
+  ctaEnabled?: boolean
+  ctaText?: string | null
+  ctaSubtext?: string | null
+  ctaLink?: string | null
+  ctaButtonText?: string | null
 }
 
 export default function GridCompactLayout({
@@ -48,7 +53,12 @@ export default function GridCompactLayout({
   categories,
   cart,
   onAddToCart,
-  onRemoveFromCart
+  onRemoveFromCart,
+  ctaEnabled,
+  ctaText,
+  ctaSubtext,
+  ctaLink,
+  ctaButtonText
 }: GridCompactLayoutProps) {
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id || '')
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
@@ -110,6 +120,35 @@ export default function GridCompactLayout({
           </div>
         </div>
       </header>
+
+      {/* CTA Banner */}
+      {ctaEnabled && ctaText && (
+        <div className="bg-white px-3 py-2 border-b">
+          <div 
+            className="flex items-center justify-between gap-2 p-3 rounded-xl text-white"
+            style={{ backgroundColor: primaryColor }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-lg flex-shrink-0">✨</span>
+              <div className="min-w-0">
+                <h3 className="font-bold text-sm truncate">{ctaText}</h3>
+                {ctaSubtext && <p className="text-xs text-white/80 truncate">{ctaSubtext}</p>}
+              </div>
+            </div>
+            {ctaLink && (
+              <a
+                href={ctaLink}
+                target={ctaLink.startsWith('http') ? '_blank' : undefined}
+                rel={ctaLink.startsWith('http') ? 'noopener noreferrer' : undefined}
+                className="px-3 py-1.5 bg-white rounded-full font-semibold text-xs shadow flex-shrink-0"
+                style={{ color: primaryColor }}
+              >
+                {ctaButtonText || 'Learn More'}
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Scrollable Category Chips */}
       <div className="sticky top-[72px] z-10 bg-white shadow-sm">

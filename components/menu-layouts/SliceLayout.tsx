@@ -36,6 +36,11 @@ interface SliceLayoutProps {
   cart: { id: string; qty: number }[]
   onAddToCart: (id: string) => void
   onRemoveFromCart: (id: string) => void
+  ctaEnabled?: boolean
+  ctaText?: string | null
+  ctaSubtext?: string | null
+  ctaLink?: string | null
+  ctaButtonText?: string | null
 }
 
 function CategorySection({
@@ -175,7 +180,12 @@ export default function SliceLayout({
   categories,
   cart,
   onAddToCart,
-  onRemoveFromCart
+  onRemoveFromCart,
+  ctaEnabled,
+  ctaText,
+  ctaSubtext,
+  ctaLink,
+  ctaButtonText
 }: SliceLayoutProps) {
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
   const cartTotal = cart.reduce((sum, cartItem) => {
@@ -260,6 +270,39 @@ export default function SliceLayout({
           </div>
         </div>
       </div>
+
+      {/* CTA Banner */}
+      {ctaEnabled && ctaText && (
+        <div 
+          className="bg-white border-b"
+        >
+          <div className="max-w-4xl mx-auto px-4 py-3">
+            <div 
+              className="flex flex-col sm:flex-row items-center justify-between gap-2 p-3 rounded-lg text-white"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <div className="flex items-center gap-2 text-center sm:text-left">
+                <span className="text-xl">✨</span>
+                <div>
+                  <h3 className="font-bold">{ctaText}</h3>
+                  {ctaSubtext && <p className="text-sm text-white/80">{ctaSubtext}</p>}
+                </div>
+              </div>
+              {ctaLink && (
+                <a
+                  href={ctaLink}
+                  target={ctaLink.startsWith('http') ? '_blank' : undefined}
+                  rel={ctaLink.startsWith('http') ? 'noopener noreferrer' : undefined}
+                  className="px-4 py-1.5 bg-white rounded-full font-semibold text-sm shadow hover:shadow-md transition-all whitespace-nowrap"
+                  style={{ color: primaryColor }}
+                >
+                  {ctaButtonText || 'Learn More'}
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Category Nav */}
       <div className="sticky top-[73px] z-10 bg-white border-b">

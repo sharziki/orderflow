@@ -37,6 +37,11 @@ interface BluBentonvilleLayoutProps {
   cart: { id: string; qty: number }[]
   onAddToCart: (id: string) => void
   onRemoveFromCart: (id: string) => void
+  ctaEnabled?: boolean
+  ctaText?: string | null
+  ctaSubtext?: string | null
+  ctaLink?: string | null
+  ctaButtonText?: string | null
 }
 
 // Item-specific hover images based on keywords in the name
@@ -210,7 +215,12 @@ export default function BluBentonvilleLayout({
   categories,
   cart,
   onAddToCart,
-  onRemoveFromCart
+  onRemoveFromCart,
+  ctaEnabled,
+  ctaText,
+  ctaSubtext,
+  ctaLink,
+  ctaButtonText
 }: BluBentonvilleLayoutProps) {
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id || '')
   const filteredItems = menuItems.filter(item => item.available && item.category === activeCategory)
@@ -286,6 +296,37 @@ export default function BluBentonvilleLayout({
           )}
         </div>
       </div>
+
+      {/* CTA Banner */}
+      {ctaEnabled && ctaText && (
+        <div 
+          className="text-white"
+          style={{ backgroundColor: primaryColor }}
+        >
+          <div className="max-w-7xl mx-auto px-4 py-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-3 text-center sm:text-left">
+                <span className="text-2xl">✨</span>
+                <div>
+                  <h3 className="font-bold text-lg">{ctaText}</h3>
+                  {ctaSubtext && <p className="text-sm text-white/80">{ctaSubtext}</p>}
+                </div>
+              </div>
+              {ctaLink && (
+                <a
+                  href={ctaLink}
+                  target={ctaLink.startsWith('http') ? '_blank' : undefined}
+                  rel={ctaLink.startsWith('http') ? 'noopener noreferrer' : undefined}
+                  className="px-5 py-2 bg-white rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all whitespace-nowrap"
+                  style={{ color: primaryColor }}
+                >
+                  {ctaButtonText || 'Learn More'}
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Category Pills */}
       <div className="sticky top-[72px] z-10 bg-white border-b">

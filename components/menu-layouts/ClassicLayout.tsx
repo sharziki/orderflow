@@ -36,6 +36,11 @@ interface ClassicLayoutProps {
   cart: { id: string; qty: number }[]
   onAddToCart: (id: string) => void
   onRemoveFromCart: (id: string) => void
+  ctaEnabled?: boolean
+  ctaText?: string | null
+  ctaSubtext?: string | null
+  ctaLink?: string | null
+  ctaButtonText?: string | null
 }
 
 export default function ClassicLayout({
@@ -48,7 +53,12 @@ export default function ClassicLayout({
   categories,
   cart,
   onAddToCart,
-  onRemoveFromCart
+  onRemoveFromCart,
+  ctaEnabled,
+  ctaText,
+  ctaSubtext,
+  ctaLink,
+  ctaButtonText
 }: ClassicLayoutProps) {
   const cartCount = cart.reduce((sum, item) => sum + item.qty, 0)
   const cartTotal = cart.reduce((sum, cartItem) => {
@@ -109,6 +119,37 @@ export default function ClassicLayout({
           </div>
         </div>
       </header>
+
+      {/* CTA Banner */}
+      {ctaEnabled && ctaText && (
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-4xl mx-auto px-6 py-3">
+            <div 
+              className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-lg text-white"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <div className="flex items-center gap-3 text-center sm:text-left">
+                <span className="text-xl">✨</span>
+                <div>
+                  <h3 className="font-serif font-medium">{ctaText}</h3>
+                  {ctaSubtext && <p className="text-sm text-white/80">{ctaSubtext}</p>}
+                </div>
+              </div>
+              {ctaLink && (
+                <a
+                  href={ctaLink}
+                  target={ctaLink.startsWith('http') ? '_blank' : undefined}
+                  rel={ctaLink.startsWith('http') ? 'noopener noreferrer' : undefined}
+                  className="px-5 py-2 bg-white rounded font-medium text-sm hover:shadow-md transition-all whitespace-nowrap"
+                  style={{ color: primaryColor }}
+                >
+                  {ctaButtonText || 'Learn More'}
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Menu Content */}
       <div className="max-w-4xl mx-auto px-6 py-8">

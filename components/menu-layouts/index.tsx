@@ -84,6 +84,12 @@ interface MenuLayoutRendererProps {
   menuItems: MenuItem[]
   categories: Category[]
   onAddToCart?: (id: string) => void
+  // CTA/Promo Banner
+  ctaEnabled?: boolean
+  ctaText?: string | null
+  ctaSubtext?: string | null
+  ctaLink?: string | null
+  ctaButtonText?: string | null
 }
 
 // Main renderer component that switches between layouts
@@ -96,7 +102,12 @@ export function MenuLayoutRenderer({
   secondaryColor,
   menuItems,
   categories,
-  onAddToCart
+  onAddToCart,
+  ctaEnabled,
+  ctaText,
+  ctaSubtext,
+  ctaLink,
+  ctaButtonText
 }: MenuLayoutRendererProps) {
   const [cart, setCart] = useState<{ id: string; qty: number }[]>([])
 
@@ -137,6 +148,11 @@ export function MenuLayoutRenderer({
     cart,
     onAddToCart: handleAddToCart,
     onRemoveFromCart: handleRemoveFromCart,
+    ctaEnabled,
+    ctaText,
+    ctaSubtext,
+    ctaLink,
+    ctaButtonText,
   }
 
   switch (layout) {

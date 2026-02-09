@@ -36,6 +36,11 @@ interface MinimalLayoutProps {
   cart: { id: string; qty: number }[]
   onAddToCart: (id: string) => void
   onRemoveFromCart: (id: string) => void
+  ctaEnabled?: boolean
+  ctaText?: string | null
+  ctaSubtext?: string | null
+  ctaLink?: string | null
+  ctaButtonText?: string | null
 }
 
 export default function MinimalLayout({
@@ -48,7 +53,12 @@ export default function MinimalLayout({
   categories,
   cart,
   onAddToCart,
-  onRemoveFromCart
+  onRemoveFromCart,
+  ctaEnabled,
+  ctaText,
+  ctaSubtext,
+  ctaLink,
+  ctaButtonText
 }: MinimalLayoutProps) {
   const [activeCategory, setActiveCategory] = useState(categories[0]?.id || '')
   const [searchQuery, setSearchQuery] = useState('')
@@ -113,6 +123,35 @@ export default function MinimalLayout({
               )}
               <span className="text-gray-400">·</span>
               <span>{storeHours.open} - {storeHours.close}</span>
+            </div>
+          </div>
+        )}
+
+        {/* CTA Banner */}
+        {ctaEnabled && ctaText && (
+          <div className="py-4 border-b border-gray-100">
+            <div 
+              className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-xl text-white"
+              style={{ backgroundColor: primaryColor }}
+            >
+              <div className="flex items-center gap-3 text-center sm:text-left">
+                <span className="text-xl">✨</span>
+                <div>
+                  <h3 className="font-semibold">{ctaText}</h3>
+                  {ctaSubtext && <p className="text-sm text-white/80">{ctaSubtext}</p>}
+                </div>
+              </div>
+              {ctaLink && (
+                <a
+                  href={ctaLink}
+                  target={ctaLink.startsWith('http') ? '_blank' : undefined}
+                  rel={ctaLink.startsWith('http') ? 'noopener noreferrer' : undefined}
+                  className="px-4 py-2 bg-white rounded-lg font-medium text-sm hover:shadow-md transition-all whitespace-nowrap"
+                  style={{ color: primaryColor }}
+                >
+                  {ctaButtonText || 'Learn More'}
+                </a>
+              )}
             </div>
           </div>
         )}
