@@ -84,7 +84,6 @@ const LAYOUTS = [
   { id: 'minimal', name: 'Minimal', description: 'Clean, text-focused' },
   { id: 'grid-compact', name: 'Compact Grid', description: 'Mobile-first grid' },
   { id: 'classic', name: 'Classic', description: 'Elegant traditional' },
-  { id: 'dark-mode', name: 'Dark Mode', description: 'Modern dark theme' },
 ]
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']

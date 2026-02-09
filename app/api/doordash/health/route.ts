@@ -1,14 +1,41 @@
 import { NextResponse } from 'next/server'
-import { doorDashService } from '@/lib/doordash'
+import { getSession } from '@/lib/auth'
+import { prisma } from '@/lib/db'
 
 export async function GET() {
   try {
-    // Use an obviously invalid ID to avoid creating anything
+    // Check if user is authenticated
+    const session = await getSession()
+    if (!session) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
+    
+    // Get tenant's DoorDash credentials
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: session.tenantId },
+      select: {
+        doordashDeveloperId: true,
+        doordashKeyId: true,
+        doordashSigningSecret: true,
+      },
+    })
+    
+    if (!tenant?.doordashDeveloperId || !tenant?.doordashKeyId || !tenant?.doordashSigningSecret) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'DoorDash credentials not configured' 
+      })
+    }
+    
+    // Try to import and use the DoorDash service
+    const { doorDashService } = await import('@/lib/doordash')
+    
+    // Use an obviously invalid ID to test auth without creating anything
     const fakeId = 'healthcheck_invalid_id'
     await doorDashService.getDeliveryStatus(fakeId)
 
-    // If DoorDash ever returns 200 for a bogus id (unlikely), treat as reachable
-    return NextResponse.json({ ok: true, reachable: true, note: 'Unexpected 200 for invalid id' })
+    // If DoorDash returns 200 for a bogus id (unlikely), treat as connected
+    return NextResponse.json({ success: true, message: 'DoorDash connection verified' })
   } catch (err: any) {
     // Axios-style error handling to extract HTTP details
     const status = err?.response?.status
@@ -16,15 +43,21 @@ export async function GET() {
 
     if (status === 404) {
       // 404 Not Found means: we authenticated and reached the API
-      return NextResponse.json({ ok: true, reachable: true, status, hint: 'Auth likely valid; invalid id as expected', data }, { status: 200 })
+      return NextResponse.json({ success: true, message: 'DoorDash connection verified' })
     }
 
     if (status === 401 || status === 403) {
-      return NextResponse.json({ ok: false, reachable: true, status, hint: 'Auth/signature invalid or credentials rejected', data }, { status: 200 })
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid credentials - please check your Developer ID, Key ID, and Signing Secret' 
+      })
     }
 
     // Network or unexpected errors
-    return NextResponse.json({ ok: false, reachable: false, status: status ?? null, error: err?.message ?? 'Unknown error', data }, { status: 200 })
+    return NextResponse.json({ 
+      success: false, 
+      error: err?.message || 'Failed to connect to DoorDash' 
+    })
   }
 }
 
