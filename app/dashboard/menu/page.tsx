@@ -95,6 +95,11 @@ interface Tenant {
   phone?: string | null
   address?: string | null
   businessHours?: Record<string, { open: string; close: string; closed: boolean }>
+  ctaEnabled?: boolean
+  ctaText?: string | null
+  ctaSubtext?: string | null
+  ctaLink?: string | null
+  ctaButtonText?: string | null
 }
 
 const DAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
@@ -1002,6 +1007,13 @@ function MenuEditorContent() {
   const [savingSettings, setSavingSettings] = useState(false)
   const [uploadingLogo, setUploadingLogo] = useState(false)
   const logoInputRef = useRef<HTMLInputElement>(null)
+  
+  // CTA Settings
+  const [ctaEnabled, setCtaEnabled] = useState(false)
+  const [ctaText, setCtaText] = useState('')
+  const [ctaSubtext, setCtaSubtext] = useState('')
+  const [ctaLink, setCtaLink] = useState('')
+  const [ctaButtonText, setCtaButtonText] = useState('')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -1041,6 +1053,13 @@ function MenuEditorContent() {
       setStoreLogo(t?.logo || null)
       setPrimaryColor(t?.primaryColor || '#2563eb')
       setBusinessHours(t?.businessHours || {})
+      
+      // Populate CTA settings
+      setCtaEnabled(t?.ctaEnabled || false)
+      setCtaText(t?.ctaText || '')
+      setCtaSubtext(t?.ctaSubtext || '')
+      setCtaLink(t?.ctaLink || '')
+      setCtaButtonText(t?.ctaButtonText || 'Learn More')
       
       if (!catRes.ok || !itemsRes.ok) {
         throw new Error('Failed to load menu data')
@@ -1118,7 +1137,12 @@ function MenuEditorContent() {
           phone: storePhone,
           address: storeAddress,
           primaryColor,
-          businessHours
+          businessHours,
+          ctaEnabled,
+          ctaText,
+          ctaSubtext,
+          ctaLink,
+          ctaButtonText
         })
       })
       
@@ -1653,6 +1677,88 @@ function MenuEditorContent() {
                         )
                       })}
                     </div>
+                  </div>
+
+                  {/* Custom CTA Banner */}
+                  <div className="border-t border-slate-200 pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <Label className="text-sm font-medium text-slate-700">Promo Banner</Label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={ctaEnabled}
+                          onChange={(e) => setCtaEnabled(e.target.checked)}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600"
+                        />
+                        <span className="text-sm text-slate-600">Enable</span>
+                      </label>
+                    </div>
+                    
+                    {ctaEnabled && (
+                      <div className="space-y-3 p-3 bg-slate-100 rounded-lg">
+                        <div>
+                          <Label className="text-xs text-slate-600">Headline</Label>
+                          <Input
+                            value={ctaText}
+                            onChange={(e) => setCtaText(e.target.value)}
+                            placeholder="e.g., Fresh Fish Market Now Open!"
+                            className="mt-1 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-slate-600">Subtext (optional)</Label>
+                          <Input
+                            value={ctaSubtext}
+                            onChange={(e) => setCtaSubtext(e.target.value)}
+                            placeholder="e.g., Premium seafood delivered daily"
+                            className="mt-1 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-slate-600">Link URL (optional)</Label>
+                          <Input
+                            value={ctaLink}
+                            onChange={(e) => setCtaLink(e.target.value)}
+                            placeholder="e.g., /fish-market or https://..."
+                            className="mt-1 text-sm"
+                          />
+                        </div>
+                        {ctaLink && (
+                          <div>
+                            <Label className="text-xs text-slate-600">Button Text</Label>
+                            <Input
+                              value={ctaButtonText}
+                              onChange={(e) => setCtaButtonText(e.target.value)}
+                              placeholder="e.g., Shop Now"
+                              className="mt-1 text-sm"
+                            />
+                          </div>
+                        )}
+                        
+                        {/* Preview */}
+                        {ctaText && (
+                          <div className="mt-3">
+                            <Label className="text-xs text-slate-600 mb-2 block">Preview</Label>
+                            <div 
+                              className="rounded-lg p-3 text-white"
+                              style={{ backgroundColor: primaryColor }}
+                            >
+                              <div className="flex items-center justify-between gap-4">
+                                <div>
+                                  <h4 className="font-bold text-sm">{ctaText}</h4>
+                                  {ctaSubtext && <p className="text-xs opacity-80">{ctaSubtext}</p>}
+                                </div>
+                                {ctaLink && (
+                                  <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-medium whitespace-nowrap">
+                                    {ctaButtonText || 'Learn More'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Save Button */}
