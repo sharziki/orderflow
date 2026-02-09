@@ -239,7 +239,7 @@ export function BluOriginalTemplate({
   const [deliveryCoordinates, setDeliveryCoordinates] = useState<{ lat: number; lng: number } | null>(null)
 
   const sectionRefs = useRef<{ [key: string]: HTMLDivElement | null }>({})
-  const primaryColor = store.primaryColor || '#1e3a5f'
+  const primaryColor = store.primaryColor || '#1a4fff'
 
   // Calculate cart total including modifier prices
   const cartTotal = cart.reduce((sum, c) => {

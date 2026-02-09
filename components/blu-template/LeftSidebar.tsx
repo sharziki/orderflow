@@ -45,10 +45,10 @@ export default function LeftSidebar({
   onEditDeliveryAddress
 }: LeftSidebarProps) {
   return (
-    <aside className="w-80 bg-white border-r border-gray-200 h-full overflow-y-auto scrollbar-hide">
+    <aside className="w-80 bg-[#0c0c0c] border-r border-[#1c1c1c] h-full overflow-y-auto scrollbar-dark">
       <div className="p-6 space-y-6">
         {/* Logo Section */}
-        <div className="pb-6 border-b border-gray-100">
+        <div className="pb-6 border-b border-[#232323]">
           <div className="flex items-center gap-3 mb-2">
             {store.logo ? (
               <img
@@ -72,7 +72,7 @@ export default function LeftSidebar({
                 {store.name}
               </h2>
               {store.tagline && (
-                <p className="text-xs text-gray-500">{store.tagline}</p>
+                <p className="text-xs text-gray-400">{store.tagline}</p>
               )}
             </div>
           </div>
@@ -99,7 +99,7 @@ export default function LeftSidebar({
           </div>
           
           {store.address && (
-            <p className="mt-2 text-xs text-gray-500">
+            <p className="mt-2 text-xs text-gray-400">
               <MapPin className="w-3 h-3 inline mr-1" />
               {store.address}, {store.city}, {store.state}
             </p>
@@ -108,23 +108,23 @@ export default function LeftSidebar({
 
         {/* Search Bar */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-3">
+          <label className="block text-sm font-semibold text-white mb-3">
             Search Menu
           </label>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
             <input
               type="text"
               placeholder="Search items..."
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent transition-shadow"
+              className="w-full pl-10 pr-10 py-2.5 bg-[#1c1c1c] border border-[#333] rounded-xl text-sm text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:border-transparent transition-shadow"
               style={{ '--tw-ring-color': store.primaryColor } as any}
             />
             {searchQuery && (
               <button
                 onClick={() => onSearchChange('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -134,18 +134,18 @@ export default function LeftSidebar({
 
         {/* Order Type Toggle */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-3">
+          <label className="block text-sm font-semibold text-white mb-3">
             Order Type
           </label>
-          <div className={`grid gap-2 p-1 bg-gray-100 rounded-lg ${store.deliveryEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <div className={`grid gap-2 p-1 bg-[#1c1c1c] rounded-xl border border-[#333] ${store.deliveryEnabled ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <button
               onClick={() => onOrderTypeChange('pickup')}
-              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-semibold transition-all duration-200 ${
+              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
                 orderType === 'pickup'
-                  ? 'bg-white shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-[#232323] shadow-sm text-white'
+                  : 'text-gray-400 hover:text-white'
               }`}
-              style={orderType === 'pickup' ? { color: store.primaryColor } : {}}
+              style={orderType === 'pickup' ? { borderColor: store.primaryColor, border: '1px solid' } : {}}
             >
               <Store className="h-4 w-4" />
               Pickup
@@ -153,12 +153,12 @@ export default function LeftSidebar({
             {store.deliveryEnabled && (
               <button
                 onClick={() => onOrderTypeChange('delivery')}
-                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-md text-sm font-semibold transition-all duration-200 ${
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold transition-all duration-200 ${
                   orderType === 'delivery'
-                    ? 'bg-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-[#232323] shadow-sm text-white'
+                    : 'text-gray-400 hover:text-white'
                 }`}
-                style={orderType === 'delivery' ? { color: store.primaryColor } : {}}
+                style={orderType === 'delivery' ? { borderColor: store.primaryColor, border: '1px solid' } : {}}
               >
                 <Truck className="h-4 w-4" />
                 Delivery
@@ -168,17 +168,17 @@ export default function LeftSidebar({
 
           {/* Delivery Address Display */}
           {orderType === 'delivery' && deliveryAddress && (
-            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="mt-3 p-3 bg-[#9eff3e]/10 border border-[#9eff3e]/30 rounded-xl">
               <div className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                <MapPin className="h-4 w-4 text-[#9eff3e] mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-green-900 mb-1">Delivering to:</p>
-                  <p className="text-xs text-green-700 line-clamp-2">{deliveryAddress}</p>
+                  <p className="text-xs font-medium text-[#9eff3e] mb-1">Delivering to:</p>
+                  <p className="text-xs text-gray-300 line-clamp-2">{deliveryAddress}</p>
                 </div>
                 {onEditDeliveryAddress && (
                   <button
                     onClick={onEditDeliveryAddress}
-                    className="flex-shrink-0 p-1 text-green-600 hover:text-green-800 transition-colors"
+                    className="flex-shrink-0 p-1 text-[#9eff3e] hover:text-[#9eff3e]/80 transition-colors"
                     aria-label="Edit delivery address"
                   >
                     <Edit2 className="h-3.5 w-3.5" />
@@ -191,7 +191,7 @@ export default function LeftSidebar({
 
         {/* Categories */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-3">
+          <label className="block text-sm font-semibold text-white mb-3">
             Categories
           </label>
           <nav className="space-y-1">
@@ -210,10 +210,10 @@ export default function LeftSidebar({
                       onCategoryChange(category)
                     }
                   }}
-                  className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
                     isActive
-                      ? 'text-white shadow-sm'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'text-white shadow-lg'
+                      : 'text-gray-400 hover:bg-[#1c1c1c] hover:text-white'
                   }`}
                   style={isActive ? { backgroundColor: store.primaryColor } : {}}
                 >
