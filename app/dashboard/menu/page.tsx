@@ -302,7 +302,9 @@ function EditItemModal({
   onSave,
   onDelete,
   onClose,
-  saving
+  saving,
+  onEditModifierGroup,
+  onAddModifierGroup
 }: {
   item: MenuItem | null
   categories: Category[]
@@ -311,6 +313,8 @@ function EditItemModal({
   onDelete?: (id: string) => void
   onClose: () => void
   saving: boolean
+  onEditModifierGroup?: (group: ModifierGroup) => void
+  onAddModifierGroup?: () => void
 }) {
   const isNew = !item?.id
   // Migrate legacy single image to images array
@@ -568,47 +572,65 @@ function EditItemModal({
               <div className="flex items-center justify-between mb-3">
                 <Label className="flex items-center gap-2">
                   <Settings2 className="w-4 h-4" />
-                  Modifiers
+                  Modifiers (Upcharges)
                 </Label>
-                <Link 
-                  href="/dashboard/settings?tab=modifiers" 
-                  className="text-xs text-blue-600 hover:text-blue-700"
-                >
-                  + Add Modifier Group
-                </Link>
+                {onAddModifierGroup && (
+                  <button 
+                    type="button"
+                    onClick={onAddModifierGroup}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    + Add Modifier Group
+                  </button>
+                )}
               </div>
               {modifierGroups.length === 0 ? (
                 <p className="text-xs text-slate-500 text-center py-4 bg-slate-50 rounded-lg">
-                  No modifier groups yet. Create them in Settings → Modifiers.
+                  No modifier groups yet. Click "+ Add Modifier Group" to create one.
                 </p>
               ) : (
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {modifierGroups.map(group => {
                     const isLinked = formData.modifierGroupIds.includes(group.id)
                     return (
-                      <button
+                      <div
                         key={group.id}
-                        onClick={() => toggleModifierGroup(group.id)}
-                        className={`w-full p-3 rounded-lg border text-left transition-colors ${
+                        className={`p-3 rounded-lg border transition-colors ${
                           isLinked 
                             ? 'border-blue-500 bg-blue-50' 
-                            : 'border-slate-200 hover:border-slate-300'
+                            : 'border-slate-200'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <div>
+                          <button
+                            type="button"
+                            onClick={() => toggleModifierGroup(group.id)}
+                            className="flex-1 text-left"
+                          >
                             <span className="font-medium text-sm text-slate-900">{group.name}</span>
                             <span className="ml-2 text-xs text-slate-500">
                               {group.isRequired ? 'Required' : 'Optional'}
                               {group.maxSelections && `, max ${group.maxSelections}`}
                             </span>
+                          </button>
+                          <div className="flex items-center gap-2">
+                            {onEditModifierGroup && (
+                              <button
+                                type="button"
+                                onClick={() => onEditModifierGroup(group)}
+                                className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Edit modifier group"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {isLinked && <Check className="w-4 h-4 text-blue-600" />}
                           </div>
-                          {isLinked && <Check className="w-4 h-4 text-blue-600" />}
                         </div>
                         <div className="text-xs text-slate-500 mt-1">
-                          {group.modifiers.map(m => m.name).join(', ')}
+                          {group.modifiers.map(m => `${m.name}${m.price > 0 ? ` (+$${m.price.toFixed(2)})` : ''}`).join(', ')}
                         </div>
-                      </button>
+                      </div>
                     )
                   })}
                 </div>
@@ -731,6 +753,211 @@ function EditCategoryModal({
   )
 }
 
+// Modifier Group Modal
+function ModifierGroupModal({
+  modifierGroup,
+  onSave,
+  onDelete,
+  onClose,
+  saving
+}: {
+  modifierGroup: ModifierGroup | null
+  onSave: (data: {
+    id?: string
+    name: string
+    modifiers: { name: string; price: number }[]
+    isRequired: boolean
+    minSelections: number
+    maxSelections: number | null
+  }) => void
+  onDelete?: (id: string) => void
+  onClose: () => void
+  saving: boolean
+}) {
+  const [name, setName] = useState(modifierGroup?.name || '')
+  const [isRequired, setIsRequired] = useState(modifierGroup?.isRequired || false)
+  const [minSelections, setMinSelections] = useState(modifierGroup?.minSelections || 0)
+  const [maxSelections, setMaxSelections] = useState<number | ''>(modifierGroup?.maxSelections || '')
+  const [modifiers, setModifiers] = useState<{ name: string; price: number }[]>(
+    modifierGroup?.modifiers || [{ name: '', price: 0 }]
+  )
+
+  const addModifier = () => {
+    setModifiers([...modifiers, { name: '', price: 0 }])
+  }
+
+  const removeModifier = (index: number) => {
+    if (modifiers.length > 1) {
+      setModifiers(modifiers.filter((_, i) => i !== index))
+    }
+  }
+
+  const updateModifier = (index: number, field: 'name' | 'price', value: string | number) => {
+    setModifiers(modifiers.map((m, i) => 
+      i === index ? { ...m, [field]: field === 'price' ? parseFloat(value as string) || 0 : value } : m
+    ))
+  }
+
+  const handleSubmit = () => {
+    // Filter out empty modifiers
+    const validModifiers = modifiers.filter(m => m.name.trim())
+    if (!name.trim() || validModifiers.length === 0) return
+
+    onSave({
+      id: modifierGroup?.id,
+      name: name.trim(),
+      modifiers: validModifiers,
+      isRequired,
+      minSelections,
+      maxSelections: maxSelections === '' ? null : maxSelections
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold">
+              {modifierGroup ? 'Edit Modifier Group' : 'Add Modifier Group'}
+            </h3>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            {/* Group Name */}
+            <div>
+              <Label>Group Name *</Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g., Toppings, Sides, Size"
+                className="mt-1"
+              />
+            </div>
+
+            {/* Options/Modifiers */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Options (Upcharges)</Label>
+                <button
+                  type="button"
+                  onClick={addModifier}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  + Add Option
+                </button>
+              </div>
+              <div className="space-y-2">
+                {modifiers.map((mod, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <Input
+                      value={mod.name}
+                      onChange={(e) => updateModifier(index, 'name', e.target.value)}
+                      placeholder="Option name (e.g., Extra Cheese)"
+                      className="flex-1"
+                    />
+                    <div className="relative w-24">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={mod.price || ''}
+                        onChange={(e) => updateModifier(index, 'price', e.target.value)}
+                        placeholder="0.00"
+                        className="pl-7"
+                      />
+                    </div>
+                    {modifiers.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeModifier(index)}
+                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Set price to 0 for free options
+              </p>
+            </div>
+
+            {/* Selection Rules */}
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <div>
+                <Label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={isRequired}
+                    onChange={(e) => setIsRequired(e.target.checked)}
+                    className="rounded border-slate-300"
+                  />
+                  Required
+                </Label>
+                <p className="text-xs text-slate-500 mt-1">Customer must select</p>
+              </div>
+              <div>
+                <Label>Min Selections</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={minSelections}
+                  onChange={(e) => setMinSelections(parseInt(e.target.value) || 0)}
+                  className="mt-1"
+                />
+              </div>
+              <div className="col-span-2">
+                <Label>Max Selections (leave empty for unlimited)</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  value={maxSelections}
+                  onChange={(e) => setMaxSelections(e.target.value === '' ? '' : parseInt(e.target.value) || 1)}
+                  placeholder="Unlimited"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 pt-4 border-t">
+              {modifierGroup?.id && onDelete && (
+                <Button 
+                  variant="outline" 
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={() => onDelete(modifierGroup.id)}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+              )}
+              <div className="flex-1" />
+              <Button variant="outline" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSubmit} 
+                disabled={!name.trim() || modifiers.filter(m => m.name.trim()).length === 0 || saving}
+                className="gap-2"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {modifierGroup ? 'Save' : 'Create'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
 // Main Menu Editor Content (wrapped with ToastProvider)
 function MenuEditorContent() {
   const { showToast } = useToast()
@@ -748,6 +975,11 @@ function MenuEditorContent() {
   const [addToCategoryId, setAddToCategoryId] = useState<string | null>(null)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
+  
+  // Modifier groups modal state
+  const [showModifierModal, setShowModifierModal] = useState(false)
+  const [editingModifierGroup, setEditingModifierGroup] = useState<ModifierGroup | null>(null)
+  const [savingModifier, setSavingModifier] = useState(false)
   
   // Drag state
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -1113,6 +1345,66 @@ function MenuEditorContent() {
       refreshPreview()
     } catch (err) {
       showToast('Failed to delete category', 'error')
+    }
+  }
+
+  // Modifier group handlers
+  const handleSaveModifierGroup = async (data: {
+    id?: string
+    name: string
+    modifiers: { name: string; price: number }[]
+    isRequired: boolean
+    minSelections: number
+    maxSelections: number | null
+  }) => {
+    setSavingModifier(true)
+    try {
+      const url = data.id 
+        ? `/api/menu/modifier-groups/${data.id}` 
+        : '/api/menu/modifier-groups'
+      const method = data.id ? 'PUT' : 'POST'
+      
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      })
+      
+      if (!res.ok) throw new Error('Failed to save')
+      
+      const result = await res.json()
+      
+      if (data.id) {
+        setModifierGroups(prev => prev.map(g => g.id === data.id ? result.modifierGroup : g))
+        showToast('Modifier group updated')
+      } else {
+        setModifierGroups(prev => [...prev, result.modifierGroup])
+        showToast('Modifier group created')
+      }
+      
+      setShowModifierModal(false)
+      setEditingModifierGroup(null)
+      refreshPreview()
+    } catch (err) {
+      showToast('Failed to save modifier group', 'error')
+    } finally {
+      setSavingModifier(false)
+    }
+  }
+
+  const handleDeleteModifierGroup = async (id: string) => {
+    if (!confirm('Delete this modifier group? It will be removed from all items.')) return
+    
+    try {
+      const res = await fetch(`/api/menu/modifier-groups/${id}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to delete')
+      setModifierGroups(prev => prev.filter(g => g.id !== id))
+      showToast('Modifier group deleted')
+      setShowModifierModal(false)
+      setEditingModifierGroup(null)
+      refreshPreview()
+    } catch (err) {
+      showToast('Failed to delete modifier group', 'error')
     }
   }
 
@@ -1599,6 +1891,14 @@ function MenuEditorContent() {
           onDelete={editingItem?.id ? handleDeleteItem : undefined}
           onClose={() => { setShowItemModal(false); setEditingItem(null); setAddToCategoryId(null) }}
           saving={saving}
+          onEditModifierGroup={(group) => {
+            setEditingModifierGroup(group)
+            setShowModifierModal(true)
+          }}
+          onAddModifierGroup={() => {
+            setEditingModifierGroup(null)
+            setShowModifierModal(true)
+          }}
         />
       )}
 
@@ -1608,6 +1908,17 @@ function MenuEditorContent() {
           onSave={handleSaveCategory}
           onClose={() => { setShowCategoryModal(false); setEditingCategory(null) }}
           saving={saving}
+        />
+      )}
+
+      {/* Modifier Group Modal */}
+      {showModifierModal && (
+        <ModifierGroupModal
+          modifierGroup={editingModifierGroup}
+          onSave={handleSaveModifierGroup}
+          onDelete={editingModifierGroup?.id ? handleDeleteModifierGroup : undefined}
+          onClose={() => { setShowModifierModal(false); setEditingModifierGroup(null) }}
+          saving={savingModifier}
         />
       )}
     </div>
